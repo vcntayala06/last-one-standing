@@ -41,7 +41,7 @@ button,input,select{font:inherit}
 .question-player{font-size:clamp(2.6rem,7vw,5.2rem);font-weight:950;color:var(--gold)}
 .divider{width:min(620px,70vw);height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:12px auto 28px}
 .question{
-  width:min(1700px,96vw);font-size:clamp(4.5rem,10vw,9rem);font-weight:950;line-height:.98;letter-spacing:-.035em;
+  width:min(1450px,92vw);font-size:clamp(3.4rem,min(7vw,7.5vh),6.2rem);font-weight:950;line-height:1.02;letter-spacing:-.03em;
   text-wrap:balance;margin:0 auto 30px
 }
 .result{font-size:clamp(4rem,10vw,8rem);font-weight:950;line-height:.9}
@@ -59,10 +59,10 @@ button,input,select{font:inherit}
   .screen{width:96vw;padding:64px 10px 14px}
   .row>.btn{flex:1 1 calc(50% - 8px)}
   .mode-btn{flex:1 1 100%}
-  .question{font-size:clamp(3rem,13vw,5rem)}
+  .question{font-size:clamp(2.7rem,11vw,4.5rem)}
 }
 @media(max-height:760px){
   .screen{padding:58px 14px 12px}
-  .question{font-size:clamp(3rem,8vh,5.3rem)}
+  .question{font-size:clamp(2.7rem,7vh,4.6rem)}
   .countdown{font-size:clamp(5rem,14vh,7.5rem)}
 }
