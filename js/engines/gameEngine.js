@@ -13,7 +13,10 @@ export class GameEngine{
     this.questionOpen=false;
     this.currentFinish=null;
 
-    document.getElementById("resumeGame").onclick=()=>this.setPaused(false);
+    const resumeButton=document.getElementById("resumeGame")||document.getElementById("pauseResume");
+    if(resumeButton){
+      resumeButton.onclick=()=>this.setPaused(false);
+    }
   }
 
   selectedPlayers(){
@@ -101,8 +104,11 @@ export class GameEngine{
 
   setPaused(paused){
     this.state.paused=paused;
-    document.getElementById("pauseOverlay").classList.toggle("show",paused);
-    document.getElementById("pauseOverlay").setAttribute("aria-hidden",paused?"false":"true");
+    const overlay=document.getElementById("pauseOverlay");
+    if(overlay){
+      overlay.classList.toggle("show",paused);
+      overlay.setAttribute("aria-hidden",paused?"false":"true");
+    }
 
     if(paused)this.voice.stopRecognition();
     else if(this.state.voiceEnabled&&this.questionOpen)this.beginListening();
