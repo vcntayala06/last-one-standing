@@ -1,0 +1,15 @@
+[
+  {
+    "id": "rest-001",
+    "mode": "work",
+    "industry": "restaurant",
+    "category": "food-safety",
+    "difficulty": "medium",
+    "q": "What is the safest first step before handling ready-to-eat food?",
+    "answers": [
+      "Wash your hands",
+      "Hand washing",
+      "Wash hands"
+    ]
+  }
+]

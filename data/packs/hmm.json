@@ -1,0 +1,25 @@
+[
+  {
+    "id": "pk-hmm-001",
+    "mode": "pack",
+    "pack": "hmm",
+    "difficulty": "medium",
+    "q": "Which weighs more: a pound of feathers or a pound of bricks?",
+    "answers": [
+      "They weigh the same",
+      "Same",
+      "Equal"
+    ]
+  },
+  {
+    "id": "pk-hmm-002",
+    "mode": "pack",
+    "pack": "hmm",
+    "difficulty": "medium",
+    "q": "If you clean a vacuum cleaner, does that technically make you a vacuum cleaner?",
+    "answers": [
+      "Yes",
+      "Technically yes"
+    ]
+  }
+]

@@ -1,41 +1,73 @@
-# Last One Standing v1.3 Stable
+# Last One Standing v2.0 — Foundation
 
-This is the new master project.
+This is the new clean foundation for the project.
 
-## What is included
-- Clean Home screen
-- Work / Family / Friends modes
-- Work industry setup
-- Shared player database
+## Core flow
+
+Home
+→ Choose Game
+→ Work Industry (Work only)
+→ Optional Question Packs
+→ Players
+→ Game Time
+→ Ready
+→ Play
+
+## Included in v2.0
+
+- Work / Family / Friends
+- Work industry selection
+- Optional packs for every mode
+- Shared persistent player database
 - Add players
-- 15/30/45/60-minute target game lengths
-- Fair complete rounds
-- 10/15/20/30-second question timers
-- Randomized questions
+- Proper name capitalization
+- 15 / 30 / 45 / 60 minute game lengths
+- 10 / 15 / 20 / 30 second question timers
+- Fair full-round ending
+- Pause / Resume
+- Mic On / Off
+- One-time microphone stream
+- Automatic speech-recognition restart
 - Forgiving answer matching
-- Correct / Wrong / Timeout tallies
-- Large centered question screens
-- Next Player 3-2-1 flow
-- Pause overlay
-- Mic toggle
-- Voice recognition that keeps listening until a correct answer or timeout
-- Responsive TV / desktop / laptop / tablet / phone layout
+- Correct / Wrong / Timeout statistics
+- Reserved-zone question layout so player name and timer do not get cut off
+- Modular JSON question files
+- GitHub Pages friendly structure
 
-## Important microphone note
-For reliable microphone permission, do not run the game by double-clicking index.html.
+## Optional packs
 
-Use either:
-1. GitHub Pages (recommended), or
-2. localhost.
+- Music
+- Things That Make You Say Hmm
+- Real or Made Up?
+- Math
+- I Should Have Known That
+- Movies
+- Sports
+- Food
+- Science
+- History
+- Random Facts
 
-A simple localhost command from this project folder is:
+## Work industries included
 
-    python -m http.server 8000
+- Transit
+- Healthcare
+- First Responders
+- Restaurant / Fast Food
+- Retail
+- Customer Service
+- Office / Corporate
+- Warehouse / Logistics
+- Other
 
-Then open:
+## Important microphone requirement
 
-    http://localhost:8000
+Use the GitHub Pages HTTPS site for microphone testing.
 
-## Master-project rule
-From this point forward, use this folder as the only source of truth.
-Do not merge old prototype ZIPs back into this project.
+Do not judge microphone permissions by double-clicking index.html as a file:// page.
+
+## Question database
+
+v2.0 contains a small foundation question set so the architecture can be tested cleanly.
+
+The next content release will expand the question banks substantially without changing the game engine.

@@ -1,0 +1,15 @@
+[
+  {
+    "id": "cs-001",
+    "mode": "work",
+    "industry": "customer-service",
+    "category": "service",
+    "difficulty": "medium",
+    "q": "What is active listening?",
+    "answers": [
+      "Listening carefully",
+      "Listening and showing understanding",
+      "Showing understanding"
+    ]
+  }
+]

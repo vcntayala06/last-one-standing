@@ -1,0 +1,44 @@
+[
+  {
+    "id": "fri-001",
+    "mode": "friends",
+    "category": "general",
+    "difficulty": "medium",
+    "q": "How many sides does a hexagon have?",
+    "answers": [
+      "6",
+      "Six"
+    ]
+  },
+  {
+    "id": "fri-002",
+    "mode": "friends",
+    "category": "general",
+    "difficulty": "medium",
+    "q": "What color do you get when you mix blue and yellow?",
+    "answers": [
+      "Green"
+    ]
+  },
+  {
+    "id": "fri-003",
+    "mode": "friends",
+    "category": "general",
+    "difficulty": "medium",
+    "q": "How many minutes are in two hours?",
+    "answers": [
+      "120",
+      "One hundred twenty"
+    ]
+  },
+  {
+    "id": "fri-004",
+    "mode": "friends",
+    "category": "general",
+    "difficulty": "medium",
+    "q": "What is the tallest animal in the world?",
+    "answers": [
+      "Giraffe"
+    ]
+  }
+]

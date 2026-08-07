@@ -1,0 +1,24 @@
+[
+  {
+    "id": "pk-math-001",
+    "mode": "pack",
+    "pack": "math",
+    "difficulty": "medium",
+    "q": "What is 12 times 8?",
+    "answers": [
+      "96",
+      "Ninety six"
+    ]
+  },
+  {
+    "id": "pk-math-002",
+    "mode": "pack",
+    "pack": "math",
+    "difficulty": "medium",
+    "q": "What is 15 percent of 200?",
+    "answers": [
+      "30",
+      "Thirty"
+    ]
+  }
+]

@@ -1,0 +1,15 @@
+[
+  {
+    "id": "ret-001",
+    "mode": "work",
+    "industry": "retail",
+    "category": "service",
+    "difficulty": "medium",
+    "q": "What is the best first response when a customer explains a problem?",
+    "answers": [
+      "Listen",
+      "Listen to the customer",
+      "Active listening"
+    ]
+  }
+]

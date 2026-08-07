@@ -1,0 +1,54 @@
+[
+  {
+    "id": "tr-001",
+    "mode": "work",
+    "industry": "transit",
+    "category": "lingo",
+    "difficulty": "medium",
+    "q": "In transit operations, what does deadhead mean?",
+    "answers": [
+      "Operating without passengers",
+      "Traveling without passengers",
+      "No passengers",
+      "Out of service travel"
+    ]
+  },
+  {
+    "id": "tr-002",
+    "mode": "work",
+    "industry": "transit",
+    "category": "operations",
+    "difficulty": "medium",
+    "q": "What is a layover in bus transit?",
+    "answers": [
+      "Scheduled break between trips",
+      "Scheduled recovery time",
+      "Break between trips",
+      "Recovery time"
+    ]
+  },
+  {
+    "id": "tr-003",
+    "mode": "work",
+    "industry": "transit",
+    "category": "accessibility",
+    "difficulty": "medium",
+    "q": "What federal law protects accessibility rights for passengers with disabilities?",
+    "answers": [
+      "ADA",
+      "Americans with Disabilities Act"
+    ]
+  },
+  {
+    "id": "tr-004",
+    "mode": "work",
+    "industry": "transit",
+    "category": "fleet",
+    "difficulty": "medium",
+    "q": "What is an articulated bus commonly called because of its flexible center joint?",
+    "answers": [
+      "Bendy bus",
+      "Articulated bus"
+    ]
+  }
+]

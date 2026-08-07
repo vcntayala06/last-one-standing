@@ -1,0 +1,25 @@
+[
+  {
+    "id": "hc-001",
+    "mode": "work",
+    "industry": "healthcare",
+    "category": "safety",
+    "difficulty": "medium",
+    "q": "What does PPE stand for in healthcare?",
+    "answers": [
+      "Personal Protective Equipment",
+      "PPE"
+    ]
+  },
+  {
+    "id": "hc-002",
+    "mode": "work",
+    "industry": "healthcare",
+    "category": "privacy",
+    "difficulty": "medium",
+    "q": "What U.S. law protects the privacy of patient health information?",
+    "answers": [
+      "HIPAA"
+    ]
+  }
+]
