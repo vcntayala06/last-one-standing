@@ -1,24 +1,20 @@
-LAST ONE STANDING — CLEAN REBUILD BUILD 1
+LAST ONE STANDING — CLEAN BUILD 2
 
-IMPORTANT:
-This is intended to replace the broken app, not be copied on top of the old code.
+This is a fresh rebuild, not a patch.
 
-Recommended safest deployment:
-1. Keep one backup copy of the old repository folder.
-2. In your local GitHub repository, delete the OLD app files/folders.
+1. In your local last-one-standing folder, leave the hidden .git folder alone.
+2. Delete the current app files.
 3. Extract this ZIP.
-4. Copy the CONTENTS of this ZIP into the repository root.
-5. In GitHub Desktop use Summary:
-   Clean Rebuild Build 1.1
+4. Copy these six files into the repository root:
+   index.html
+   app.css
+   app.js
+   README.md
+   TESTING_CHECKLIST.md
+   UPDATE_INSTRUCTIONS.txt
+5. GitHub Desktop Summary:
+   Clean Build 2 Voice Foundation
 6. Commit to main.
 7. Push origin.
-8. Wait for GitHub Pages to deploy.
-9. Open the regular browser URL first.
-10. Once that works, fully close and reopen the Home Screen version.
-
-Files that should be in the repository root:
-- index.html
-- app.css
-- app.js
-- README.md
-- TESTING_CHECKLIST.md
+8. Test the regular browser URL first.
+9. Then fully close and reopen the Home Screen app.

@@ -1,555 +1,102 @@
 
 (function(){
 "use strict";
-
 const app=document.getElementById("app");
-
+const STORAGE={names:"los_b2_names",volume:"los_b2_volume",session:"los_b2_session"};
 const QUESTIONS=[
-  {q:"What is the capital of France?", answers:["Paris"], accepted:["paris"], category:"General"},
-  {q:"Which ocean is the largest on Earth?", answers:["Pacific Ocean"], accepted:["pacific ocean","the pacific ocean","pacific","océano pacífico","oceano pacifico"], category:"General"},
-  {q:"How many sides does a hexagon have?", answers:["Six"], accepted:["six","6"], category:"General"},
-  {q:"What planet is known as the Red Planet?", answers:["Mars"], accepted:["mars"], category:"Science"},
-  {q:"What gas do humans need to breathe to survive?", answers:["Oxygen"], accepted:["oxygen","oxígeno","oxigeno"], category:"Science"},
-  {q:"What is 12 times 12?", answers:["144"], accepted:["144","one hundred forty four","one hundred and forty four"], category:"Math"},
-  {q:"What is the freezing point of water in Celsius?", answers:["Zero degrees Celsius"], accepted:["zero","0","zero degrees","0 degrees","zero degrees celsius"], category:"Science"},
-  {q:"Which animal is known as the king of the jungle?", answers:["Lion"], accepted:["lion","a lion","the lion"], category:"General"},
-  {q:"What color do you get when you mix blue and yellow?", answers:["Green"], accepted:["green"], category:"General"},
-  {q:"What is the name of the toy cowboy in Toy Story?", answers:["Woody"], accepted:["woody"], category:"Movies"},
-  {q:"What sport uses the terms love, deuce, and ace?", answers:["Tennis"], accepted:["tennis"], category:"Sports"},
-  {q:"Which country is famous for the pyramids of Giza?", answers:["Egypt"], accepted:["egypt"], category:"History"},
-  {q:"What is the largest mammal in the world?", answers:["Blue whale"], accepted:["blue whale","a blue whale","the blue whale"], category:"General"},
-  {q:"What is five squared?", answers:["Twenty-five"], accepted:["25","twenty five"], category:"Math"},
-  {q:"What instrument has black and white keys and is commonly played with both hands?", answers:["Piano"], accepted:["piano","a piano","the piano"], category:"Music"},
-  {q:"What is the opposite of north on a compass?", answers:["South"], accepted:["south"], category:"General"},
-  {q:"Which month has an extra day during a leap year?", answers:["February"], accepted:["february"], category:"General"},
-  {q:"What is the chemical symbol for gold?", answers:["Au"], accepted:["au","a u"], category:"Science"},
-  {q:"What do bees make?", answers:["Honey"], accepted:["honey"], category:"General"},
-  {q:"How many minutes are in one hour?", answers:["Sixty"], accepted:["60","sixty"], category:"General"}
+{q:"What is the capital of France?",answer:"Paris",accepted:["paris"]},
+{q:"Which ocean is the largest on Earth?",answer:"Pacific Ocean",accepted:["pacific ocean","the pacific ocean","pacific","oceano pacifico","océano pacífico"]},
+{q:"How many sides does a hexagon have?",answer:"Six",accepted:["six","6"]},
+{q:"What planet is known as the Red Planet?",answer:"Mars",accepted:["mars"]},
+{q:"What gas do humans need to breathe to survive?",answer:"Oxygen",accepted:["oxygen","oxigeno","oxígeno"]},
+{q:"What is twelve times twelve?",answer:"144",accepted:["144","one hundred forty four","one hundred and forty four"]},
+{q:"What is the freezing point of water in Celsius?",answer:"Zero degrees Celsius",accepted:["zero","0","zero degrees","0 degrees","zero degrees celsius"]},
+{q:"Which animal is commonly called the king of the jungle?",answer:"Lion",accepted:["lion","a lion","the lion"]},
+{q:"What color do you get when you mix blue and yellow?",answer:"Green",accepted:["green"]},
+{q:"What is the name of the toy cowboy in Toy Story?",answer:"Woody",accepted:["woody"]},
+{q:"What sport uses the terms love, deuce, and ace?",answer:"Tennis",accepted:["tennis"]},
+{q:"Which country is famous for the pyramids of Giza?",answer:"Egypt",accepted:["egypt"]},
+{q:"What is the largest mammal in the world?",answer:"Blue whale",accepted:["blue whale","a blue whale","the blue whale"]},
+{q:"What is five squared?",answer:"Twenty-five",accepted:["25","twenty five"]},
+{q:"What instrument has black and white keys and is commonly played with both hands?",answer:"Piano",accepted:["piano","a piano","the piano"]},
+{q:"What is the opposite of north on a compass?",answer:"South",accepted:["south"]},
+{q:"Which month has an extra day during a leap year?",answer:"February",accepted:["february"]},
+{q:"What is the chemical symbol for gold?",answer:"Au",accepted:["au","a u"]},
+{q:"What do bees make?",answer:"Honey",accepted:["honey"]},
+{q:"How many minutes are in one hour?",answer:"Sixty",accepted:["60","sixty"]},
+{q:"Which planet is closest to the Sun?",answer:"Mercury",accepted:["mercury"]},
+{q:"What is the largest continent?",answer:"Asia",accepted:["asia"]},
+{q:"What is the square root of eighty-one?",answer:"Nine",accepted:["9","nine"]},
+{q:"What is the main language spoken in Brazil?",answer:"Portuguese",accepted:["portuguese"]},
+{q:"How many days are in a standard year?",answer:"365",accepted:["365","three hundred sixty five","three hundred and sixty five"]}
 ];
-
-const WORK_TYPES=[
-  ["transit","Transit"],
-  ["healthcare","Healthcare"],
-  ["first-responders","First Responders"],
-  ["restaurant","Restaurant / Fast Food"],
-  ["retail","Retail"],
-  ["customer-service","Customer Service"],
-  ["office","Office / Corporate"],
-  ["warehouse","Warehouse / Logistics"],
-  ["other","Other"]
-];
+const WORK_TYPES=[["transit","Transit"],["healthcare","Healthcare"],["first-responders","First Responders"],["restaurant","Restaurant / Fast Food"],["retail","Retail"],["customer-service","Customer Service"],["office","Office / Corporate"],["warehouse","Warehouse / Logistics"],["other","Other"]];
 const FUN_PACKS=["Music","Things That Make You Say Hmm","Real or Made Up?","Math","I Should Have Known That","Movies","Sports","Food","Science","History","Random Facts"];
 
-const defaultState=()=>({
-  screen:"home",
-  mode:null,
-  industry:null,
-  packs:[],
-  players:[],
-  selectedPlayerIds:[],
-  durationMinutes:15,
-  questionSeconds:15,
-  voiceOn:true,
-  game:null
-});
-
-let state=defaultState();
-let activeRecognition=null;
-let activeTimer=null;
-let handoffTimer=null;
-
-function uid(){return Math.random().toString(36).slice(2,10)}
+function loadJSON(k,f){try{const v=JSON.parse(localStorage.getItem(k));return v??f}catch{return f}}
+function saveJSON(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}
+function loadNum(k,f){const n=Number(localStorage.getItem(k));return Number.isFinite(n)?n:f}
+function def(){return{screen:"home",mode:null,industry:null,packs:[],players:[],selectedPlayerIds:[],durationMinutes:15,questionSeconds:15,voiceOn:true,volume:loadNum(STORAGE.volume,.65),game:null}}
+let state=def(),countdownTimer=null,questionTimer=null,resultTimer=null,recognition=null,voiceContext=null,audioCtx=null,pausedAt=null,pausedRemaining=null;
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
-function normalize(text){
-  return String(text??"")
-    .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
-    .replace(/\b(i think|i guess|maybe|the answer is|answer is|it is|its|it's|como se dice|creo que|la respuesta es)\b/g," ")
-    .replace(/[^a-z0-9\s]/g," ")
-    .replace(/\s+/g," ")
-    .trim();
-}
-function stripArticle(s){return s.replace(/^(the|a|an)\s+/,"").trim()}
-function levenshtein(a,b){
-  const m=a.length,n=b.length;
-  let prev=Array.from({length:n+1},(_,i)=>i);
-  for(let i=1;i<=m;i++){
-    const cur=[i];
-    for(let j=1;j<=n;j++){
-      cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
-    }
-    prev=cur;
-  }
-  return prev[n];
-}
-function closeEnough(a,b){
-  a=stripArticle(normalize(a)); b=stripArticle(normalize(b));
-  if(!a||!b)return false;
-  if(a===b)return true;
-  if(a.length>3&&a.endsWith("s")&&a.slice(0,-1)===b)return true;
-  if(b.length>3&&b.endsWith("s")&&b.slice(0,-1)===a)return true;
+function uid(){return Math.random().toString(36).slice(2,10)}
+function shell({title="",back=null,content="",footer="",klass=""}){return `<section class="screen ${klass}"><header class="header">${back?`<button class="back" id="backBtn">←</button>`:""}${title?`<div class="header-title">${title}</div>`:""}</header><div class="content">${content}</div><footer class="footer">${footer}</footer></section>`}
+function bindBack(t){const b=document.getElementById("backBtn");if(b)b.onclick=()=>go(t)}
+function clearTimers(){if(countdownTimer){clearInterval(countdownTimer);countdownTimer=null}if(questionTimer){clearInterval(questionTimer);questionTimer=null}if(resultTimer){clearTimeout(resultTimer);resultTimer=null}}
+function stopVoice(){if(recognition){try{recognition.onend=null;recognition.abort()}catch{}}recognition=null;voiceContext=null}
+function clearRuntime(){clearTimers();stopVoice()}
+function go(s){clearRuntime();state.screen=s;render()}
+function selectedPlayers(){return state.mode==="solo"?state.players.slice(0,1):state.players.filter(p=>state.selectedPlayerIds.includes(p.id))}
+function remembered(){return loadJSON(STORAGE.names,[]).filter(x=>typeof x==="string"&&x.trim())}
+function remember(){const a=[...remembered()];for(const p of state.players){const n=(p.name||"").trim();if(n&&!a.some(x=>x.toLowerCase()===n.toLowerCase()))a.push(n)}saveJSON(STORAGE.names,a.slice(-50))}
+function speechSupported(){return !!(window.SpeechRecognition||window.webkitSpeechRecognition)}
 
-  const shortest=Math.min(a.length,b.length);
-  const longest=Math.max(a.length,b.length);
-  if(shortest<4)return false;
+function ensureAudio(){try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;if(!audioCtx)audioCtx=new C();if(audioCtx.state==="suspended")audioCtx.resume().catch(()=>{});return audioCtx}catch{return null}}
+function tone(f=500,d=.05,g=.08,t="sine"){if(state.volume<=0)return;const c=ensureAudio();if(!c)return;try{const o=c.createOscillator(),a=c.createGain();o.type=t;o.frequency.value=f;a.gain.setValueAtTime(.0001,c.currentTime);a.gain.exponentialRampToValueAtTime(Math.max(.0001,g*state.volume),c.currentTime+.008);a.gain.exponentialRampToValueAtTime(.0001,c.currentTime+d);o.connect(a);a.connect(c.destination);o.start();o.stop(c.currentTime+d+.02)}catch{}}
+function tick(n){tone(n<=5?760:520,n<=5?.06:.035,n<=5?.12:.055,n<=5?"square":"sine")}
+function correctSound(){tone(660,.08,.12);setTimeout(()=>tone(880,.1,.11),75)}
+function wrongSound(){tone(220,.13,.1,"triangle");setTimeout(()=>tone(170,.16,.08,"triangle"),95)}
 
-  const d=levenshtein(a,b);
-  if(longest<=8)return d<=1;
-  return d<=2 && d/longest<=0.15;
-}
-function acceptedAnswer(heard,q){
-  const allowed=[...(q.accepted||[]),...(q.answers||[])];
-  return allowed.some(a=>closeEnough(heard,a));
-}
-function clearRuntime(){
-  if(activeTimer){clearInterval(activeTimer);activeTimer=null}
-  if(handoffTimer){clearInterval(handoffTimer);handoffTimer=null}
-  if(activeRecognition){
-    try{activeRecognition.onend=null;activeRecognition.abort()}catch{}
-    activeRecognition=null;
-  }
-}
-function go(name){clearRuntime();state.screen=name;render()}
-function screenShell({title="",back=null,content="",footer="",klass=""}){
-  return `<section class="screen ${klass}">
-    <header class="header">
-      ${back?`<button class="back" id="backBtn" aria-label="Back">←</button>`:""}
-      ${title?`<div class="title">${title}</div>`:""}
-    </header>
-    <div class="content">${content}</div>
-    <footer class="footer">${footer}</footer>
-  </section>`;
-}
-function playerName(p){return p?.name||"Player"}
-function selectedPlayers(){
-  if(state.mode==="solo") return state.players.slice(0,1);
-  return state.players.filter(p=>state.selectedPlayerIds.includes(p.id));
-}
-function setupBack(target){
-  const b=document.getElementById("backBtn");
-  if(b)b.onclick=()=>go(target);
-}
+function normalize(t){let s=String(t??"").toLowerCase().trim();try{s=s.normalize("NFD").replace(/[\u0300-\u036f]/g,"")}catch{}return s.replace(/\b(i think|i guess|maybe|the answer is|answer is|it is|its|it's|my answer is|i say)\b/g," ").replace(/\b(como se dice|creo que|la respuesta es)\b/g," ").replace(/[^a-z0-9\s]/g," ").replace(/\s+/g," ").trim()}
+function stripA(s){return s.replace(/^(the|a|an)\s+/,"").trim()}
+function lev(a,b){if(!a)return b.length;if(!b)return a.length;let p=Array.from({length:b.length+1},(_,i)=>i);for(let i=1;i<=a.length;i++){const c=[i];for(let j=1;j<=b.length;j++)c[j]=Math.min(c[j-1]+1,p[j]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[b.length]}
+function variants(t){const b=stripA(normalize(t)),s=new Set([b]);if(b.endsWith("s")&&b.length>4)s.add(b.slice(0,-1));else if(b.length>3)s.add(b+"s");return [...s].filter(Boolean)}
+function close(a,b){if(a===b)return true;const L=Math.max(a.length,b.length),S=Math.min(a.length,b.length);if(S<4)return false;const d=lev(a,b);if(L<=8)return d<=1;if(L<=14)return d<=2&&d/L<=.16;return d<=2&&d/L<=.12}
+function accepted(h,q){const hv=variants(h),av=[q.answer,...(q.accepted||[])];return av.some(x=>variants(x).some(v=>hv.some(hh=>close(hh,v))))}
+function command(t){const n=normalize(t);if(/\b(pause|pause game|hold on)\b/.test(n))return"pause";if(/\b(resume|continue game|keep going)\b/.test(n))return"resume";if(/\b(exit game|leave game|quit game)\b/.test(n))return"leave";if(/\b(end game|finish game|stop game)\b/.test(n))return"end";return""}
 
-function home(){
-  app.innerHTML=`<section class="screen no-footer"><div class="home">
-    <div class="brand">LAST ONE<br>STANDING</div>
-    <div class="home-tag">The Ultimate Voice-Powered Trivia Challenge</div>
-    <div class="stack">
-      <button id="start" class="btn primary large">START NEW GAME</button>
-    </div>
-  </div></section>`;
-  document.getElementById("start").onclick=()=>{
-    state=defaultState();
-    go("mode");
-  };
-}
-function mode(){
-  app.innerHTML=screenShell({
-    title:"Choose Your Game",
-    back:"home",
-    content:`<div class="stack">
-      <button class="btn primary large" data-mode="work">💼 WORK</button>
-      <button class="btn primary large" data-mode="family">🏠 FAMILY</button>
-      <button class="btn primary large" data-mode="friends">🎉 FRIENDS</button>
-      <button class="btn primary large" data-mode="solo">👤 SOLO</button>
-    </div>`
-  });
-  setupBack("home");
-  document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{
-    state.mode=b.dataset.mode;
-    state.industry=null;
-    state.packs=[];
-    go(state.mode==="work"?"industry":"packs");
-  });
-}
-function industry(){
-  app.innerHTML=screenShell({
-    title:"What type of business do you work for?",
-    back:"mode",
-    content:`<div class="grid2">
-      ${WORK_TYPES.map(([id,label])=>`<button class="btn ${state.industry===id?"selected":""}" data-industry="${id}">${label}</button>`).join("")}
-    </div>`
-  });
-  setupBack("mode");
-  document.querySelectorAll("[data-industry]").forEach(b=>b.onclick=()=>{
-    state.industry=b.dataset.industry;
-    go("packs");
-  });
-}
-function packs(){
-  app.innerHTML=screenShell({
-    title:"Add Some Fun?",
-    back:state.mode==="work"?"industry":"mode",
-    content:`<div class="subtle" style="margin-bottom:10px">Optional — pick extras, or skip.</div>
-      <div class="grid2">${FUN_PACKS.map(p=>`<button class="btn ${state.packs.includes(p)?"selected":""}" data-pack="${esc(p)}">${esc(p)}</button>`).join("")}</div>`,
-    footer:`<div class="grid2">
-      <button id="skip" class="btn">SKIP</button>
-      <button id="continue" class="btn primary">CONTINUE ▶</button>
-    </div>`
-  });
-  setupBack(state.mode==="work"?"industry":"mode");
-  document.querySelectorAll("[data-pack]").forEach(b=>b.onclick=()=>{
-    const p=b.dataset.pack;
-    state.packs=state.packs.includes(p)?state.packs.filter(x=>x!==p):[...state.packs,p];
-    b.classList.toggle("selected",state.packs.includes(p));
-  });
-  document.getElementById("skip").onclick=()=>go("players");
-  document.getElementById("continue").onclick=()=>go("players");
-}
-function players(){
-  if(state.players.length===0){
-    state.players=[
-      {id:uid(),name:state.mode==="solo"?"Player":"Player 1"},
-      ...(state.mode==="solo"?[]:[{id:uid(),name:"Player 2"}])
-    ];
-    state.selectedPlayerIds=state.players.map(p=>p.id);
-  }
-  const maxPlayers=state.mode==="solo"?1:8;
-  app.innerHTML=screenShell({
-    title:state.mode==="solo"?"Your Player":"Who's Playing?",
-    back:"packs",
-    content:`<div class="card">
-      ${state.players.map((p,i)=>`<div class="player-row">
-        <input class="input" data-name="${p.id}" value="${esc(p.name)}" maxlength="24" aria-label="Player name">
-        ${state.mode==="solo"?"":`<label><input type="checkbox" data-select="${p.id}" ${state.selectedPlayerIds.includes(p.id)?"checked":""}> Play</label>`}
-      </div>`).join("")}
-      ${state.players.length<maxPlayers?`<button id="addPlayer" class="btn" style="width:100%;margin-top:10px">+ ADD PLAYER</button>`:""}
-    </div>`,
-    footer:`<button id="playersContinue" class="btn primary">CONTINUE ▶</button>`
-  });
-  setupBack("packs");
-  document.querySelectorAll("[data-name]").forEach(inp=>inp.oninput=()=>{
-    const p=state.players.find(x=>x.id===inp.dataset.name);
-    if(p)p.name=inp.value.trim()||"Player";
-  });
-  document.querySelectorAll("[data-select]").forEach(inp=>inp.onchange=()=>{
-    const id=inp.dataset.select;
-    if(inp.checked){
-      if(!state.selectedPlayerIds.includes(id))state.selectedPlayerIds.push(id);
-    }else state.selectedPlayerIds=state.selectedPlayerIds.filter(x=>x!==id);
-  });
-  const add=document.getElementById("addPlayer");
-  if(add)add.onclick=()=>{
-    const p={id:uid(),name:`Player ${state.players.length+1}`};
-    state.players.push(p);state.selectedPlayerIds.push(p.id);players();
-  };
-  document.getElementById("playersContinue").onclick=()=>{
-    const active=selectedPlayers();
-    if(!active.length){alert("Select at least one player.");return}
-    go("time");
-  };
-}
-function time(){
-  const choice=(value,current,attr)=>`<button class="btn ${value===current?"selected":""}" data-${attr}="${value}">${value}${attr==="duration"?" MIN":" SEC"}</button>`;
-  app.innerHTML=screenShell({
-    title:"Game Time",
-    back:"players",
-    klass:"time-screen",
-    content:`<div class="time-grid">
-      <div class="card time-card">
-        <div class="option-title">How long do you want to play?</div>
-        <div class="grid4">${[15,30,45,60].map(v=>choice(v,state.durationMinutes,"duration")).join("")}</div>
-      </div>
-      <div class="card time-card">
-        <div class="option-title">Time per question</div>
-        <div class="grid4">${[10,15,20,30].map(v=>choice(v,state.questionSeconds,"seconds")).join("")}</div>
-      </div>
-      <div class="card time-card">
-        <div class="option-title">Voice Recognition</div>
-        <div class="voice-row">
-          <button class="btn ${!state.voiceOn?"selected":""}" id="voiceOff">OFF</button>
-          <button class="btn ${state.voiceOn?"selected":""}" id="voiceOn">ON</button>
-        </div>
-      </div>
-    </div>`,
-    footer:`<button id="timeContinue" class="btn primary">CONTINUE ▶</button>`
-  });
-  setupBack("players");
-  document.querySelectorAll("[data-duration]").forEach(b=>b.onclick=()=>{state.durationMinutes=Number(b.dataset.duration);time()});
-  document.querySelectorAll("[data-seconds]").forEach(b=>b.onclick=()=>{state.questionSeconds=Number(b.dataset.seconds);time()});
-  document.getElementById("voiceOff").onclick=()=>{state.voiceOn=false;time()};
-  document.getElementById("voiceOn").onclick=()=>{state.voiceOn=true;time()};
-  document.getElementById("timeContinue").onclick=()=>go("ready");
-}
-function ready(){
-  const players=selectedPlayers();
-  app.innerHTML=screenShell({
-    title:"",
-    back:"time",
-    content:`<div class="ready-wrap"><div class="card ready-card">
-      <div class="title">Ready to Play?</div>
-      <div class="summary">
-        <div class="summary-line"><span>Game</span><strong>${esc(state.mode?.toUpperCase())}</strong></div>
-        <div class="summary-line"><span>Players</span><strong>${players.length}</strong></div>
-        <div class="summary-line"><span>Game Length</span><strong>${state.durationMinutes} min</strong></div>
-        <div class="summary-line"><span>Question Time</span><strong>${state.questionSeconds} sec</strong></div>
-        <div class="summary-line"><span>Voice Recognition</span><strong>${state.voiceOn?"ON":"OFF"}</strong></div>
-      </div>
-    </div></div>`,
-    footer:`<button id="play" class="btn primary large">PLAY ▶</button>`
-  });
-  setupBack("time");
-  document.getElementById("play").onclick=startGame;
-}
-function startGame(){
-  const players=selectedPlayers().map(p=>({...p,correct:0,wrong:0,timeout:0}));
-  state.game={
-    players,
-    playerIndex:0,
-    questionIndex:0,
-    used:[],
-    current:null,
-    answered:false,
-    startedAt:Date.now()
-  };
-  go("handoff");
-}
-function handoff(){
-  const g=state.game;
-  const p=g.players[g.playerIndex];
-  app.innerHTML=`<section class="screen no-footer">
-    <div class="handoff">
-      <div class="handoff-label">NEXT PLAYER</div>
-      <div class="handoff-name">${esc(playerName(p))}</div>
-      <div class="handoff-hype">YOU'RE UP!</div>
-      <div class="handoff-sub">GET READY</div>
-      <div class="countdown" id="countdown">3</div>
-    </div>
-  </section>`;
-  let n=3;
-  handoffTimer=setInterval(()=>{
-    n--;
-    const el=document.getElementById("countdown");
-    if(n>0){if(el)el.textContent=String(n)}
-    else{
-      clearInterval(handoffTimer);handoffTimer=null;
-      showQuestion();
-    }
-  },650);
-}
-function nextQuestion(){
-  const g=state.game;
-  const available=QUESTIONS.map((_,i)=>i).filter(i=>!g.used.includes(i));
-  if(!available.length)g.used=[];
-  const pool=QUESTIONS.map((_,i)=>i).filter(i=>!g.used.includes(i));
-  const idx=pool[Math.floor(Math.random()*pool.length)];
-  g.used.push(idx);
-  g.current=QUESTIONS[idx];
-  return g.current;
-}
-function showQuestion(){
-  clearRuntime();
-  const g=state.game;
-  const p=g.players[g.playerIndex];
-  const q=nextQuestion();
-  g.answered=false;
-  let seconds=state.questionSeconds;
+function startVoice(ctx){stopVoice();if(!state.voiceOn||!speechSupported())return;voiceContext=ctx;const SR=window.SpeechRecognition||window.webkitSpeechRecognition;const begin=()=>{if(!state.voiceOn||voiceContext!==ctx)return;try{const r=new SR();recognition=r;r.lang="en-US";r.interimResults=true;r.continuous=false;r.maxAlternatives=5;r.onresult=e=>{for(let x=e.resultIndex;x<e.results.length;x++){const res=e.results[x];for(let i=0;i<res.length;i++){const h=res[i].transcript.trim();if(h)handleHeard(ctx,h);if(voiceContext!==ctx)return}}};r.onerror=()=>{};r.onend=()=>{recognition=null;if(state.voiceOn&&voiceContext===ctx)setTimeout(begin,80)};r.start()}catch{setTimeout(begin,150)}};begin()}
+function handleHeard(ctx,h){const c=command(h);if(ctx==="question"){const e=document.getElementById("heard");if(e)e.textContent=`Heard: “${h}”`;if(c==="pause"){pauseGame();return}if(c==="leave"){pauseGame();return}if(c==="end"){pauseGame();return}if(state.game?.current&&accepted(h,state.game.current)){finishQuestion("correct");return}}if(ctx==="handoff"&&c==="pause"){pauseGame();return}if(ctx==="paused"){const e=document.getElementById("pauseVoiceStatus");if(e)e.textContent=`Heard: “${h}”`;if(c==="resume"){resumePause();return}if(c==="leave"){pauseLeave();return}if(c==="end"){confirmEnd();return}}}
 
-  app.innerHTML=`<section class="screen question-screen">
-    <div class="gamebar">
-      <div class="player">${esc(playerName(p))}</div>
-      <div class="timer" id="timer">${seconds}</div>
-      <div class="qnum">Question ${g.questionIndex+1}</div>
-    </div>
-    <div class="question-center">
-      <div class="question-text">${esc(q.q)}</div>
-      <div class="heard" id="heard">${state.voiceOn?"Listening…":"Type your answer below"}</div>
-      ${state.voiceOn?"":`
-        <div class="typed-answer-wrap">
-          <input
-            id="typedAnswer"
-            class="input typed-answer-input"
-            type="text"
-            inputmode="text"
-            autocomplete="off"
-            autocapitalize="sentences"
-            spellcheck="true"
-            placeholder="Type your answer…"
-            aria-label="Type your answer">
-          <button id="submitTyped" class="btn primary typed-submit">SUBMIT</button>
-        </div>`}
-    </div>
-    <div class="manual-controls">
-      <button class="btn success" id="manualCorrect">✓ CORRECT</button>
-      <button class="btn danger" id="manualWrong">✕ WRONG</button>
-      <button class="btn" id="manualTimeout">⏱ TIME OUT</button>
-    </div>
-  </section>`;
+function gamebar(){const p=state.game?.players?.[state.game.playerIndex];return `<div class="game-topbar"><div class="game-controls"><button id="pauseBtn" class="icon-btn">⏸ Pause</button></div><div class="game-player">${p?esc(p.name):""}</div><div class="volume-pill"><span>🔊</span><input id="gameVol" type="range" min="0" max="1" step=".05" value="${state.volume}"></div></div>`}
+function bindGamebar(){const p=document.getElementById("pauseBtn");if(p)p.onclick=pauseGame;const v=document.getElementById("gameVol");if(v)v.oninput=()=>{state.volume=Number(v.value);localStorage.setItem(STORAGE.volume,String(state.volume))}}
 
-  document.getElementById("manualCorrect").onclick=()=>finishQuestion("correct","Manual");
-  document.getElementById("manualWrong").onclick=()=>finishQuestion("wrong","Manual");
-  document.getElementById("manualTimeout").onclick=()=>finishQuestion("timeout","Manual");
+function home(){const can=!!loadJSON(STORAGE.session,null);app.innerHTML=`<section class="screen one-row"><div class="home"><div class="brand">LAST ONE<br>STANDING</div><div class="home-tag">The Ultimate Voice-Powered Trivia Challenge</div><div class="stack">${can?`<button id="resume" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${can?"":"primary"} large">START NEW GAME</button>${can?`<div class="resume-note">A paused game is saved on this device.</div>`:""}</div></div></section>`;document.getElementById("start").onclick=()=>{localStorage.removeItem(STORAGE.session);state=def();go("mode")};const r=document.getElementById("resume");if(r)r.onclick=resumeSaved}
+function mode(){app.innerHTML=shell({title:"Choose Your Game",back:"home",content:`<div class="mode-content"><div class="mode-stack"><button class="btn primary" data-mode="work">💼 WORK</button><button class="btn primary" data-mode="family">🏠 FAMILY</button><button class="btn primary" data-mode="friends">🎉 FRIENDS</button><button class="btn primary" data-mode="solo">👤 SOLO</button></div></div>`});bindBack("home");document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{state.mode=b.dataset.mode;state.industry=null;state.packs=[];go(state.mode==="work"?"industry":"packs")})}
+function industry(){app.innerHTML=shell({title:"What type of business do you work for?",back:"mode",content:`<div class="grid2">${WORK_TYPES.map(([id,l])=>`<button class="btn" data-industry="${id}">${l}</button>`).join("")}</div>`});bindBack("mode");document.querySelectorAll("[data-industry]").forEach(b=>b.onclick=()=>{state.industry=b.dataset.industry;go("packs")})}
+function packs(){const back=state.mode==="work"?"industry":"mode";app.innerHTML=shell({title:"Add Some Fun?",back,content:`<div class="instructions">Pick any extra categories you want in your game. Choose as many as you like — or skip this step.</div><div class="fun-grid">${FUN_PACKS.map(p=>`<button class="btn ${state.packs.includes(p)?"selected":""}" data-pack="${esc(p)}">${esc(p)}</button>`).join("")}</div>`,footer:`<div class="grid2"><button id="skip" class="btn">SKIP</button><button id="next" class="btn primary">CONTINUE ▶</button></div>`});bindBack(back);document.querySelectorAll("[data-pack]").forEach(b=>b.onclick=()=>{const p=b.dataset.pack;state.packs=state.packs.includes(p)?state.packs.filter(x=>x!==p):[...state.packs,p];b.classList.toggle("selected",state.packs.includes(p))});document.getElementById("skip").onclick=()=>go("players");document.getElementById("next").onclick=()=>go("players")}
+function players(){if(!state.players.length){state.players=[{id:uid(),name:state.mode==="solo"?"Player":"Player 1"}];if(state.mode!=="solo")state.players.push({id:uid(),name:"Player 2"});state.selectedPlayerIds=state.players.map(p=>p.id)}const max=state.mode==="solo"?1:8;app.innerHTML=shell({title:state.mode==="solo"?"Your Player":"Who's Playing?",back:"packs",content:`<div class="player-card card">${state.players.map(p=>`<div class="player-edit-row"><input class="input" data-name="${p.id}" value="${esc(p.name)}" autocomplete="off">${state.mode==="solo"?"":`<label class="player-toggle"><input type="checkbox" data-sel="${p.id}" ${state.selectedPlayerIds.includes(p.id)?"checked":""}> Play</label>`}<div class="suggestions" data-sugg="${p.id}" hidden></div></div>`).join("")}${state.players.length<max?`<button id="add" class="btn add-player">+ ADD PLAYER</button>`:""}</div>`,footer:`<button id="playersNext" class="btn primary">CONTINUE ▶</button>`});bindBack("packs");document.querySelectorAll("[data-name]").forEach(inp=>{const id=inp.dataset.name,s=document.querySelector(`[data-sugg="${id}"]`);const upd=()=>{const q=inp.value.trim().toLowerCase(),m=remembered().filter(n=>n.toLowerCase().startsWith(q)&&n.toLowerCase()!==q).slice(0,4);if(!q||!m.length){s.hidden=true;s.innerHTML="";return}s.innerHTML=m.map(n=>`<button class="suggestion-btn" data-pick="${esc(n)}">${esc(n)}</button>`).join("");s.hidden=false;s.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{inp.value=b.dataset.pick;state.players.find(x=>x.id===id).name=b.dataset.pick;s.hidden=true})};inp.oninput=()=>{state.players.find(x=>x.id===id).name=inp.value;upd()};inp.onfocus=upd;inp.onblur=()=>setTimeout(()=>s.hidden=true,120)});document.querySelectorAll("[data-sel]").forEach(c=>c.onchange=()=>{const id=c.dataset.sel;state.selectedPlayerIds=c.checked?[...new Set([...state.selectedPlayerIds,id])]:state.selectedPlayerIds.filter(x=>x!==id)});const a=document.getElementById("add");if(a)a.onclick=()=>{const p={id:uid(),name:`Player ${state.players.length+1}`};state.players.push(p);state.selectedPlayerIds.push(p.id);players()};document.getElementById("playersNext").onclick=()=>{state.players.forEach(p=>p.name=(p.name||"").trim()||"Player");remember();if(!selectedPlayers().length){alert("Select at least one player.");return}go("time")}}
+function time(){const ch=(v,c,k,l)=>`<button class="btn ${v===c?"selected":""}" data-${k}="${v}">${v} ${l}</button>`;app.innerHTML=shell({title:"Game Time",back:"players",content:`<div class="time-grid"><div class="time-card card"><div class="time-label">How long do you want to play?</div><div class="grid4">${[15,30,45,60].map(v=>ch(v,state.durationMinutes,"dur","MIN")).join("")}</div></div><div class="time-card card"><div class="time-label">Time per question</div><div class="grid4">${[10,15,20,30].map(v=>ch(v,state.questionSeconds,"sec","SEC")).join("")}</div></div><div class="time-card card"><div class="time-label">Voice Recognition</div><div class="voice-row"><button id="voff" class="btn ${!state.voiceOn?"selected":""}">OFF</button><button id="von" class="btn ${state.voiceOn?"selected":""}">ON</button></div><div class="subtle center" style="font-size:.78rem;margin-top:6px">${state.voiceOn?(speechSupported()?"Voice-first gameplay enabled.":"Voice recognition is not supported in this browser."):"Silent play: answers will be typed."}</div></div><div class="time-card card"><div class="time-label">Game Volume</div><div class="volume-row"><span>🔈</span><input id="vol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="vp">${Math.round(state.volume*100)}%</strong></div></div></div>`,footer:`<button id="tnext" class="btn primary">CONTINUE ▶</button>`});bindBack("players");document.querySelectorAll("[data-dur]").forEach(b=>b.onclick=()=>{state.durationMinutes=Number(b.dataset.dur);time()});document.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{state.questionSeconds=Number(b.dataset.sec);time()});document.getElementById("voff").onclick=()=>{state.voiceOn=false;time()};document.getElementById("von").onclick=()=>{state.voiceOn=true;time()};const v=document.getElementById("vol");v.oninput=()=>{state.volume=Number(v.value);localStorage.setItem(STORAGE.volume,String(state.volume));document.getElementById("vp").textContent=`${Math.round(state.volume*100)}%`};v.onchange=()=>tone();document.getElementById("tnext").onclick=()=>go("ready")}
+function ready(){const a=selectedPlayers();app.innerHTML=shell({back:"time",content:`<div class="ready-wrap"><div class="ready-card card"><div class="ready-title">Ready to Play?</div><div class="summary"><div class="summary-line"><span>Game</span><strong>${state.mode.toUpperCase()}</strong></div><div class="summary-line"><span>Players</span><strong>${a.length}</strong></div><div class="summary-line"><span>Game Length</span><strong>${state.durationMinutes} min</strong></div><div class="summary-line"><span>Question Time</span><strong>${state.questionSeconds} sec</strong></div><div class="summary-line"><span>Voice</span><strong>${state.voiceOn?"ON":"OFF"}</strong></div></div></div></div>`,footer:`<button id="play" class="btn primary large">PLAY ▶</button>`});bindBack("time");document.getElementById("play").onclick=()=>{ensureAudio();startGame()}}
 
-  if(!state.voiceOn){
-    const typed=document.getElementById("typedAnswer");
-    const submit=document.getElementById("submitTyped");
+function startGame(){remember();state.game={players:selectedPlayers().map(p=>({...p,correct:0,wrong:0,timeout:0})),playerIndex:0,questionNumber:0,used:[],current:null,answered:false,startedAt:Date.now(),questionRemaining:state.questionSeconds};handoff()}
+function handoff(){clearRuntime();state.screen="handoff";const g=state.game,p=g.players[g.playerIndex];app.innerHTML=`<section class="screen one-row"><div class="handoff-shell">${gamebar()}<div class="handoff"><div class="handoff-label">NEXT PLAYER</div><div class="handoff-name">${esc(p.name)}</div><div class="handoff-hype">YOU'RE UP!</div><div class="handoff-sub">GET READY</div><div class="countdown" id="hc">3</div></div></div></section>`;bindGamebar();if(state.voiceOn)startVoice("handoff");let n=3;countdownTimer=setInterval(()=>{n--;if(n>0){document.getElementById("hc").textContent=n;tone(420+n*60,.04,.045)}else{clearInterval(countdownTimer);countdownTimer=null;renderQuestion(false)}},700)}
+function chooseQ(){const g=state.game;let p=QUESTIONS.map((_,i)=>i).filter(i=>!g.used.includes(i));if(!p.length){g.used=[];p=QUESTIONS.map((_,i)=>i)}const i=p[Math.floor(Math.random()*p.length)];g.used.push(i);g.current=QUESTIONS[i];return g.current}
+function renderQuestion(resume=false){clearRuntime();state.screen="question";const g=state.game,q=resume&&g.current?g.current:chooseQ();g.answered=false;let rem=resume&&pausedRemaining!=null?pausedRemaining:state.questionSeconds;pausedRemaining=null;g.questionRemaining=rem;app.innerHTML=`<section class="screen one-row"><div class="question-layout">${gamebar()}<div class="question-main"><div class="timer ${rem<=5?"urgent":""}" id="timer">${rem}</div><div class="question-copy"><div class="question-text">${esc(q.q)}</div>${state.voiceOn?`<div class="voice-indicator"><span class="voice-dot"></span>VOICE ACTIVE</div><div class="heard" id="heard">Listening for your answer…</div>`:`<div class="heard" id="heard">Type your answer below.</div><div class="typed-answer-wrap"><input id="typed" class="input" type="text" autocomplete="off" placeholder="Type your answer…"><button id="submit" class="btn primary">SUBMIT</button></div>`}</div></div><div class="manual-controls"><button id="hcorr" class="btn success">✓ CORRECT</button><button id="hwrong" class="btn danger">✕ WRONG</button><button id="htime" class="btn">⏱ TIME OUT</button></div></div></section>`;bindGamebar();document.getElementById("hcorr").onclick=()=>finishQuestion("correct");document.getElementById("hwrong").onclick=()=>finishQuestion("wrong");document.getElementById("htime").onclick=()=>finishQuestion("timeout");if(state.voiceOn)startVoice("question");else{const i=document.getElementById("typed"),s=document.getElementById("submit"),doit=()=>{const v=i.value.trim();if(!v)return;if(accepted(v,q))finishQuestion("correct");else{document.getElementById("heard").textContent=`“${v}” wasn't accepted — keep trying.`;i.value="";i.focus()}};s.onclick=doit;i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();doit()}}}questionTimer=setInterval(()=>{rem--;g.questionRemaining=rem;const t=document.getElementById("timer");if(t){t.textContent=Math.max(rem,0);t.classList.toggle("urgent",rem<=5)}tick(rem);if(rem<=0)finishQuestion("timeout")},1000)}
+function finishQuestion(o){const g=state.game;if(!g||g.answered)return;g.answered=true;clearRuntime();const p=g.players[g.playerIndex];if(o==="correct"){p.correct++;correctSound()}else if(o==="wrong"){p.wrong++;wrongSound()}else{p.timeout++;wrongSound()}result(o)}
+function scoreboard(){return `<div class="scoreboard">${state.game.players.map((p,i)=>`<div class="score-ribbon"><div class="score-name">${i+1}. ${esc(p.name)}</div><div class="score-stat correct">✓ <span>Correct</span> ${p.correct}</div><div class="score-stat wrong">✕ <span>Wrong</span> ${p.wrong}</div><div class="score-stat timeout">⏱ <span>Timed Out</span> ${p.timeout}</div></div>`).join("")}</div>`}
+function result(o){state.screen="result";const q=state.game.current,l=o==="correct"?"CORRECT!":o==="wrong"?"NOT QUITE":"TIME'S UP";app.innerHTML=`<section class="screen one-row"><div class="question-layout">${gamebar()}<div class="result-body"><div class="result-word ${o}">${l}</div><div class="answer-label">CORRECT ANSWER</div><div class="answer-big">${esc(q.answer)}</div><div class="standings-title">CURRENT STANDINGS</div>${scoreboard()}<div class="auto-next">Next player coming up…</div></div><div></div></div></section>`;bindGamebar();resultTimer=setTimeout(advance,2600)}
+function advance(){clearRuntime();const g=state.game;g.questionNumber++;if((Date.now()-g.startedAt)/60000>=state.durationMinutes||g.questionNumber>=25){endGame();return}g.playerIndex=(g.playerIndex+1)%g.players.length;handoff()}
 
-    const submitTypedAnswer=()=>{
-      if(!typed||g.answered)return;
-      const heard=typed.value.trim();
-      if(!heard)return;
+function pauseGame(){if(!state.game)return;pausedAt=state.screen;if(state.screen==="question")pausedRemaining=state.game.questionRemaining;clearRuntime();const o=document.createElement("div");o.className="overlay";o.id="pauseOverlay";o.innerHTML=`<div class="pause-card card"><div class="pause-title">Game Paused</div><button id="rsm" class="btn primary large">RESUME</button><button id="leave" class="btn">PAUSE & LEAVE</button><button id="end" class="btn danger">END GAME</button>${state.voiceOn?`<div class="pause-help">Voice commands: “resume”, “leave game”, or “end game”.</div><div class="pause-help" id="pauseVoiceStatus">Listening…</div>`:""}</div>`;document.body.appendChild(o);document.getElementById("rsm").onclick=resumePause;document.getElementById("leave").onclick=pauseLeave;document.getElementById("end").onclick=confirmEnd;if(state.voiceOn)startVoice("paused")}
+function closePause(){stopVoice();document.getElementById("pauseOverlay")?.remove()}
+function resumePause(){closePause();const s=pausedAt;pausedAt=null;if(s==="question")renderQuestion(true);else handoff()}
+function pauseLeave(){saveJSON(STORAGE.session,{state:{...state,screen:pausedAt||state.screen},pausedRemaining});closePause();state=def();home()}
+function resumeSaved(){const d=loadJSON(STORAGE.session,null);if(!d?.state)return;state={...def(),...d.state};pausedRemaining=d.pausedRemaining??null;localStorage.removeItem(STORAGE.session);if(state.screen==="question"&&state.game?.current)renderQuestion(true);else handoff()}
+function confirmEnd(){stopVoice();const c=document.querySelector(".pause-card");c.innerHTML=`<div class="pause-title">End this game?</div><button id="yesend" class="btn danger large">YES, END GAME</button><button id="backpause" class="btn">GO BACK</button>`;document.getElementById("yesend").onclick=()=>{localStorage.removeItem(STORAGE.session);closePause();state=def();home()};document.getElementById("backpause").onclick=()=>{closePause();pauseGame()}}
+function endGame(){clearRuntime();localStorage.removeItem(STORAGE.session);const r=[...state.game.players].sort((a,b)=>(b.correct-a.correct)||(a.wrong-b.wrong)||(a.timeout-b.timeout)),w=r[0];app.innerHTML=shell({title:state.mode==="solo"?"Final Challenge Complete":"Game Complete",content:`<div class="final-card card"><div class="final-title">${state.mode==="solo"?"Great Run!":`${esc(w.name)} Wins!`}</div>${scoreboard()}</div>`,footer:`<button id="homeBtn" class="btn primary">BACK TO HOME</button>`});document.getElementById("homeBtn").onclick=()=>{state=def();home()}}
 
-      const heardEl=document.getElementById("heard");
-      if(heardEl)heardEl.textContent=`Entered: “${heard}”`;
-
-      if(acceptedAnswer(heard,q)){
-        finishQuestion("correct",heard);
-      }else{
-        typed.value="";
-        typed.focus();
-        if(heardEl)heardEl.textContent="Not quite — keep trying while the timer runs.";
-      }
-    };
-
-    submit.onclick=submitTypedAnswer;
-    typed.addEventListener("keydown",e=>{
-      if(e.key==="Enter"){
-        e.preventDefault();
-        submitTypedAnswer();
-      }
-    });
-
-    // Let the screen render before focusing, so mobile keyboards open reliably
-    // when the player taps the field rather than being forced open.
-  }
-
-  activeTimer=setInterval(()=>{
-    seconds--;
-    const el=document.getElementById("timer");
-    if(el)el.textContent=String(Math.max(seconds,0));
-    if(seconds<=0)finishQuestion("timeout","");
-  },1000);
-
-  if(state.voiceOn)startRecognition(q);
-}
-function startRecognition(q){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  const heardEl=document.getElementById("heard");
-  if(!SR){
-    if(heardEl)heardEl.textContent="Voice recognition unavailable — use the buttons below.";
-    return;
-  }
-  const begin=()=>{
-    if(state.screen!=="question"||state.game?.answered)return;
-    try{
-      const rec=new SR();
-      activeRecognition=rec;
-      rec.lang="en-US";
-      rec.interimResults=true;
-      rec.continuous=false;
-      rec.maxAlternatives=5;
-      rec.onresult=e=>{
-        for(let r=e.resultIndex;r<e.results.length;r++){
-          const result=e.results[r];
-          for(let i=0;i<result.length;i++){
-            const heard=result[i].transcript.trim();
-            if(!heard)continue;
-            if(heardEl)heardEl.textContent=`Heard: “${heard}”`;
-            if(acceptedAnswer(heard,q)){
-              finishQuestion("correct",heard);
-              return;
-            }
-          }
-        }
-      };
-      rec.onend=()=>{
-        if(state.screen==="question"&&!state.game?.answered)setTimeout(begin,90);
-      };
-      rec.onerror=()=>{};
-      rec.start();
-    }catch{
-      setTimeout(begin,150);
-    }
-  };
-  begin();
-}
-function finishQuestion(outcome,heard){
-  const g=state.game;
-  if(!g||g.answered)return;
-  g.answered=true;
-  clearRuntime();
-
-  const p=g.players[g.playerIndex];
-  if(outcome==="correct")p.correct++;
-  else if(outcome==="wrong")p.wrong++;
-  else p.timeout++;
-
-  showResult(outcome);
-}
-function scoreboard(){
-  return `<div class="scoreboard">${state.game.players.map((p,i)=>`
-    <div class="score-ribbon">
-      <div class="score-name">${i+1}. ${esc(playerName(p))}</div>
-      <div class="score-stat correct">✓ <span>Correct</span> ${p.correct}</div>
-      <div class="score-stat wrong">✕ <span>Wrong</span> ${p.wrong}</div>
-      <div class="score-stat timeout">⏱ <span>Timed Out</span> ${p.timeout}</div>
-    </div>`).join("")}</div>`;
-}
-function showResult(outcome){
-  const g=state.game;
-  const q=g.current;
-  const label=outcome==="correct"?"CORRECT!":outcome==="wrong"?"NOT QUITE":"TIME'S UP";
-  app.innerHTML=screenShell({
-    title:"",
-    content:`<div class="result-center">
-      <div class="result-word ${outcome}">${label}</div>
-      <div class="answer-label">CORRECT ANSWER</div>
-      <div class="answer-big">${esc(q.answers[0])}</div>
-      <div class="standings-title">CURRENT STANDINGS</div>
-      ${scoreboard()}
-    </div>`,
-    footer:`<button id="nextTurn" class="btn primary">NEXT ▶</button>`
-  });
-  document.getElementById("nextTurn").onclick=advance;
-}
-function advance(){
-  const g=state.game;
-  g.questionIndex++;
-  const elapsed=(Date.now()-g.startedAt)/60000;
-  const reachedTime=elapsed>=state.durationMinutes;
-
-  if(reachedTime||g.questionIndex>=20){
-    endGame();
-    return;
-  }
-  g.playerIndex=(g.playerIndex+1)%g.players.length;
-  go("handoff");
-}
-function endGame(){
-  clearRuntime();
-  const ranked=[...state.game.players].sort((a,b)=>
-    (b.correct-a.correct)||(a.wrong-b.wrong)||(a.timeout-b.timeout)
-  );
-  const winner=ranked[0];
-  app.innerHTML=screenShell({
-    title:state.mode==="solo"?"Final Challenge Complete":"Game Complete",
-    content:`<div class="final-box card">
-      <div class="title">${state.mode==="solo"?"Nice run!":`${esc(playerName(winner))} wins!`}</div>
-      <div class="subtle" style="margin:10px 0 14px">Core game loop complete.</div>
-      ${scoreboard()}
-    </div>`,
-    footer:`<button id="homeAgain" class="btn primary">BACK TO HOME</button>`
-  });
-  document.getElementById("homeAgain").onclick=()=>{state=defaultState();go("home")};
-}
-
-function render(){
-  clearRuntime();
-  switch(state.screen){
-    case "home": return home();
-    case "mode": return mode();
-    case "industry": return industry();
-    case "packs": return packs();
-    case "players": return players();
-    case "time": return time();
-    case "ready": return ready();
-    case "handoff": return handoff();
-    default:return home();
-  }
-}
-
-window.addEventListener("error",e=>{
-  console.error("Last One Standing runtime error:",e.error||e.message);
-});
-render();
+function render(){clearRuntime();({home,mode,industry,packs,players,time,ready,handoff}[state.screen]||home)()}
+window.addEventListener("error",e=>console.error("Build 2 error",e.error||e.message));
+home();
 })();
