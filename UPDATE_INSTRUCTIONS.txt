@@ -1,10 +1,11 @@
-Last One Standing v2.0.14.1 — Startup Repair
+Last One Standing v2.0.13.1 — Known-Good Rollback
 
 1. Extract this ZIP.
-2. Copy ALL contents into your local last-one-standing repository.
-3. Replace matching files.
-4. GitHub Desktop Summary: v2.0.14.1 Startup Repair
+2. Copy ALL files/folders into your last-one-standing repository.
+3. Choose Replace for every matching file.
+4. GitHub Desktop Summary: v2.0.13.1 Known-Good Rollback
 5. Commit to main.
 6. Push origin.
 7. Wait for GitHub Pages.
-8. Test in regular browser first. Once it loads, fully close/reopen the Home Screen app.
+8. Test the normal browser URL first.
+9. If browser loads but Home Screen does not, delete/re-add the Home Screen icon.

@@ -22,43 +22,9 @@ export function normalizeAnswer(text){
   return s;
 }
 
-function stripArticles(text){
-  return String(text||"").replace(/^(the|a|an)\s+/,"").trim();
-}
-
-function levenshtein(a,b){
-  a=String(a||""); b=String(b||"");
-  const m=a.length,n=b.length;
-  if(!m)return n;
-  if(!n)return m;
-  let prev=Array.from({length:n+1},(_,i)=>i);
-  for(let i=1;i<=m;i++){
-    const cur=[i];
-    for(let j=1;j<=n;j++){
-      const cost=a[i-1]===b[j-1]?0:1;
-      cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+cost);
-    }
-    prev=cur;
-  }
-  return prev[n];
-}
-
-function closeSpeechMatch(a,b){
-  a=stripArticles(a);
-  b=stripArticles(b);
-  if(!a||!b)return false;
-  if(a===b)return true;
-  const longest=Math.max(a.length,b.length);
-  const shortest=Math.min(a.length,b.length);
-  if(shortest<4)return false;
-  const d=levenshtein(a,b);
-  if(longest<=8)return d<=1;
-  return d<=2 && (d/longest)<=0.15;
-}
-
 function variants(text){
   const base=normalizeAnswer(text);
-  const set=new Set([base,stripArticles(base)]);
+  const set=new Set([base]);
 
   if(base.endsWith("s")&&base.length>3)set.add(base.slice(0,-1));
   else if(base)set.add(base+"s");
@@ -91,7 +57,6 @@ export function acceptedAnswer(heard,answers){
       // Only simple singular/plural forgiveness. No broad substring matches.
       if(h.endsWith("s")&&h.length>3&&h.slice(0,-1)===a)return true;
       if(a.endsWith("s")&&a.length>3&&a.slice(0,-1)===h)return true;
-      if(closeSpeechMatch(h,a))return true;
 
       return false;
     }));

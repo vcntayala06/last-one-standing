@@ -39,7 +39,7 @@ export function scoreboardHtml(players,state){
   return `<div class="scoreboard">
     ${ranked.map((p,i)=>{
       const s=state.stats[p.id]||{correct:0,wrong:0,timeouts:0};
-      return `<div class="scoreline player-score-ribbon">`
+      return `<div class="scoreline">
         <span>${i+1}. ${playerDisplayName(p)}</span>
         <strong>✓ ${s.correct} &nbsp; ✕ ${s.wrong} &nbsp; ⏱ ${s.timeouts}</strong>
       </div>`;
