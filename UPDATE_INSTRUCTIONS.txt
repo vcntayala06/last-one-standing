@@ -1,11 +1,24 @@
-Last One Standing v2.0.13.1 — Known-Good Rollback
+LAST ONE STANDING — CLEAN REBUILD BUILD 1
 
-1. Extract this ZIP.
-2. Copy ALL files/folders into your last-one-standing repository.
-3. Choose Replace for every matching file.
-4. GitHub Desktop Summary: v2.0.13.1 Known-Good Rollback
-5. Commit to main.
-6. Push origin.
-7. Wait for GitHub Pages.
-8. Test the normal browser URL first.
-9. If browser loads but Home Screen does not, delete/re-add the Home Screen icon.
+IMPORTANT:
+This is intended to replace the broken app, not be copied on top of the old code.
+
+Recommended safest deployment:
+1. Keep one backup copy of the old repository folder.
+2. In your local GitHub repository, delete the OLD app files/folders.
+3. Extract this ZIP.
+4. Copy the CONTENTS of this ZIP into the repository root.
+5. In GitHub Desktop use Summary:
+   Clean Rebuild Build 1.1
+6. Commit to main.
+7. Push origin.
+8. Wait for GitHub Pages to deploy.
+9. Open the regular browser URL first.
+10. Once that works, fully close and reopen the Home Screen version.
+
+Files that should be in the repository root:
+- index.html
+- app.css
+- app.js
+- README.md
+- TESTING_CHECKLIST.md

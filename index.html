@@ -3,32 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0b1017" />
+  <meta name="theme-color" content="#070914" />
   <title>Last One Standing</title>
-  <link rel="stylesheet" href="./css/app.css?v=2.0.13.1" />
-<script>
-      function setVisibleAppHeight(){
-        document.documentElement.style.setProperty("--app-height", window.innerHeight + "px");
-      }
-      setVisibleAppHeight();
-      window.addEventListener("resize", setVisibleAppHeight, {passive:true});
-      window.addEventListener("orientationchange", ()=>setTimeout(setVisibleAppHeight,120), {passive:true});
-    </script>
+  <link rel="stylesheet" href="./app.css?v=clean-build-1-1" />
 </head>
 <body>
-  <div id="app"></div>
-
-  <div id="pauseOverlay" class="overlay" aria-hidden="true">
-    <div class="overlay-card">
-      <div class="overlay-title">PAUSED</div>
-      <div class="pause-actions">
-        <button id="resumeGame" class="btn btn-gold">RESUME</button>
-        <button id="pauseLeaveGame" class="btn btn-panel">SAVE & LEAVE</button>
-        <button id="endCurrentGame" class="btn btn-danger">END GAME</button>
-      </div>
-    </div>
-  </div>
-
-  <script type="module" src="./js/app.js?v=2.0.13.1"></script>
+  <main id="app" aria-live="polite"></main>
+  <script src="./app.js?v=clean-build-1-1"></script>
 </body>
 </html>
