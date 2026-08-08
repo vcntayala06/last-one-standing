@@ -19,7 +19,7 @@ export function createScreens({state,router,startGame,resumeGame,audio}){
       </div>
     </section>`;
 
-    const wakeAudio=async()=>{ await audio?.unlock?.(); audio?.opening?.(); };
+    const wakeAudio=async()=>{ await audio?.unlock?.(); audio?.opening?.(); audio?.startMusic?.(); };
     document.querySelector(".screen")?.addEventListener("pointerdown",wakeAudio,{once:true});
     qs("#start").onclick=()=>{ audio?.select?.(); router.go("mode"); };
     qs("#resumeSavedGame")?.addEventListener("click",()=>resumeGame());
@@ -244,7 +244,7 @@ export function createScreens({state,router,startGame,resumeGame,audio}){
       </div>
 
       <div class="time-scroll">
-        <div class="card">
+        <div class="card ready-summary-card">
           <div class="heading" style="font-size:1.45rem">How long do you want to play?</div>
           <div class="row">
             ${[15,30,45,60].map(m=>`
@@ -265,8 +265,8 @@ export function createScreens({state,router,startGame,resumeGame,audio}){
         </div>
 
         <div class="card">
-          <div class="heading" style="font-size:1.45rem">🎤 Voice Recognition</div>
-          <div class="row">
+          <div class="heading voice-heading" style="font-size:1.45rem">🎤 Voice Recognition</div>
+          <div class="row voice-toggle-row">
             <button id="voiceOff" class="btn ${!state.voiceEnabled?"btn-gold":"btn-panel"}">OFF</button>
             <button id="voiceOn" class="btn ${state.voiceEnabled?"btn-gold":"btn-panel"}">ON</button>
           </div>

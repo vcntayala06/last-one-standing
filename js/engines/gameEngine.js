@@ -250,11 +250,11 @@ export class GameEngine{
 
   renderReadyPlayer(){
     this.phase="ready";
-    this.audio?.ready?.();
+    this.audio?.nextPlayer?.();
     const p=this.activePlayer();
     let count=3;
 
-    app.innerHTML=`<section class="screen ready-screen">
+    app.innerHTML=`<section class="screen ready-screen next-player-screen">
       ${gameplayControls(this.state)}
       <div class="ready-label">NEXT PLAYER</div>
       <div class="ready-name">${playerDisplayName(p)}</div>
@@ -362,6 +362,8 @@ export class GameEngine{
 
       remaining--;
       s.questionRemaining=Math.max(remaining,0);
+
+      if(remaining>0)this.audio?.tick?.();
 
       const timerEl=qs("#questionTimer");
       if(timerEl)timerEl.textContent=Math.max(remaining,0);

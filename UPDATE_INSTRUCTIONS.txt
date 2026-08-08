@@ -1,11 +1,11 @@
-Last One Standing v2.0.9 — Landscape Polish
+Last One Standing v2.0.10 — Gameplay + Landscape Hard Fix
 
 1. Extract this ZIP.
 2. Copy ALL contents into your local last-one-standing repository.
 3. Replace matching files.
-4. GitHub Desktop Summary: v2.0.9 Landscape Polish
+4. GitHub Desktop Summary: v2.0.10 Gameplay + Landscape Hard Fix
 5. Commit to main.
 6. Push origin.
-7. Wait for GitHub Pages to deploy.
-8. Fully close and reopen the iPhone app/browser.
-9. Test Add Some Fun, Game Time, Ready to Play, and Time's Up in landscape.
+7. Wait for GitHub Pages.
+8. Fully close and reopen the Home Screen app.
+9. Run TESTING_CHECKLIST_v2.0.10.md.

@@ -9,7 +9,6 @@ export function loadSavedState(){
 export function savePersistentState(state){
   localStorage.setItem(KEY,JSON.stringify({
     players:state.players,
-    industry:state.industry,
     packs:state.packs,
     gameMinutes:state.gameMinutes,
     questionSeconds:state.questionSeconds,

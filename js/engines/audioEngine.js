@@ -1,6 +1,7 @@
 
 export class AudioEngine{
   constructor(){
+    this.musicTimer=null;
     this.ctx=null;
     this.enabled=true;
   }
@@ -60,12 +61,46 @@ export class AudioEngine{
     }catch{}
   }
 
+
+  startMusic(){
+    this.unlock?.();
+    if(!this.ctx || this.musicTimer) return;
+    const playBar=()=>{
+      if(!this.ctx) return;
+      const now=this.ctx.currentTime;
+      const notes=[164.81,220.00,246.94,220.00]; // understated original game-bed pulse
+      notes.forEach((f,i)=>{
+        const o=this.ctx.createOscillator();
+        const g=this.ctx.createGain();
+        o.type="sine";
+        o.frequency.setValueAtTime(f,now+i*.42);
+        g.gain.setValueAtTime(0.0001,now+i*.42);
+        g.gain.exponentialRampToValueAtTime(0.018,now+i*.42+.04);
+        g.gain.exponentialRampToValueAtTime(0.0001,now+i*.42+.34);
+        o.connect(g); g.connect(this.ctx.destination);
+        o.start(now+i*.42); o.stop(now+i*.42+.38);
+      });
+    };
+    playBar();
+    this.musicTimer=setInterval(playBar,1750);
+  }
+
+  stopMusic(){
+    if(this.musicTimer){ clearInterval(this.musicTimer); this.musicTimer=null; }
+  }
+
   opening(){
     this.tone(330,.08,"sine",.035);
     setTimeout(()=>this.tone(495,.11,"sine",.04),75);
   }
 
   select(){ this.tone(520,.055,"sine",.028); }
+
+  nextPlayer(){
+    this.tone(260,.08,"triangle",.04);
+    setTimeout(()=>this.tone(390,.09,"triangle",.045),75);
+    setTimeout(()=>this.tone(520,.11,"triangle",.05),150);
+  }
 
   ready(){
     this.tone(300,.08,"triangle",.035);

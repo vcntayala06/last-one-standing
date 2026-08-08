@@ -26,7 +26,7 @@ export function createState(saved={}){
   return {
     ...structuredClone(DEFAULT_STATE),
     players:Array.isArray(saved.players)?saved.players:[],
-    industry:saved.industry||null,
+    industry:null,
     packs:Array.isArray(saved.packs)?saved.packs:[],
     gameMinutes:Number(saved.gameMinutes)||30,
     questionSeconds:Number(saved.questionSeconds)||15,
