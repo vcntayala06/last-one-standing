@@ -1,11 +1,11 @@
-Last One Standing v2.0.8 — Full-Screen Landscape Balance
+Last One Standing v2.0.9 — Landscape Polish
 
 1. Extract this ZIP.
 2. Copy ALL contents into your local last-one-standing repository.
 3. Replace matching files.
-4. GitHub Desktop Summary: v2.0.8 Full-Screen Landscape Balance
+4. GitHub Desktop Summary: v2.0.9 Landscape Polish
 5. Commit to main.
 6. Push origin.
-7. Wait for GitHub Pages.
+7. Wait for GitHub Pages to deploy.
 8. Fully close and reopen the iPhone app/browser.
-9. Test Pages 1–3 and Who's Playing in landscape first.
+9. Test Add Some Fun, Game Time, Ready to Play, and Time's Up in landscape.
