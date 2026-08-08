@@ -2872,3 +2872,199 @@ button{cursor:pointer}
     align-self:center!important;
   }
 }
+
+/* =========================================================
+   v2.0.13 — GAME SHOW + LAYOUT REPAIR
+   ========================================================= */
+
+.intro-title{
+  font-size:clamp(4.2rem,10vw,8.4rem)!important;
+  line-height:.88!important;
+}
+.intro-tagline{
+  max-width:900px;
+  letter-spacing:.08em;
+  font-weight:900;
+}
+.intro-status{
+  min-height:1.6em;
+  margin:14px auto 8px;
+  text-align:center;
+  font-size:.95rem;
+  font-weight:800;
+  color:var(--muted);
+}
+.intro-actions{margin-top:10px}
+
+@media (orientation:landscape) and (max-height:600px){
+
+  /* PAGE 1 larger, full-screen game-show title */
+  .home-screen{
+    width:100vw!important;
+    height:var(--app-height,100dvh)!important;
+    min-height:0!important;
+    max-height:var(--app-height,100dvh)!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:center!important;
+    align-items:center!important;
+    padding:18px 20px!important;
+    overflow:hidden!important;
+    box-sizing:border-box!important;
+  }
+  .home-screen .intro-title{
+    font-size:clamp(4.8rem,16vh,8.2rem)!important;
+    margin:0 auto 8px!important;
+  }
+  .home-screen .intro-tagline{
+    margin:0 auto 8px!important;
+    font-size:clamp(.8rem,3.2vh,1.1rem)!important;
+  }
+  .home-screen .intro-status{
+    margin:6px auto!important;
+    font-size:.78rem!important;
+  }
+  .home-screen .intro-start{
+    min-height:44px!important;
+    height:44px!important;
+    width:min(420px,60vw)!important;
+  }
+
+  /* GAME TIME: compress content so Continue fits naturally */
+  .time-screen{
+    position:relative!important;
+    width:100vw!important;
+    height:var(--app-height,100dvh)!important;
+    min-height:0!important;
+    max-height:var(--app-height,100dvh)!important;
+    display:flex!important;
+    flex-direction:column!important;
+    overflow:hidden!important;
+    padding:34px 12px 58px!important;
+    box-sizing:border-box!important;
+  }
+  .time-header{
+    flex:0 0 auto!important;
+    margin:0!important;
+  }
+  .time-header .heading{
+    font-size:clamp(1.1rem,4.5vh,1.55rem)!important;
+    margin:0 0 4px!important;
+  }
+  .time-scroll{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    height:auto!important;
+    overflow-y:auto!important;
+    padding:0 2px 4px!important;
+  }
+  .time-scroll .card{
+    width:min(680px,86vw)!important;
+    margin:3px auto!important;
+    padding:5px 9px!important;
+    border-radius:12px!important;
+  }
+  .time-scroll .card .heading{
+    font-size:.9rem!important;
+    margin:0 0 4px!important;
+  }
+  .time-scroll .row{
+    gap:6px!important;
+  }
+  .time-scroll .row .btn{
+    min-height:34px!important;
+    height:34px!important;
+    padding:4px 7px!important;
+    font-size:.72rem!important;
+  }
+  .time-scroll .status{
+    margin-top:3px!important;
+    min-height:0!important;
+    font-size:.66rem!important;
+  }
+
+  /* leave the now-correct voice alignment alone */
+  .hard-center-voice,
+  .voice-toggle-row,
+  .time-scroll .row:has(#voiceOff),
+  .time-scroll .row:has(#voiceOn){
+    justify-content:center!important;
+  }
+
+  /* Continue as normal visible bottom row */
+  .time-actions{
+    position:absolute!important;
+    left:50%!important;
+    bottom:4px!important;
+    transform:translateX(-50%)!important;
+    width:min(640px,90vw)!important;
+    height:48px!important;
+    padding:0!important;
+    margin:0!important;
+    z-index:9999!important;
+    background:#0b1017!important;
+  }
+  #nextTime,.game-time-continue{
+    height:46px!important;
+    min-height:46px!important;
+  }
+
+  /* QUESTION SCREEN — question is the visual hero */
+  .question-center-wrap .question-text,
+  .question-text{
+    width:min(1180px,92vw)!important;
+    max-width:92vw!important;
+    font-size:clamp(3rem,10vh,6rem)!important;
+    line-height:1.02!important;
+    font-weight:950!important;
+    letter-spacing:-.02em!important;
+  }
+
+  /* NEXT PLAYER — rebuild simply from real markup */
+  .next-player-screen{
+    width:100vw!important;
+    height:var(--app-height,100dvh)!important;
+    min-height:0!important;
+    max-height:var(--app-height,100dvh)!important;
+    overflow:hidden!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    padding:26px 16px 12px!important;
+    box-sizing:border-box!important;
+  }
+  .next-player-stage{
+    width:min(900px,94vw)!important;
+    height:calc(var(--app-height,100dvh) - 40px)!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:space-evenly!important;
+    text-align:center!important;
+    gap:0!important;
+  }
+  .next-player-stage .ready-label{
+    font-size:clamp(1rem,4.3vh,1.4rem)!important;
+    letter-spacing:.18em!important;
+    margin:0!important;
+  }
+  .next-player-stage .ready-name{
+    font-size:clamp(4.2rem,18vh,7.6rem)!important;
+    line-height:.86!important;
+    margin:0!important;
+  }
+  .next-player-hype{
+    font-size:clamp(1.2rem,5vh,2rem)!important;
+    font-weight:950!important;
+    margin:0!important;
+  }
+  .next-player-stage .ready-subtitle{
+    font-size:clamp(.9rem,3.6vh,1.2rem)!important;
+    margin:0!important;
+  }
+  .next-player-stage .big-countdown{
+    font-size:clamp(3rem,14vh,5.4rem)!important;
+    line-height:.9!important;
+    margin:0!important;
+  }
+}

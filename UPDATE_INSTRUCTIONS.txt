@@ -1,11 +1,11 @@
-Last One Standing v2.0.12.2 — Three Fix Only
+Last One Standing v2.0.13 — Game-Show Experience + Layout Repair
 
-1. Extract this ZIP.
-2. Copy ALL contents into the local last-one-standing repository.
+1. Extract ZIP.
+2. Copy ALL contents into local last-one-standing repository.
 3. Replace matching files.
-4. GitHub Desktop Summary: v2.0.12.2 Three Fix Only
+4. GitHub Desktop Summary: v2.0.13 Game-Show Experience + Layout Repair
 5. Commit to main.
 6. Push origin.
-7. Wait for GitHub Pages.
-8. Fully close and reopen the Home Screen app.
-9. Test only Game Time and the Results scorekeeper in landscape.
+7. Wait for Pages.
+8. Fully close and reopen Home Screen app.
+9. Test Page 1, Game Time, Question, and Next Player in landscape.

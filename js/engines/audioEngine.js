@@ -2,6 +2,7 @@
 export class AudioEngine{
   constructor(){
     this.musicTimer=null;
+    this.gameShowTimer=null;
     this.ctx=null;
     this.enabled=true;
   }
@@ -61,6 +62,41 @@ export class AudioEngine{
     }catch{}
   }
 
+
+  startGameShowMusic(){
+    this.unlock?.();
+    if(!this.ctx || this.gameShowTimer) return;
+
+    const playPhrase=()=>{
+      if(!this.ctx)return;
+      const now=this.ctx.currentTime;
+      const notes=[220,277.18,329.63,440,329.63,277.18];
+      notes.forEach((f,i)=>{
+        const o=this.ctx.createOscillator();
+        const g=this.ctx.createGain();
+        o.type=i%2===0?"triangle":"sine";
+        o.frequency.setValueAtTime(f,now+i*.23);
+        g.gain.setValueAtTime(.0001,now+i*.23);
+        g.gain.exponentialRampToValueAtTime(.022,now+i*.23+.025);
+        g.gain.exponentialRampToValueAtTime(.0001,now+i*.23+.19);
+        o.connect(g); g.connect(this.ctx.destination);
+        o.start(now+i*.23); o.stop(now+i*.23+.21);
+      });
+    };
+
+    playPhrase();
+    this.gameShowTimer=setInterval(playPhrase,1700);
+  }
+
+  stopGameShowMusic(){
+    if(this.gameShowTimer){ clearInterval(this.gameShowTimer); this.gameShowTimer=null; }
+  }
+
+  gameShowSting(){
+    this.tone(329.63,.09,"triangle",.05);
+    setTimeout(()=>this.tone(440,.10,"triangle",.055),85);
+    setTimeout(()=>this.tone(659.25,.14,"triangle",.06),165);
+  }
 
   startMusic(){
     this.unlock?.();

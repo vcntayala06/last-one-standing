@@ -2,7 +2,7 @@
 import {app,qs,setupBack,titleCase,playerDisplayName} from "../core/ui.js";
 import {savePersistentState,hasGameSession} from "../core/storage.js";
 
-export function createScreens({state,router,startGame,resumeGame,audio}){
+export function createScreens({state,router,startGame,resumeGame,audio,voiceEngine}){
 
   function persist(){savePersistentState(state)}
 
@@ -24,9 +24,63 @@ export function createScreens({state,router,startGame,resumeGame,audio}){
       </div>
     </section>`;
 
-    const wakeAudio=async()=>{ await audio?.unlock?.(); audio?.opening?.(); audio?.startMusic?.(); };
-    document.querySelector(".screen")?.addEventListener("pointerdown",wakeAudio,{once:true});
-    qs("#start").onclick=()=>{ audio?.select?.(); router.go("mode"); };
+    let introStarted=false;
+    let introListening=false;
+
+    const acceptedIntro=["yes","yeah","yep","ready","lets do it","let's do it","absolutely","sure","i'm ready","im ready"];
+
+    const speakLine=(text,{rate=1,pitch=1,volume=1}={})=>new Promise(resolve=>{
+      if(!("speechSynthesis" in window)){ resolve(); return; }
+      window.speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(text);
+      u.rate=rate; u.pitch=pitch; u.volume=volume;
+      u.onend=resolve; u.onerror=resolve;
+      window.speechSynthesis.speak(u);
+    });
+
+    const finishIntro=async()=>{
+      if(introListening){
+        introListening=false;
+        voiceEngine?.stopRecognition?.();
+      }
+      const status=qs("#introStatus");
+      if(status)status.textContent="LET'S GET IT ON!";
+      audio?.gameShowSting?.();
+      await speakLine("Well then... let's get it on!",{rate:1.02,pitch:1.04});
+      setTimeout(()=>router.go("mode"),300);
+    };
+
+    const startIntro=async()=>{
+      if(introStarted)return;
+      introStarted=true;
+      await audio?.unlock?.();
+      audio?.startGameShowMusic?.();
+      audio?.opening?.();
+
+      const status=qs("#introStatus");
+      if(status)status.textContent="Welcome to Last One Standing...";
+
+      await speakLine("Welcome to Last One Standing, the ultimate voice-powered trivia challenge game. Are you ready?",{rate:.98,pitch:1.06});
+
+      if(status)status.textContent='Say "YES", "YEAH", "READY", or "LET’S DO IT" — or tap LET’S PLAY.';
+      introListening=true;
+
+      voiceEngine?.listen?.({
+        answers:acceptedIntro,
+        onCorrect:()=>finishIntro(),
+        onHeard:(heard)=>{
+          const el=qs("#introStatus");
+          if(el)el.textContent=`Heard: “${heard}”`;
+        },
+        shouldContinue:()=>introListening
+      });
+    };
+
+    document.querySelector(".home-screen")?.addEventListener("pointerdown",startIntro,{once:true});
+    qs("#start").onclick=async()=>{
+      if(!introStarted){ await startIntro(); }
+      await finishIntro();
+    };
     qs("#resumeSavedGame")?.addEventListener("click",()=>resumeGame());
   }
 
