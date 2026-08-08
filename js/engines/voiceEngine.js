@@ -1,30 +1,46 @@
 
 export function normalizeAnswer(text){
   let s=String(text??"").toLowerCase().trim();
+
   try{s=s.normalize("NFD").replace(/[\u0300-\u036f]/g,"")}catch{}
+
   s=s
     .replace(/\bsaint\b/g,"st")
     .replace(/\bst[.]?\b/g,"st")
     .replace(/\bunited states of america\b/g,"usa")
     .replace(/\bunited states\b/g,"usa")
     .replace(/\bu[.]?s[.]?a[.]?\b/g,"usa")
+
+    // Conversational filler should not invalidate the answer.
+    .replace(/\b(i think|i guess|maybe|the answer is|answer is|it is|its|it's)\b/g," ")
+    .replace(/\b(como se dice|cómo se dice|creo que|la respuesta es|es)\b/g," ")
+
     .replace(/['’`".,!?;:()[\]{}\-_/\\]/g," ")
     .replace(/\s+/g," ")
     .trim();
+
   return s;
 }
 
 function variants(text){
   const base=normalizeAnswer(text);
   const set=new Set([base]);
+
   if(base.endsWith("s")&&base.length>3)set.add(base.slice(0,-1));
   else if(base)set.add(base+"s");
 
-  const pairs=[["colour","color"],["theatre","theater"],["centre","center"],["grey","gray"]];
+  const pairs=[
+    ["colour","color"],
+    ["theatre","theater"],
+    ["centre","center"],
+    ["grey","gray"]
+  ];
+
   for(const [a,b] of pairs){
     if(base.includes(a))set.add(base.replaceAll(a,b));
     if(base.includes(b))set.add(base.replaceAll(b,a));
   }
+
   return [...set].filter(Boolean);
 }
 
@@ -38,6 +54,7 @@ export function acceptedAnswer(heard,answers){
     return hv.some(h=>av.some(a=>{
       if(h===a)return true;
 
+      // Only simple singular/plural forgiveness. No broad substring matches.
       if(h.endsWith("s")&&h.length>3&&h.slice(0,-1)===a)return true;
       if(a.endsWith("s")&&a.length>3&&a.slice(0,-1)===h)return true;
 
@@ -64,9 +81,19 @@ export class VoiceEngine{
 
   async ensureMic(){
     if(this.stream?.getAudioTracks().some(t=>t.readyState==="live"))return true;
-    if(!navigator.mediaDevices?.getUserMedia)return false;
+    if(!navigator.mediaDevices?.getUserMedia){
+      this.lastError="microphone unavailable";
+      return false;
+    }
+
     try{
-      this.stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      this.stream=await navigator.mediaDevices.getUserMedia({
+        audio:{
+          echoCancellation:true,
+          noiseSuppression:true,
+          autoGainControl:true
+        }
+      });
       this.lastError="";
       return true;
     }catch(err){
@@ -77,27 +104,35 @@ export class VoiceEngine{
 
   stopRecognition(){
     this.token++;
+
     if(this.recognition){
       try{
         this.recognition.onend=null;
         this.recognition.abort();
       }catch{}
     }
+
     this.recognition=null;
   }
 
   release(){
     this.stopRecognition();
+
     if(this.stream){
       try{this.stream.getTracks().forEach(t=>t.stop())}catch{}
     }
+
     this.stream=null;
   }
 
-  listen({answers,onCorrect,shouldContinue}){
+  listen({answers,onCorrect,onHeard,shouldContinue}){
     this.stopRecognition();
+
     const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(!SR)return;
+    if(!SR){
+      this.lastError="speech recognition unavailable";
+      return;
+    }
 
     const token=++this.token;
 
@@ -107,6 +142,7 @@ export class VoiceEngine{
       try{
         const rec=new SR();
         this.recognition=rec;
+
         rec.lang="en-US";
         rec.interimResults=true;
         rec.continuous=false;
@@ -115,32 +151,51 @@ export class VoiceEngine{
         rec.onresult=e=>{
           if(token!==this.token||!shouldContinue())return;
 
+          let lastFinal="";
+
           for(let r=e.resultIndex;r<e.results.length;r++){
             const result=e.results[r];
-            if(!result.isFinal)continue;
 
             for(let i=0;i<result.length;i++){
               const heard=result[i].transcript.trim();
+              if(!heard)continue;
 
-              if(heard&&acceptedAnswer(heard,answers)){
+              // Strict exact matching makes it safe to react to a confident
+              // interim result instead of always waiting for finalization.
+              if(acceptedAnswer(heard,answers)){
                 this.token++;
-                try{rec.onend=null;rec.stop()}catch{}
+
+                try{
+                  rec.onend=null;
+                  rec.stop();
+                }catch{}
+
                 onCorrect(heard);
                 return;
               }
+
+              if(result.isFinal&&i===0)lastFinal=heard;
             }
           }
+
+          if(lastFinal)onHeard?.(lastFinal);
         };
 
-        rec.onerror=()=>{};
+        rec.onerror=e=>{
+          this.lastError=e?.error||"recognition error";
+        };
 
         rec.onend=()=>{
-          if(token===this.token&&shouldContinue())setTimeout(begin,220);
+          if(token===this.token&&shouldContinue()){
+            setTimeout(begin,90);
+          }
         };
 
         rec.start();
       }catch{
-        if(token===this.token&&shouldContinue())setTimeout(begin,350);
+        if(token===this.token&&shouldContinue()){
+          setTimeout(begin,140);
+        }
       }
     };
 

@@ -92,3 +92,17 @@ The next content release will expand the question banks substantially without ch
 - Added simple microphone status text.
 - Added original Web Audio feedback tones for countdown, correct, and wrong/timeout.
 - No copyrighted sound files are included.
+
+
+## v2.0.4 Reliability Sprint
+- Work industry selection now scrolls on phones.
+- Speech recognition reacts to strict exact interim matches instead of always waiting for finalization.
+- Wrong/unrecognized final speech gives a brief "Not quite — keep trying" message while the timer continues.
+- Audio context unlock is strengthened for iPhone, with question/correct/wrong feedback tones.
+- Correct and not-quite result screens have brief visual feedback animations.
+- Landscape countdown clipping is corrected.
+- Landscape result standings use compact two-column space and can scroll when needed.
+- Pause menu now supports Resume, Save & Leave, and End Game.
+- Closing/backgrounding the app automatically pauses; an active session is saved for later.
+- Home screen shows Resume Game when a saved session exists.
+- Multilingual-answer data model is active; approved Spanish Pacific variants are included as the first validation case.

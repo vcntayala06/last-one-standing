@@ -1,18 +1,26 @@
 
 import {app,qs,setupBack,titleCase,playerDisplayName} from "../core/ui.js";
-import {savePersistentState} from "../core/storage.js";
+import {savePersistentState,hasGameSession} from "../core/storage.js";
 
-export function createScreens({state,router,startGame}){
+export function createScreens({state,router,startGame,resumeGame}){
 
   function persist(){savePersistentState(state)}
 
   function home(){
+    const canResume=hasGameSession();
+
     app.innerHTML=`<section class="screen">
       <div class="home-title">LAST ONE STANDING</div>
       <div class="home-subtitle">The Ultimate Voice-Powered Trivia Challenge</div>
-      <button id="start" class="btn btn-gold btn-large">START</button>
+
+      <div class="stack" style="width:min(420px,84vw)">
+        ${canResume?`<button id="resumeSavedGame" class="btn btn-gold btn-large">RESUME GAME</button>`:""}
+        <button id="start" class="btn ${canResume?"btn-panel":"btn-gold"} btn-large">START NEW GAME</button>
+      </div>
     </section>`;
+
     qs("#start").onclick=()=>router.go("mode");
+    qs("#resumeSavedGame")?.addEventListener("click",()=>resumeGame());
   }
 
   function mode(){
@@ -49,14 +57,20 @@ export function createScreens({state,router,startGame}){
       ["other","➕ Other"]
     ];
 
-    app.innerHTML=`<section class="screen">
+    app.innerHTML=`<section class="screen industry-screen">
       ${setupBack()}
-      <div class="heading">What type of business do you work for?</div>
-      <div class="industry-grid">
-        ${industries.map(([id,label])=>`
-          <button class="btn btn-panel ${state.industry===id?"selected":""}" data-industry="${id}">
-            ${label}
-          </button>`).join("")}
+
+      <div class="industry-header">
+        <div class="heading">What type of business do you work for?</div>
+      </div>
+
+      <div class="industry-scroll">
+        <div class="industry-grid">
+          ${industries.map(([id,label])=>`
+            <button class="btn btn-panel ${state.industry===id?"selected":""}" data-industry="${id}">
+              ${label}
+            </button>`).join("")}
+        </div>
       </div>
     </section>`;
 

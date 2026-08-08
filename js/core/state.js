@@ -18,7 +18,8 @@ export const DEFAULT_STATE = {
   questionDeck:[],
   questionIndex:0,
   targetEndAt:0,
-  endAfterRound:false
+  endAfterRound:false,
+  questionRemaining:0
 };
 
 export function createState(saved={}){

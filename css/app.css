@@ -773,3 +773,241 @@ button{cursor:pointer}
   }
 }
 
+
+
+/* =========================================================
+   v2.0.4 — RELIABILITY SPRINT
+   ========================================================= */
+
+/* Work industry screen: independently scrollable on phones */
+.industry-screen{
+  width:min(1180px,96vw);
+  height:100dvh;
+  padding:64px 18px 16px;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr);
+  gap:12px;
+  overflow:hidden;
+  align-items:stretch;
+}
+
+.industry-header{
+  width:100%;
+  text-align:center;
+}
+
+.industry-scroll{
+  width:100%;
+  min-height:0;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  padding:2px 4px 16px;
+}
+
+.industry-scroll .industry-grid{
+  margin:0 auto;
+}
+
+/* Pause menu */
+.pause-actions{
+  display:grid;
+  gap:10px;
+}
+
+.pause-actions .btn{
+  width:100%;
+}
+
+/* Gameplay feedback */
+.result-screen{
+  position:relative;
+}
+
+.result-flash{
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  opacity:0;
+  z-index:-1;
+}
+
+.result-correct .result-flash{
+  background:rgba(67,199,123,.16);
+  animation:feedbackFlash .55s ease-out;
+}
+
+.result-wrong .result-flash,
+.result-timeout .result-flash{
+  background:rgba(223,99,112,.13);
+  animation:feedbackFlash .45s ease-out;
+}
+
+.result-word{
+  animation:feedbackPop .42s cubic-bezier(.2,.9,.25,1.25);
+}
+
+@keyframes feedbackFlash{
+  0%{opacity:0}
+  20%{opacity:1}
+  100%{opacity:0}
+}
+
+@keyframes feedbackPop{
+  0%{transform:scale(.82);opacity:.25}
+  70%{transform:scale(1.06);opacity:1}
+  100%{transform:scale(1);opacity:1}
+}
+
+/* Avoid clipping tall countdown numerals */
+.question-timer-zone{
+  overflow:visible!important;
+  padding-top:.18em;
+}
+
+.question-timer{
+  line-height:.95!important;
+}
+
+/* Phone portrait */
+@media(max-width:760px){
+  .industry-screen{
+    width:100vw;
+    padding:56px 10px max(10px,env(safe-area-inset-bottom));
+  }
+
+  .industry-header .heading{
+    font-size:clamp(1.7rem,7.5vw,2.5rem);
+    margin-bottom:4px;
+  }
+
+  .industry-scroll{
+    padding:0 2px 12px;
+  }
+
+  .industry-scroll .industry-grid{
+    width:100%;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+
+  .industry-scroll .industry-grid .btn{
+    min-height:52px;
+    padding:9px 8px;
+    line-height:1.12;
+    font-size:.9rem;
+  }
+}
+
+@media(max-width:430px){
+  .industry-scroll .industry-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+/* Phone landscape: use the width instead of clipping vertically */
+@media(max-height:500px) and (orientation:landscape){
+  .industry-screen{
+    padding:42px 10px 6px!important;
+  }
+
+  .industry-header .heading{
+    font-size:clamp(1.2rem,5vh,1.8rem)!important;
+    margin-bottom:4px!important;
+  }
+
+  .industry-scroll .industry-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:6px!important;
+  }
+
+  .industry-scroll .industry-grid .btn{
+    min-height:38px!important;
+    padding:6px 8px!important;
+    font-size:.78rem!important;
+  }
+
+  .question-screen{
+    grid-template-rows:20vh 39vh 33vh!important;
+    overflow:visible!important;
+  }
+
+  .question-player-zone,
+  .question-text-zone{
+    overflow:hidden!important;
+  }
+
+  .question-timer-zone{
+    overflow:visible!important;
+    padding-top:4px!important;
+  }
+
+  .question-timer{
+    font-size:clamp(2.7rem,13vh,4.8rem)!important;
+    line-height:1!important;
+    padding-top:.06em!important;
+  }
+
+  .mic-status{
+    margin-top:3px!important;
+    font-size:.64rem!important;
+  }
+
+  /* Result screen uses horizontal space and allows standings to scroll. */
+  .result-screen{
+    width:100vw!important;
+    height:100dvh!important;
+    padding:42px 12px 8px!important;
+    justify-content:flex-start!important;
+    overflow-y:auto!important;
+  }
+
+  .result-screen .result-word{
+    font-size:clamp(2rem,8vh,3.2rem)!important;
+    line-height:1!important;
+    margin:0!important;
+  }
+
+  .result-screen .answer-label{
+    margin-top:5px!important;
+    font-size:.68rem!important;
+  }
+
+  .result-screen .answer-big{
+    margin:3px auto 6px!important;
+    font-size:clamp(1.8rem,7vh,2.8rem)!important;
+    line-height:1!important;
+  }
+
+  .result-screen .heading{
+    margin:4px auto!important;
+    font-size:.8rem!important;
+  }
+
+  .result-screen .scoreboard{
+    width:96vw!important;
+    max-height:42vh!important;
+    overflow-y:auto!important;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:5px!important;
+    padding-bottom:8px;
+  }
+
+  .result-screen .scoreline{
+    padding:6px 8px!important;
+    font-size:.75rem!important;
+    gap:6px!important;
+    min-width:0;
+  }
+
+  .result-screen .scoreline span{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .result-screen .scoreline strong{
+    white-space:nowrap;
+    font-size:.7rem;
+  }
+}
+

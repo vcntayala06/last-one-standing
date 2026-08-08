@@ -24,7 +24,8 @@ async function main(){
   const screens=createScreens({
     state,
     router,
-    startGame:()=>game.start()
+    startGame:()=>game.start(),
+    resumeGame:()=>game.resumeSaved()
   });
 
   game=new GameEngine({
