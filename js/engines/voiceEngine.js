@@ -51,6 +51,7 @@ export class VoiceEngine{
     this.stream=null;
     this.recognition=null;
     this.token=0;
+    this.lastError="";
   }
 
   supported(){
@@ -66,8 +67,10 @@ export class VoiceEngine{
     if(!navigator.mediaDevices?.getUserMedia)return false;
     try{
       this.stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      this.lastError="";
       return true;
-    }catch{
+    }catch(err){
+      this.lastError=err?.name||"microphone unavailable";
       return false;
     }
   }
@@ -113,8 +116,12 @@ export class VoiceEngine{
           if(token!==this.token||!shouldContinue())return;
 
           for(let r=e.resultIndex;r<e.results.length;r++){
-            for(let i=0;i<e.results[r].length;i++){
-              const heard=e.results[r][i].transcript.trim();
+            const result=e.results[r];
+            if(!result.isFinal)continue;
+
+            for(let i=0;i<result.length;i++){
+              const heard=result[i].transcript.trim();
+
               if(heard&&acceptedAnswer(heard,answers)){
                 this.token++;
                 try{rec.onend=null;rec.stop()}catch{}

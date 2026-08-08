@@ -128,7 +128,19 @@ export function createScreens({state,router,startGame}){
       }
 
       persist();
-      packs();
+
+      const selected=state.packs.includes(id);
+      btn.classList.toggle("selected",selected);
+      btn.setAttribute("aria-pressed",selected?"true":"false");
+
+      const check=btn.querySelector(".pack-check");
+      if(check)check.textContent=selected?"✓":"";
+
+      const count=document.querySelector(".packs-count");
+      if(count){
+        const n=state.packs.length;
+        count.textContent=`${n} ${n===1?"CATEGORY":"CATEGORIES"} SELECTED`;
+      }
     });
 
     qs("#skipPacks").onclick=()=>router.go("players");
@@ -208,39 +220,47 @@ export function createScreens({state,router,startGame}){
   }
 
   function time(){
-    app.innerHTML=`<section class="screen">
+    app.innerHTML=`<section class="screen time-screen">
       ${setupBack()}
-      <div class="heading">Game Time</div>
 
-      <div class="card">
-        <div class="heading" style="font-size:1.45rem">How long do you want to play?</div>
-        <div class="row">
-          ${[15,30,45,60].map(m=>`
-            <button class="btn ${state.gameMinutes===m?"btn-gold":"btn-panel"}" data-game-min="${m}">
-              ${m} MIN
-            </button>`).join("")}
+      <div class="time-header">
+        <div class="heading">Game Time</div>
+      </div>
+
+      <div class="time-scroll">
+        <div class="card">
+          <div class="heading" style="font-size:1.45rem">How long do you want to play?</div>
+          <div class="row">
+            ${[15,30,45,60].map(m=>`
+              <button class="btn ${state.gameMinutes===m?"btn-gold":"btn-panel"}" data-game-min="${m}">
+                ${m} MIN
+              </button>`).join("")}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="heading" style="font-size:1.45rem">Time per question</div>
+          <div class="row">
+            ${[10,15,20,30].map(s=>`
+              <button class="btn ${state.questionSeconds===s?"btn-gold":"btn-panel"}" data-question-sec="${s}">
+                ${s} SEC
+              </button>`).join("")}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="heading" style="font-size:1.45rem">🎤 Voice Recognition</div>
+          <div class="row">
+            <button id="voiceOff" class="btn ${!state.voiceEnabled?"btn-gold":"btn-panel"}">OFF</button>
+            <button id="voiceOn" class="btn ${state.voiceEnabled?"btn-gold":"btn-panel"}">ON</button>
+          </div>
+          <div class="status">Voice will be tested when the game starts.</div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="heading" style="font-size:1.45rem">Time per question</div>
-        <div class="row">
-          ${[10,15,20,30].map(s=>`
-            <button class="btn ${state.questionSeconds===s?"btn-gold":"btn-panel"}" data-question-sec="${s}">
-              ${s} SEC
-            </button>`).join("")}
-        </div>
+      <div class="time-actions">
+        <button id="nextTime" class="btn">CONTINUE ▶</button>
       </div>
-
-      <div class="card">
-        <div class="heading" style="font-size:1.45rem">🎤 Voice Recognition</div>
-        <div class="row">
-          <button id="voiceOff" class="btn ${!state.voiceEnabled?"btn-gold":"btn-panel"}">OFF</button>
-          <button id="voiceOn" class="btn ${state.voiceEnabled?"btn-gold":"btn-panel"}">ON</button>
-        </div>
-      </div>
-
-      <button id="nextTime" class="btn">NEXT ▶</button>
     </section>`;
 
     qs("#backBtn").onclick=()=>router.go("players");

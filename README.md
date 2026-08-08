@@ -82,3 +82,13 @@ The next content release will expand the question banks substantially without ch
 - Answer matching no longer uses broad substring matching.
 - Pacific / Pacific Ocean can both be accepted when explicitly listed, while unrelated speech is rejected.
 - Additional defensive UI checks reduce the chance of a missing element crashing gameplay.
+
+
+## v2.0.3 Functionality First
+- Add Some Fun selections now update immediately.
+- Game Time screen is mobile-safe with Continue always reachable.
+- Phone landscape now has a dedicated compact layout.
+- Voice recognition evaluates final speech results only.
+- Added simple microphone status text.
+- Added original Web Audio feedback tones for countdown, correct, and wrong/timeout.
+- No copyrighted sound files are included.

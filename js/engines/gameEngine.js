@@ -3,10 +3,11 @@ import {app,qs,gameplayControls,playerDisplayName,scoreboardHtml,fitQuestion,tit
 import {shuffle} from "./questionEngine.js";
 
 export class GameEngine{
-  constructor({state,questionEngine,voiceEngine,onExit}){
+  constructor({state,questionEngine,voiceEngine,audioEngine,onExit}){
     this.state=state;
     this.questionEngine=questionEngine;
     this.voice=voiceEngine;
+    this.audio=audioEngine;
     this.onExit=onExit;
     this.timerHandle=null;
     this.resultHandle=null;
@@ -29,6 +30,7 @@ export class GameEngine{
 
   async start(){
     const s=this.state;
+    await this.audio?.unlock?.();
 
     s.paused=false;
     s.turnOrder=shuffle(s.selectedPlayerIds);
@@ -79,6 +81,9 @@ export class GameEngine{
       }
 
       this.updateTopControls();
+
+      const micStatus=qs("#micStatus");
+      if(micStatus)micStatus.textContent=this.state.voiceEnabled?"Listening…":"Voice Off";
 
       if(this.state.voiceEnabled&&this.questionOpen&&!this.state.paused){
         this.beginListening();
@@ -136,7 +141,9 @@ export class GameEngine{
       count--;
 
       if(count>0){
-        const readyEl=qs("#readyCount"); if(readyEl)readyEl.textContent=count;
+        const readyEl=qs("#readyCount");
+        if(readyEl)readyEl.textContent=count;
+        this.audio?.tick?.();
       }else{
         clearInterval(handle);
         this.renderQuestion();
@@ -186,6 +193,7 @@ export class GameEngine{
       <div class="question-timer-zone">
         <div id="questionTimer" class="question-timer">${remaining}</div>
         <div class="round-label">ROUND ${s.round}</div>
+        <div id="micStatus" class="mic-status">${s.voiceEnabled?"Listening…":"Voice Off"}</div>
       </div>
     </section>`;
 
@@ -202,10 +210,13 @@ export class GameEngine{
       if(type==="correct"){
         s.stats[p.id].correct++;
         s.scores[p.id]++;
+        this.audio?.correct?.();
       }else if(type==="wrong"){
         s.stats[p.id].wrong++;
+        this.audio?.wrong?.();
       }else{
         s.stats[p.id].timeouts++;
+        this.audio?.wrong?.();
       }
 
       this.renderResult(type,q,heard);

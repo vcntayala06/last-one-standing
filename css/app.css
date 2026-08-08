@@ -606,3 +606,170 @@ button{cursor:pointer}
   }
 }
 
+
+
+/* =========================================================
+   v2.0.3 — FUNCTIONALITY FIRST
+   ========================================================= */
+
+.time-screen{
+  width:min(1180px,96vw);
+  height:100dvh;
+  padding:64px 16px 14px;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  gap:10px;
+  overflow:hidden;
+}
+
+.time-header{width:100%}
+.time-header .heading{margin-bottom:4px}
+
+.time-scroll{
+  width:100%;
+  min-height:0;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  padding:2px 0 10px;
+}
+
+.time-actions{
+  width:min(760px,94vw);
+  padding-top:8px;
+  padding-bottom:max(0px,env(safe-area-inset-bottom));
+}
+
+.time-actions .btn{width:100%}
+
+.mic-status{
+  margin-top:10px;
+  min-height:1.1em;
+  font-size:.82rem;
+  font-weight:800;
+  color:var(--muted);
+}
+
+@media(max-width:760px){
+  .time-screen{
+    width:100vw;
+    padding:56px 10px max(10px,env(safe-area-inset-bottom));
+  }
+
+  .time-scroll .card{
+    width:100%;
+    margin:7px 0;
+    padding:12px;
+  }
+
+  .time-scroll .heading{
+    font-size:1.15rem!important;
+    margin-bottom:12px!important;
+  }
+
+  .time-scroll .row{
+    gap:8px;
+  }
+
+  .time-scroll .row .btn{
+    flex:1 1 calc(50% - 8px);
+    min-height:46px;
+    padding:8px 10px;
+  }
+}
+
+/* Dedicated phone landscape layout */
+@media(max-height:500px) and (orientation:landscape){
+  .screen,
+  .packs-screen,
+  .time-screen{
+    padding:44px 10px 8px!important;
+  }
+
+  .home-title{
+    font-size:clamp(2.2rem,9vh,3.4rem)!important;
+  }
+
+  .home-subtitle{
+    margin:10px auto 16px!important;
+    font-size:clamp(.9rem,3.5vh,1.2rem)!important;
+  }
+
+  .heading{
+    font-size:clamp(1.35rem,5vh,2rem)!important;
+    margin-bottom:10px!important;
+  }
+
+  .mode-grid,
+  .industry-grid,
+  .pack-grid{
+    gap:7px!important;
+  }
+
+  .mode-grid .btn,
+  .industry-grid .btn,
+  .pack-grid .btn{
+    min-height:40px!important;
+    padding:7px 9px!important;
+    font-size:.86rem!important;
+  }
+
+  .packs-header .subtle{
+    display:none;
+  }
+
+  .packs-count{
+    margin-top:3px!important;
+    font-size:.7rem!important;
+  }
+
+  .packs-actions .btn,
+  .time-actions .btn{
+    min-height:40px!important;
+    padding:7px 10px!important;
+  }
+
+  .question-screen{
+    padding:40px 10px 6px!important;
+    grid-template-rows:22vh 42vh 28vh!important;
+  }
+
+  .question-player-name{
+    font-size:clamp(1.4rem,6vh,2.3rem)!important;
+  }
+
+  .question-divider{
+    margin-top:4px!important;
+  }
+
+  .question-text{
+    font-size:clamp(1.5rem,6.2vh,2.7rem)!important;
+    width:88vw!important;
+    max-width:88vw!important;
+  }
+
+  .question-timer{
+    font-size:clamp(3rem,14vh,5.2rem)!important;
+  }
+
+  .round-label{
+    margin-top:6px!important;
+    font-size:.68rem!important;
+  }
+
+  .ready-name{
+    font-size:clamp(2.4rem,13vh,4.2rem)!important;
+  }
+
+  .big-countdown{
+    font-size:clamp(3.6rem,16vh,5.6rem)!important;
+  }
+
+  .player-list{
+    max-height:42vh!important;
+  }
+
+  .card{
+    margin:5px auto!important;
+  }
+}
+

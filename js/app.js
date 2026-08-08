@@ -5,6 +5,7 @@ import {loadSavedState} from "./core/storage.js";
 import {loadQuestionCatalog} from "./core/catalog.js";
 import {QuestionEngine} from "./engines/questionEngine.js";
 import {VoiceEngine} from "./engines/voiceEngine.js";
+import {AudioEngine} from "./engines/audioEngine.js";
 import {GameEngine} from "./engines/gameEngine.js";
 import {createScreens} from "./screens/screens.js";
 import {app} from "./core/ui.js";
@@ -16,6 +17,7 @@ async function main(){
 
   const questionEngine=new QuestionEngine(catalog);
   const voiceEngine=new VoiceEngine();
+  const audioEngine=new AudioEngine();
 
   let game;
 
@@ -29,6 +31,7 @@ async function main(){
     state,
     questionEngine,
     voiceEngine,
+    audioEngine,
     onExit:()=>router.go("home")
   });
 
