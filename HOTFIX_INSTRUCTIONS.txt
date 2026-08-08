@@ -1,0 +1,8 @@
+v2.0.5.1 HOTFIX
+Fixes: Unable to start game — Can't find variable: audio
+
+1. Extract this ZIP.
+2. Copy its contents into the repository and replace the existing file.
+3. GitHub Desktop Summary: v2.0.5.1 Fix audio startup
+4. Commit to main.
+5. Push origin.
