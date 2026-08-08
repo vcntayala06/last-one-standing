@@ -250,6 +250,7 @@ export class GameEngine{
 
   renderReadyPlayer(){
     this.phase="ready";
+    this.audio?.ready?.();
     const p=this.activePlayer();
     let count=3;
 
@@ -385,11 +386,11 @@ export class GameEngine{
     this.voice.listen({
       answers:accepted,
       onCorrect:heard=>this.currentFinish?.("correct",heard),
-      onHeard:heard=>{
+      onHeard:(heard,isFinal)=>{
         const micStatus=qs("#micStatus");
 
         if(micStatus){
-          micStatus.textContent="Not quite — keep trying";
+          micStatus.textContent=`Heard: “${heard}”${isFinal?" — keep trying":""}`;
 
           clearTimeout(this.micStatusHandle);
           this.micStatusHandle=setTimeout(()=>{

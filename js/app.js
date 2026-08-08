@@ -25,7 +25,8 @@ async function main(){
     state,
     router,
     startGame:()=>game.start(),
-    resumeGame:()=>game.resumeSaved()
+    resumeGame:()=>game.resumeSaved(),
+    audio
   });
 
   game=new GameEngine({

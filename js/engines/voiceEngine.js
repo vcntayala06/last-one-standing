@@ -159,6 +159,7 @@ export class VoiceEngine{
             for(let i=0;i<result.length;i++){
               const heard=result[i].transcript.trim();
               if(!heard)continue;
+              onHeard?.(heard,result.isFinal);
 
               // Strict exact matching makes it safe to react to a confident
               // interim result instead of always waiting for finalization.
@@ -178,7 +179,7 @@ export class VoiceEngine{
             }
           }
 
-          if(lastFinal)onHeard?.(lastFinal);
+          
         };
 
         rec.onerror=e=>{
@@ -187,14 +188,14 @@ export class VoiceEngine{
 
         rec.onend=()=>{
           if(token===this.token&&shouldContinue()){
-            setTimeout(begin,90);
+            setTimeout(begin,25);
           }
         };
 
         rec.start();
       }catch{
         if(token===this.token&&shouldContinue()){
-          setTimeout(begin,140);
+          setTimeout(begin,60);
         }
       }
     };

@@ -60,6 +60,18 @@ export class AudioEngine{
     }catch{}
   }
 
+  opening(){
+    this.tone(330,.08,"sine",.035);
+    setTimeout(()=>this.tone(495,.11,"sine",.04),75);
+  }
+
+  select(){ this.tone(520,.055,"sine",.028); }
+
+  ready(){
+    this.tone(300,.08,"triangle",.035);
+    setTimeout(()=>this.tone(450,.09,"triangle",.035),85);
+  }
+
   question(){
     this.tone(430,.065,"sine",.032);
   }

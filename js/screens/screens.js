@@ -2,7 +2,7 @@
 import {app,qs,setupBack,titleCase,playerDisplayName} from "../core/ui.js";
 import {savePersistentState,hasGameSession} from "../core/storage.js";
 
-export function createScreens({state,router,startGame,resumeGame}){
+export function createScreens({state,router,startGame,resumeGame,audio}){
 
   function persist(){savePersistentState(state)}
 
@@ -19,7 +19,9 @@ export function createScreens({state,router,startGame,resumeGame}){
       </div>
     </section>`;
 
-    qs("#start").onclick=()=>router.go("mode");
+    const wakeAudio=async()=>{ await audio?.unlock?.(); audio?.opening?.(); };
+    document.querySelector(".screen")?.addEventListener("pointerdown",wakeAudio,{once:true});
+    qs("#start").onclick=()=>{ audio?.select?.(); router.go("mode"); };
     qs("#resumeSavedGame")?.addEventListener("click",()=>resumeGame());
   }
 
