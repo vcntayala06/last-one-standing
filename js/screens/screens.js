@@ -26,7 +26,7 @@ export function createScreens({state,router,startGame,resumeGame,audio}){
   }
 
   function mode(){
-    app.innerHTML=`<section class="screen">
+    app.innerHTML=`<section class="screen mode-screen">
       ${setupBack()}
       <div class="heading">Choose Your Game</div>
       <div class="mode-grid">

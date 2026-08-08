@@ -1,1 +1,12 @@
-Extract. Copy all contents into the local Last One Standing repository and replace files. GitHub Desktop summary: v2.0.5 Experience + Landscape Sprint. Commit to main, Push origin, wait for Pages, then run TESTING_CHECKLIST_v2.0.5.md.
+Last One Standing v2.0.6 — Landscape-First Usability
+
+1. Extract this ZIP.
+2. Copy ALL contents into your local last-one-standing repository.
+3. Replace matching files.
+4. Open GitHub Desktop.
+5. Summary: v2.0.6 Landscape-First Usability
+6. Commit to main.
+7. Push origin.
+8. Wait for GitHub Pages deployment.
+9. Fully close and reopen the iPhone Home Screen app/browser.
+10. Run TESTING_CHECKLIST_v2.0.6.md.

@@ -416,6 +416,7 @@ export class GameEngine{
     app.innerHTML=`<section class="screen result-screen result-${cls}">
       ${gameplayControls(this.state)}
       <div class="result-flash"></div>
+      <div class="result-content">
       <div class="result-word ${cls}">${label}</div>
       <div class="answer-label">CORRECT ANSWER</div>
       <div class="answer-big">${titleCase(q.answers[0])}</div>
