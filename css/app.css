@@ -2480,3 +2480,259 @@ button{cursor:pointer}
     justify-content:center!important;
   }
 }
+
+/* =========================================================
+   v2.0.12 — VISIBLE-VIEWPORT PAGE FIX
+   Uses window.innerHeight via --app-height so Home Screen
+   landscape controls cannot fall below the visible viewport.
+   ========================================================= */
+
+.title-sparkle{display:none!important;} /* letters shimmer only */
+
+@media (orientation:landscape) and (max-height:600px){
+
+  html,body,#app{
+    min-height:var(--app-height,100dvh)!important;
+    height:var(--app-height,100dvh)!important;
+    overflow:hidden!important;
+  }
+
+  /* ADD SOME FUN */
+  .packs-screen{
+    position:relative!important;
+    width:100vw!important;
+    height:var(--app-height,100dvh)!important;
+    min-height:0!important;
+    max-height:var(--app-height,100dvh)!important;
+    padding:38px 12px 62px!important;
+    margin:0!important;
+    overflow:hidden!important;
+    box-sizing:border-box!important;
+    display:flex!important;
+    flex-direction:column!important;
+  }
+  .packs-header{flex:0 0 auto!important;}
+  .packs-scroll{
+    flex:1 1 auto!important;
+    height:auto!important;
+    min-height:0!important;
+    overflow-y:auto!important;
+    padding:0 2px 8px!important;
+  }
+  .packs-actions{
+    position:absolute!important;
+    left:50%!important;
+    right:auto!important;
+    bottom:6px!important;
+    transform:translateX(-50%)!important;
+    width:min(650px,92vw)!important;
+    height:52px!important;
+    padding:2px!important;
+    margin:0!important;
+    z-index:999!important;
+    background:#0b1017!important;
+  }
+  .packs-actions .btn{
+    height:48px!important;
+    min-height:48px!important;
+  }
+
+  /* GAME TIME */
+  .time-screen{
+    position:relative!important;
+    width:100vw!important;
+    height:var(--app-height,100dvh)!important;
+    min-height:0!important;
+    max-height:var(--app-height,100dvh)!important;
+    padding:38px 12px 62px!important;
+    margin:0!important;
+    overflow:hidden!important;
+    box-sizing:border-box!important;
+    display:flex!important;
+    flex-direction:column!important;
+  }
+  .time-header{flex:0 0 auto!important;}
+  .time-scroll{
+    flex:1 1 auto!important;
+    height:auto!important;
+    min-height:0!important;
+    overflow-y:auto!important;
+    padding:0 4px 8px!important;
+  }
+  .time-scroll .card{
+    width:min(700px,88vw)!important;
+    margin:4px auto!important;
+    padding:8px 12px!important;
+  }
+  .time-scroll .heading{
+    margin:0 0 6px!important;
+  }
+  .voice-toggle-row,
+  .time-scroll .row:has(#voiceOff),
+  .time-scroll .row:has(#voiceOn){
+    width:100%!important;
+    display:flex!important;
+    flex-wrap:nowrap!important;
+    justify-content:center!important;
+    align-items:center!important;
+    gap:12px!important;
+    margin:0 auto!important;
+  }
+  #voiceOff,#voiceOn{
+    flex:0 0 145px!important;
+    width:145px!important;
+    max-width:145px!important;
+    min-width:145px!important;
+    min-height:40px!important;
+  }
+  .time-actions{
+    position:absolute!important;
+    left:50%!important;
+    right:auto!important;
+    bottom:6px!important;
+    transform:translateX(-50%)!important;
+    width:min(650px,92vw)!important;
+    height:52px!important;
+    padding:2px!important;
+    margin:0!important;
+    z-index:999!important;
+    background:#0b1017!important;
+  }
+  .time-actions .btn,
+  #nextTime{
+    width:100%!important;
+    height:48px!important;
+    min-height:48px!important;
+    margin:0!important;
+  }
+
+  /* READY TO PLAY */
+  .setup-ready-screen{
+    position:relative!important;
+    width:100vw!important;
+    height:var(--app-height,100dvh)!important;
+    min-height:0!important;
+    max-height:var(--app-height,100dvh)!important;
+    padding:38px 12px 62px!important;
+    margin:0!important;
+    overflow:hidden!important;
+    box-sizing:border-box!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+  }
+  .setup-ready-title{
+    flex:0 0 auto!important;
+    margin:0 0 4px!important;
+    font-size:clamp(1.2rem,5vh,1.75rem)!important;
+  }
+  .ready-summary-card{
+    flex:0 1 auto!important;
+    width:min(650px,84vw)!important;
+    max-height:calc(var(--app-height,100dvh) - 108px)!important;
+    overflow-y:auto!important;
+    margin:0 auto!important;
+    padding:5px 10px!important;
+  }
+  .ready-summary-card .summary-line{
+    padding:2px 0!important;
+    min-height:0!important;
+    line-height:1!important;
+    font-size:.74rem!important;
+  }
+  .ready-play-button,#playGame{
+    position:absolute!important;
+    left:50%!important;
+    bottom:6px!important;
+    transform:translateX(-50%)!important;
+    width:min(540px,82vw)!important;
+    height:50px!important;
+    min-height:50px!important;
+    margin:0!important;
+    z-index:999!important;
+  }
+
+  /* NEXT PLAYER — use the whole screen */
+  .next-player-screen{
+    width:100vw!important;
+    height:var(--app-height,100dvh)!important;
+    min-height:0!important;
+    max-height:var(--app-height,100dvh)!important;
+    padding:34px 16px 10px!important;
+    margin:0!important;
+    overflow:hidden!important;
+    box-sizing:border-box!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+  }
+  .next-player-stage{
+    width:min(900px,94vw)!important;
+    height:calc(var(--app-height,100dvh) - 48px)!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:space-evenly!important;
+    gap:0!important;
+    text-align:center!important;
+  }
+  .next-player-stage .ready-label{
+    margin:0!important;
+    font-size:clamp(1rem,4.5vh,1.45rem)!important;
+  }
+  .next-player-stage .ready-name{
+    margin:0!important;
+    font-size:clamp(3.8rem,18vh,7.4rem)!important;
+    line-height:.88!important;
+  }
+  .next-player-hype{
+    margin:0!important;
+    font-size:clamp(1.2rem,5.2vh,2rem)!important;
+  }
+  .next-player-stage .ready-subtitle{
+    margin:0!important;
+    font-size:clamp(.9rem,3.8vh,1.25rem)!important;
+  }
+  .next-player-stage .big-countdown{
+    margin:0!important;
+    font-size:clamp(3.2rem,15vh,5.8rem)!important;
+    line-height:.9!important;
+  }
+
+  /* RESULT — center the actual ribbon + score block */
+  .result-screen{
+    width:100vw!important;
+    height:var(--app-height,100dvh)!important;
+    min-height:0!important;
+    overflow-y:auto!important;
+    padding-left:12px!important;
+    padding-right:12px!important;
+    box-sizing:border-box!important;
+  }
+  .result-content{
+    width:100%!important;
+    margin:0 auto!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+  }
+  .standings-block{
+    width:min(760px,92vw)!important;
+    margin:0 auto 18px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    text-align:center!important;
+  }
+  .current-standings-ribbon{
+    width:min(620px,86vw)!important;
+    margin:12px auto 10px!important;
+    text-align:center!important;
+    align-self:center!important;
+  }
+  .standings-block .scoreboard{
+    width:min(700px,88vw)!important;
+    margin:0 auto!important;
+    align-self:center!important;
+  }
+}

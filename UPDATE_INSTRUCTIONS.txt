@@ -1,10 +1,11 @@
-Last One Standing v2.0.11 — Acceptance Fix + Signature Sparkle
+Last One Standing v2.0.12
 
 1. Extract this ZIP.
-2. Copy ALL contents into your local last-one-standing repository and replace matching files.
-3. GitHub Desktop Summary: v2.0.11 Acceptance Fix + Signature Sparkle
-4. Commit to main.
-5. Push origin.
-6. Wait for GitHub Pages.
-7. Fully close and reopen the Home Screen app.
-8. Run TESTING_CHECKLIST_v2.0.11.md.
+2. Copy ALL contents into your local last-one-standing repository.
+3. Replace matching files.
+4. GitHub Desktop Summary: v2.0.12 Visible Viewport Page Fix
+5. Commit to main.
+6. Push origin.
+7. Wait for GitHub Pages.
+8. Fully close the Home Screen app and reopen it.
+9. Test in landscape using TESTING_CHECKLIST_v2.0.12.md.
