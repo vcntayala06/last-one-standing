@@ -1,11 +1,11 @@
-Last One Standing v2.0.12
+Last One Standing v2.0.12.2 — Three Fix Only
 
 1. Extract this ZIP.
-2. Copy ALL contents into your local last-one-standing repository.
+2. Copy ALL contents into the local last-one-standing repository.
 3. Replace matching files.
-4. GitHub Desktop Summary: v2.0.12 Visible Viewport Page Fix
+4. GitHub Desktop Summary: v2.0.12.2 Three Fix Only
 5. Commit to main.
 6. Push origin.
 7. Wait for GitHub Pages.
-8. Fully close the Home Screen app and reopen it.
-9. Test in landscape using TESTING_CHECKLIST_v2.0.12.md.
+8. Fully close and reopen the Home Screen app.
+9. Test only Game Time and the Results scorekeeper in landscape.

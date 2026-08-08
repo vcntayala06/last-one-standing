@@ -428,7 +428,7 @@ export class GameEngine{
       ${type==="correct"?`<div class="correct-sparkle-burst" aria-hidden="true">✦ ✧ ✦</div>`:""}
       <div class="standings-block">
         <div class="current-standings-ribbon">CURRENT STANDINGS</div>
-        ${scoreboardHtml(players,this.state)}
+        <div class="scorekeeper-wrap">${scoreboardHtml(players,this.state)}</div>
       </div>
       </div>
     </section>`;

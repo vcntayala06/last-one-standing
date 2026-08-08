@@ -2736,3 +2736,139 @@ button{cursor:pointer}
     align-self:center!important;
   }
 }
+
+/* =========================================================
+   v2.0.12.2 — THREE FIX ONLY
+   1) Voice buttons centered
+   2) Game Time Continue always visible
+   3) Scorekeeper centered
+   ========================================================= */
+
+@media (orientation:landscape) and (max-height:600px){
+
+  /* GAME TIME */
+  .time-screen{
+    position:relative!important;
+    width:100vw!important;
+    height:var(--app-height,100dvh)!important;
+    max-height:var(--app-height,100dvh)!important;
+    min-height:0!important;
+    overflow:hidden!important;
+    box-sizing:border-box!important;
+    padding:38px 12px 66px!important;
+  }
+
+  .time-scroll{
+    height:auto!important;
+    max-height:none!important;
+    min-height:0!important;
+    overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+    padding-bottom:12px!important;
+  }
+
+  .hard-center-voice,
+  .voice-toggle-row,
+  .time-scroll .row:has(#voiceOff),
+  .time-scroll .row:has(#voiceOn){
+    display:flex!important;
+    flex-direction:row!important;
+    flex-wrap:nowrap!important;
+    justify-content:center!important;
+    align-items:center!important;
+    width:100%!important;
+    max-width:100%!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+    gap:12px!important;
+    text-align:center!important;
+  }
+
+  #voiceOff,
+  #voiceOn{
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    flex:0 0 150px!important;
+    width:150px!important;
+    min-width:150px!important;
+    max-width:150px!important;
+    margin:0!important;
+  }
+
+  .time-actions{
+    position:absolute!important;
+    left:50%!important;
+    right:auto!important;
+    bottom:6px!important;
+    transform:translateX(-50%)!important;
+    width:min(660px,92vw)!important;
+    height:54px!important;
+    margin:0!important;
+    padding:2px!important;
+    z-index:9999!important;
+    box-sizing:border-box!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    background:#0b1017!important;
+  }
+
+  .game-time-continue,
+  #nextTime{
+    position:static!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    width:100%!important;
+    height:50px!important;
+    min-height:50px!important;
+    margin:0!important;
+    flex:1 1 auto!important;
+  }
+
+  /* SCOREKEEPER */
+  .result-screen .standings-block{
+    width:100%!important;
+    max-width:100%!important;
+    margin:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    text-align:center!important;
+  }
+
+  .result-screen .current-standings-ribbon{
+    position:static!important;
+    display:block!important;
+    width:min(620px,86vw)!important;
+    margin:12px auto 10px!important;
+    left:auto!important;
+    right:auto!important;
+    transform:none!important;
+    text-align:center!important;
+    align-self:center!important;
+  }
+
+  .result-screen .scorekeeper-wrap{
+    width:100%!important;
+    display:flex!important;
+    justify-content:center!important;
+    align-items:center!important;
+    margin:0 auto!important;
+    padding:0!important;
+  }
+
+  .result-screen .scorekeeper-wrap .scoreboard{
+    position:static!important;
+    width:min(700px,88vw)!important;
+    max-width:700px!important;
+    margin:0 auto!important;
+    left:auto!important;
+    right:auto!important;
+    transform:none!important;
+    justify-self:center!important;
+    align-self:center!important;
+  }
+}

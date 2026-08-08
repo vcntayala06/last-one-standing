@@ -280,7 +280,7 @@ export function createScreens({state,router,startGame,resumeGame,audio}){
       </div>
 
       <div class="time-actions">
-        <button id="nextTime" class="btn">CONTINUE ▶</button>
+        <button id="nextTime" class="btn game-time-continue">CONTINUE ▶</button>
       </div>
     </section>`;
 
