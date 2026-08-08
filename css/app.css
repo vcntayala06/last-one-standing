@@ -3069,220 +3069,25 @@ button{cursor:pointer}
   }
 }
 
-/* =========================================================
-   v2.0.14 — CORE FIX PASS
-   Game Time / Next Player / Scorekeeper
-   ========================================================= */
-
+/* v2.0.14.1 — safe startup repair + scorekeeper centering */
 @media (orientation:landscape) and (max-height:600px){
-
-  /* GAME TIME: make it fit like Ready to Play.
-     Do NOT alter the now-correct voice-button centering. */
-  .time-screen{
-    position:relative!important;
-    width:100vw!important;
-    height:var(--app-height,100dvh)!important;
-    min-height:0!important;
-    max-height:var(--app-height,100dvh)!important;
-    overflow:hidden!important;
-    display:grid!important;
-    grid-template-rows:auto minmax(0,1fr) 48px!important;
-    gap:3px!important;
-    padding:30px 10px 5px!important;
-    box-sizing:border-box!important;
-  }
-
-  .time-header{
-    margin:0!important;
-    padding:0!important;
-  }
-
-  .time-header .heading{
-    margin:0!important;
-    font-size:clamp(1.05rem,4.3vh,1.45rem)!important;
-    line-height:1!important;
-  }
-
-  .time-scroll{
-    min-height:0!important;
-    height:auto!important;
-    overflow-y:auto!important;
-    padding:0 2px 2px!important;
-    margin:0!important;
-  }
-
-  .time-scroll .card{
-    width:min(650px,84vw)!important;
-    margin:2px auto!important;
-    padding:4px 8px!important;
-    border-radius:10px!important;
-  }
-
-  .time-scroll .card .heading{
-    margin:0 0 3px!important;
-    font-size:.82rem!important;
-    line-height:1!important;
-  }
-
-  .time-scroll .row{
-    gap:5px!important;
-    margin:0!important;
-  }
-
-  .time-scroll .row .btn{
-    min-height:31px!important;
-    height:31px!important;
-    padding:3px 6px!important;
-    font-size:.68rem!important;
-  }
-
-  .time-scroll .status{
-    margin:2px 0 0!important;
-    min-height:0!important;
-    line-height:1!important;
-    font-size:.61rem!important;
-  }
-
-  #voiceOff,#voiceOn{
-    min-height:34px!important;
-    height:34px!important;
-  }
-
-  .time-actions{
-    position:static!important;
-    inset:auto!important;
-    transform:none!important;
-    width:min(650px,88vw)!important;
-    height:48px!important;
-    margin:0 auto!important;
-    padding:0!important;
-    align-self:end!important;
-    z-index:10!important;
-    background:transparent!important;
-  }
-
-  #nextTime,
-  .game-time-continue{
-    position:static!important;
-    width:100%!important;
-    height:44px!important;
-    min-height:44px!important;
-    margin:0!important;
-    display:flex!important;
-    align-items:center!important;
-    justify-content:center!important;
-  }
-
-  /* NEXT PLAYER: deliberately simple, one reliable layout for every turn. */
-  .next-player-screen{
-    position:relative!important;
-    width:100vw!important;
-    height:var(--app-height,100dvh)!important;
-    min-height:0!important;
-    max-height:var(--app-height,100dvh)!important;
-    overflow:hidden!important;
-    padding:28px 16px 10px!important;
-    box-sizing:border-box!important;
-    display:flex!important;
-    align-items:center!important;
-    justify-content:center!important;
-  }
-
-  .next-player-stage{
-    position:static!important;
-    width:min(900px,92vw)!important;
-    height:calc(var(--app-height,100dvh) - 44px)!important;
-    margin:0 auto!important;
-    display:grid!important;
-    grid-template-rows:auto 1.35fr auto auto 1fr!important;
-    gap:4px!important;
-    align-items:center!important;
-    justify-items:center!important;
-    text-align:center!important;
-  }
-
-  .next-player-stage .ready-label{
-    align-self:start!important;
-    margin:0!important;
-    font-size:clamp(.95rem,4vh,1.3rem)!important;
-    line-height:1!important;
-    letter-spacing:.16em!important;
-  }
-
-  .next-player-stage .ready-name{
-    align-self:end!important;
-    margin:0!important;
-    max-width:90vw!important;
-    font-size:clamp(3.4rem,16vh,6.8rem)!important;
-    line-height:.88!important;
-    text-align:center!important;
-    overflow-wrap:anywhere!important;
-  }
-
-  .next-player-hype{
-    margin:0!important;
-    font-size:clamp(1.1rem,4.5vh,1.75rem)!important;
-    line-height:1!important;
-    font-weight:950!important;
-    letter-spacing:.1em!important;
-  }
-
-  .next-player-stage .ready-subtitle{
-    margin:0!important;
-    font-size:clamp(.8rem,3.3vh,1.05rem)!important;
-    line-height:1!important;
-    letter-spacing:.1em!important;
-  }
-
-  .next-player-stage .big-countdown{
-    align-self:start!important;
-    margin:0!important;
-    font-size:clamp(3rem,13vh,5rem)!important;
-    line-height:.9!important;
-  }
-
-  /* SCOREKEEPER: center the ACTUAL "1. Name  ✓ ✕ ⏱" ribbons. */
-  .result-screen .standings-block{
-    width:100%!important;
-    max-width:100%!important;
-    margin:0 auto!important;
-    padding:0!important;
-    display:flex!important;
-    flex-direction:column!important;
-    align-items:center!important;
-    justify-content:center!important;
-    text-align:center!important;
-  }
-
-  .result-screen .scorekeeper-wrap{
-    width:100%!important;
-    max-width:100%!important;
-    margin:0 auto!important;
-    padding:0!important;
-    display:flex!important;
-    justify-content:center!important;
-    align-items:center!important;
-  }
-
-  .result-screen .scorekeeper-wrap .scoreboard{
+  .result-screen .scoreboard{
     position:static!important;
     width:min(680px,84vw)!important;
     max-width:680px!important;
-    margin:0 auto!important;
-    padding:0!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
     left:auto!important;
     right:auto!important;
     transform:none!important;
-    display:grid!important;
-    justify-items:stretch!important;
+    justify-self:center!important;
   }
 
-  .result-screen .player-score-ribbon{
-    position:static!important;
+  .result-screen .scoreline{
     width:100%!important;
     max-width:100%!important;
-    margin:0 auto!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
     box-sizing:border-box!important;
-    transform:none!important;
   }
 }

@@ -1,11 +1,10 @@
-Last One Standing v2.0.14 — Core Fix Pass
+Last One Standing v2.0.14.1 — Startup Repair
 
 1. Extract this ZIP.
 2. Copy ALL contents into your local last-one-standing repository.
 3. Replace matching files.
-4. GitHub Desktop Summary: v2.0.14 Core Fix Pass
+4. GitHub Desktop Summary: v2.0.14.1 Startup Repair
 5. Commit to main.
 6. Push origin.
 7. Wait for GitHub Pages.
-8. Fully close and reopen the Home Screen app. If the Home Screen app still shows an older build while Chrome shows v2.0.14, remove/re-add the Home Screen icon.
-9. Run TESTING_CHECKLIST_v2.0.14.md.
+8. Test in regular browser first. Once it loads, fully close/reopen the Home Screen app.

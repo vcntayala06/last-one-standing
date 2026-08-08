@@ -31,18 +31,12 @@ function levenshtein(a,b){
   const m=a.length,n=b.length;
   if(!m)return n;
   if(!n)return m;
-
   let prev=Array.from({length:n+1},(_,i)=>i);
-
   for(let i=1;i<=m;i++){
     const cur=[i];
     for(let j=1;j<=n;j++){
       const cost=a[i-1]===b[j-1]?0:1;
-      cur[j]=Math.min(
-        cur[j-1]+1,
-        prev[j]+1,
-        prev[j-1]+cost
-      );
+      cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+cost);
     }
     prev=cur;
   }
@@ -52,22 +46,14 @@ function levenshtein(a,b){
 function closeSpeechMatch(a,b){
   a=stripArticles(a);
   b=stripArticles(b);
-
   if(!a||!b)return false;
   if(a===b)return true;
-
-  // Do not fuzzy-match very short answers; that would be too permissive.
   const longest=Math.max(a.length,b.length);
   const shortest=Math.min(a.length,b.length);
   if(shortest<4)return false;
-
-  const distance=levenshtein(a,b);
-
-  // One-character miss for ordinary short answers.
-  if(longest<=8)return distance<=1;
-
-  // Two-character miss for longer words/phrases, capped at ~15%.
-  return distance<=2 && (distance/longest)<=0.15;
+  const d=levenshtein(a,b);
+  if(longest<=8)return d<=1;
+  return d<=2 && (d/longest)<=0.15;
 }
 
 function variants(text){
@@ -105,8 +91,6 @@ export function acceptedAnswer(heard,answers){
       // Only simple singular/plural forgiveness. No broad substring matches.
       if(h.endsWith("s")&&h.length>3&&h.slice(0,-1)===a)return true;
       if(a.endsWith("s")&&a.length>3&&a.slice(0,-1)===h)return true;
-
-      // Small speech-to-text errors are okay; unrelated answers still fail.
       if(closeSpeechMatch(h,a))return true;
 
       return false;
