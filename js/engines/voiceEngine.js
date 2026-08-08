@@ -34,9 +34,13 @@ export function acceptedAnswer(heard,answers){
 
   return answers.some(answer=>{
     const av=variants(answer);
+
     return hv.some(h=>av.some(a=>{
       if(h===a)return true;
-      if(h.length>=3&&a.length>=3&&(h.includes(a)||a.includes(h)))return true;
+
+      if(h.endsWith("s")&&h.length>3&&h.slice(0,-1)===a)return true;
+      if(a.endsWith("s")&&a.length>3&&a.slice(0,-1)===h)return true;
+
       return false;
     }));
   });

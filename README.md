@@ -71,3 +71,14 @@ Do not judge microphone permissions by double-clicking index.html as a file:// p
 v2.0 contains a small foundation question set so the architecture can be tested cleanly.
 
 The next content release will expand the question banks substantially without changing the game engine.
+
+
+## v2.0.2 Usability First
+- Mobile Add Some Fun screen now has an independently scrollable category list.
+- Skip / Continue remain visible at the bottom.
+- Selected categories display a gold state and checkmark.
+- Live selected-category count added.
+- Question text is centered inside its reserved question zone.
+- Answer matching no longer uses broad substring matching.
+- Pacific / Pacific Ocean can both be accepted when explicitly listed, while unrelated speech is rejected.
+- Additional defensive UI checks reduce the chance of a missing element crashing gameplay.

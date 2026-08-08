@@ -1,0 +1,13 @@
+Last One Standing v2.0.2 — Usability First
+
+GitHub Desktop:
+1. Extract this ZIP.
+2. Copy all contents into your local last-one-standing repository folder.
+3. Choose Replace files.
+4. Open GitHub Desktop.
+5. Summary: v2.0.2 Usability First
+6. Commit to main.
+7. Push origin.
+8. Wait for GitHub Pages to redeploy.
+9. Hard refresh the live game.
+10. Follow TESTING_CHECKLIST_v2.0.2.md.

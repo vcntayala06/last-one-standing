@@ -84,21 +84,35 @@ export function createScreens({state,router,startGame}){
       ["random-facts","🎲 Random Facts"]
     ];
 
-    app.innerHTML=`<section class="screen">
-      ${setupBack()}
-      <div class="heading">Add Some Fun?</div>
-      <div class="subtle" style="margin-bottom:18px">Optional — choose any extras, or skip.</div>
+    const selectedCount=state.packs.length;
 
-      <div class="pack-grid">
-        ${packs.map(([id,label])=>`
-          <button class="btn btn-panel ${state.packs.includes(id)?"selected":""}" data-pack="${id}">
-            ${label}
-          </button>`).join("")}
+    app.innerHTML=`<section class="screen packs-screen">
+      ${setupBack()}
+
+      <div class="packs-header">
+        <div class="heading">Add Some Fun?</div>
+        <div class="subtle">Optional — choose any extras, or skip.</div>
+        <div class="packs-count">${selectedCount} ${selectedCount===1?"CATEGORY":"CATEGORIES"} SELECTED</div>
       </div>
 
-      <div class="row" style="margin-top:22px">
+      <div class="packs-scroll">
+        <div class="pack-grid">
+          ${packs.map(([id,label])=>{
+            const selected=state.packs.includes(id);
+            return `<button
+              class="btn btn-panel pack-choice ${selected?"selected":""}"
+              data-pack="${id}"
+              aria-pressed="${selected?"true":"false"}">
+              <span class="pack-check">${selected?"✓":""}</span>
+              <span>${label}</span>
+            </button>`;
+          }).join("")}
+        </div>
+      </div>
+
+      <div class="packs-actions">
         <button id="skipPacks" class="btn btn-panel">SKIP</button>
-        <button id="nextPacks" class="btn">NEXT ▶</button>
+        <button id="nextPacks" class="btn">CONTINUE ▶</button>
       </div>
     </section>`;
 
@@ -106,8 +120,13 @@ export function createScreens({state,router,startGame}){
 
     document.querySelectorAll("[data-pack]").forEach(btn=>btn.onclick=()=>{
       const id=btn.dataset.pack;
-      if(state.packs.includes(id))state.packs=state.packs.filter(x=>x!==id);
-      else state.packs.push(id);
+
+      if(state.packs.includes(id)){
+        state.packs=state.packs.filter(x=>x!==id);
+      }else{
+        state.packs.push(id);
+      }
+
       persist();
       packs();
     });

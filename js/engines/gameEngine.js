@@ -136,7 +136,7 @@ export class GameEngine{
       count--;
 
       if(count>0){
-        qs("#readyCount").textContent=count;
+        const readyEl=qs("#readyCount"); if(readyEl)readyEl.textContent=count;
       }else{
         clearInterval(handle);
         this.renderQuestion();
@@ -178,7 +178,9 @@ export class GameEngine{
       </div>
 
       <div class="question-text-zone">
-        <div id="questionText" class="question-text">${q.q}</div>
+        <div class="question-center-wrap">
+          <div id="questionText" class="question-text">${q.q}</div>
+        </div>
       </div>
 
       <div class="question-timer-zone">
@@ -215,7 +217,7 @@ export class GameEngine{
       if(s.paused)return;
 
       remaining--;
-      qs("#questionTimer").textContent=Math.max(remaining,0);
+      const timerEl=qs("#questionTimer"); if(timerEl)timerEl.textContent=Math.max(remaining,0);
 
       if(remaining<=0){
         finish("timeout");
