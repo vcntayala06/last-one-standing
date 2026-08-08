@@ -1,8 +1,14 @@
-v2.0.5.1 HOTFIX
-Fixes: Unable to start game — Can't find variable: audio
+v2.0.5.2 Cache-Bust Hotfix
+
+Fixes:
+- Can't find variable: audio
+- Forces phone/browser to load the corrected app.js instead of cached copy
 
 1. Extract this ZIP.
-2. Copy its contents into the repository and replace the existing file.
-3. GitHub Desktop Summary: v2.0.5.1 Fix audio startup
-4. Commit to main.
-5. Push origin.
+2. Copy ALL contents into your last-one-standing repository.
+3. Replace existing files.
+4. GitHub Desktop Summary: v2.0.5.2 Fix audio cache
+5. Commit to main.
+6. Push origin.
+7. Wait 1–2 minutes.
+8. On iPhone, fully close Last One Standing and reopen it.
