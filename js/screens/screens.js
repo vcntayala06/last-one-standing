@@ -9,8 +9,13 @@ export function createScreens({state,router,startGame,resumeGame,audio}){
   function home(){
     const canResume=hasGameSession();
 
-    app.innerHTML=`<section class="screen">
-      <div class="home-title">LAST ONE STANDING</div>
+    app.innerHTML=`<section class="screen home-screen">
+      <div class="title-sparkle-wrap">
+        <span class="title-sparkle sparkle-a">✦</span>
+        <span class="title-sparkle sparkle-b">✧</span>
+        <span class="title-sparkle sparkle-c">✦</span>
+        <div class="home-title sparkle-title">LAST ONE STANDING</div>
+      </div>
       <div class="home-subtitle">The Ultimate Voice-Powered Trivia Challenge</div>
 
       <div class="stack" style="width:min(420px,84vw)">
@@ -311,11 +316,11 @@ export function createScreens({state,router,startGame,resumeGame,audio}){
   function ready(){
     const selected=state.players.filter(p=>state.selectedPlayerIds.includes(p.id));
 
-    app.innerHTML=`<section class="screen">
+    app.innerHTML=`<section class="screen setup-ready-screen">
       ${setupBack()}
-      <div class="heading">Ready to Play</div>
+      <div class="heading setup-ready-title">Ready to Play</div>
 
-      <div class="card summary-grid">
+      <div class="card summary-grid ready-summary-card">
         <div class="summary-line"><span>Game</span><strong>${titleCase(state.mode)}</strong></div>
         ${state.mode==="work"?`<div class="summary-line"><span>Business</span><strong>${titleCase(state.industry||"Other")}</strong></div>`:""}
         <div class="summary-line"><span>Players</span><strong>${selected.length}</strong></div>
@@ -325,7 +330,7 @@ export function createScreens({state,router,startGame,resumeGame,audio}){
         <div class="summary-line"><span>Extra Packs</span><strong>${state.packs.length?state.packs.map(titleCase).join(", "):"None"}</strong></div>
       </div>
 
-      <button id="playGame" class="btn btn-gold btn-large" style="margin-top:20px">PLAY</button>
+      <button id="playGame" class="btn btn-gold btn-large ready-play-button">PLAY</button>
     </section>`;
 
     qs("#backBtn").onclick=()=>router.go("time");

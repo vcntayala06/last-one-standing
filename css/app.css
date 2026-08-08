@@ -2177,3 +2177,306 @@ button{cursor:pointer}
     justify-content:center!important;
   }
 }
+
+/* =========================================================
+   v2.0.11 — ACCEPTANCE CRITERIA + SIGNATURE SPARKLE
+   ========================================================= */
+
+/* Signature LAST ONE STANDING title sparkle */
+.title-sparkle-wrap{
+  position:relative;
+  display:inline-block;
+  margin-inline:auto;
+}
+.sparkle-title{
+  position:relative;
+  color:#f2c45b;
+  background:linear-gradient(105deg,#c99228 0%,#f2c45b 28%,#fff3bf 45%,#f2c45b 58%,#c99228 100%);
+  background-size:220% 100%;
+  -webkit-background-clip:text;
+  background-clip:text;
+  -webkit-text-fill-color:transparent;
+  animation:titleGoldSweep 3.8s ease-in-out infinite;
+  filter:drop-shadow(0 0 10px rgba(242,196,91,.22));
+}
+.title-sparkle{
+  position:absolute;
+  z-index:3;
+  color:#fff0b0;
+  line-height:1;
+  pointer-events:none;
+  text-shadow:0 0 8px rgba(255,232,140,.9);
+  animation:titleTwinkle 2.2s ease-in-out infinite;
+}
+.sparkle-a{top:-.15em;left:-.10em;font-size:.32em}
+.sparkle-b{top:.05em;right:-.14em;font-size:.24em;animation-delay:.7s}
+.sparkle-c{bottom:-.12em;left:18%;font-size:.18em;animation-delay:1.3s}
+@keyframes titleGoldSweep{
+  0%,18%{background-position:115% 0}
+  55%{background-position:-20% 0}
+  100%{background-position:-20% 0}
+}
+@keyframes titleTwinkle{
+  0%,100%{opacity:.18;transform:scale(.65) rotate(0deg)}
+  45%{opacity:1;transform:scale(1.25) rotate(20deg)}
+  70%{opacity:.35;transform:scale(.8) rotate(32deg)}
+}
+
+.correct-sparkle-burst{
+  margin:4px auto 10px;
+  font-size:clamp(1.1rem,3vh,1.6rem);
+  letter-spacing:.6em;
+  color:#ffe9a0;
+  text-align:center;
+  animation:correctSparkle .65s ease-out both;
+}
+@keyframes correctSparkle{
+  0%{opacity:0;transform:scale(.65)}
+  40%{opacity:1;transform:scale(1.15)}
+  100%{opacity:0;transform:scale(1.35)}
+}
+
+/* Exact Current Standings block */
+.standings-block{
+  width:min(760px,92vw);
+  margin:0 auto;
+  text-align:center;
+}
+.current-standings-ribbon{
+  display:block;
+  width:min(620px,86vw);
+  margin:18px auto 12px;
+  text-align:center;
+  font-size:1.3rem;
+  font-weight:900;
+}
+.standings-block .scoreboard{
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+
+/* =========================================================
+   LANDSCAPE — hard acceptance criteria
+   ========================================================= */
+@media (orientation:landscape) and (max-height:560px){
+
+  /* Add Some Fun: actions always visible */
+  .packs-screen{
+    position:relative!important;
+    height:100dvh!important;
+    min-height:100dvh!important;
+    overflow:hidden!important;
+    padding:42px 12px 68px!important;
+    box-sizing:border-box!important;
+  }
+  .packs-scroll{
+    height:calc(100dvh - 150px)!important;
+    min-height:0!important;
+    overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+    padding-bottom:12px!important;
+  }
+  .packs-actions{
+    position:fixed!important;
+    left:50%!important;
+    bottom:max(8px,env(safe-area-inset-bottom))!important;
+    transform:translateX(-50%)!important;
+    width:min(640px,92vw)!important;
+    height:54px!important;
+    margin:0!important;
+    padding:3px!important;
+    display:grid!important;
+    grid-template-columns:1fr 1.25fr!important;
+    gap:8px!important;
+    align-items:center!important;
+    z-index:500!important;
+    background:rgba(11,16,23,.96)!important;
+    border-radius:14px!important;
+  }
+  .packs-actions .btn{
+    width:100%!important;
+    height:48px!important;
+    min-height:48px!important;
+  }
+
+  /* Game Time: exact centered controls + permanently visible Continue */
+  .time-screen{
+    position:relative!important;
+    height:100dvh!important;
+    min-height:100dvh!important;
+    overflow:hidden!important;
+    padding:42px 12px 70px!important;
+    box-sizing:border-box!important;
+  }
+  .time-scroll{
+    height:calc(100dvh - 154px)!important;
+    min-height:0!important;
+    overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch!important;
+    padding:0 4px 14px!important;
+  }
+  .time-scroll .card{
+    width:min(760px,90vw)!important;
+    margin:6px auto!important;
+  }
+  .voice-heading{
+    width:100%!important;
+    text-align:center!important;
+  }
+  .voice-toggle-row{
+    width:100%!important;
+    display:grid!important;
+    grid-template-columns:140px 140px!important;
+    justify-content:center!important;
+    align-items:center!important;
+    gap:12px!important;
+    margin:0 auto!important;
+  }
+  .voice-toggle-row .btn{
+    width:140px!important;
+    min-width:140px!important;
+    max-width:140px!important;
+    min-height:42px!important;
+    flex:none!important;
+  }
+  .time-scroll .status{
+    text-align:center!important;
+  }
+  .time-actions{
+    position:fixed!important;
+    left:50%!important;
+    bottom:max(8px,env(safe-area-inset-bottom))!important;
+    transform:translateX(-50%)!important;
+    width:min(640px,92vw)!important;
+    height:54px!important;
+    margin:0!important;
+    padding:3px!important;
+    display:flex!important;
+    align-items:center!important;
+    z-index:500!important;
+    background:rgba(11,16,23,.96)!important;
+    border-radius:14px!important;
+  }
+  .time-actions #nextTime{
+    width:100%!important;
+    height:48px!important;
+    min-height:48px!important;
+    margin:0!important;
+  }
+
+  /* Ready to Play: summary smaller, PLAY immediately visible */
+  .setup-ready-screen{
+    position:relative!important;
+    width:100vw!important;
+    height:100dvh!important;
+    min-height:100dvh!important;
+    overflow:hidden!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    padding:40px 14px 70px!important;
+    box-sizing:border-box!important;
+  }
+  .setup-ready-title{
+    margin:0 auto 5px!important;
+    font-size:clamp(1.3rem,5.4vh,1.9rem)!important;
+  }
+  .ready-summary-card{
+    width:min(680px,86vw)!important;
+    max-height:calc(100dvh - 120px)!important;
+    overflow-y:auto!important;
+    margin:0 auto!important;
+    padding:6px 10px!important;
+    box-sizing:border-box!important;
+  }
+  .ready-summary-card .summary-line{
+    padding:3px 0!important;
+    min-height:0!important;
+    font-size:.78rem!important;
+    line-height:1.02!important;
+  }
+  .ready-play-button{
+    position:fixed!important;
+    left:50%!important;
+    bottom:max(8px,env(safe-area-inset-bottom))!important;
+    transform:translateX(-50%)!important;
+    width:min(540px,84vw)!important;
+    height:50px!important;
+    min-height:50px!important;
+    margin:0!important;
+    z-index:500!important;
+  }
+
+  /* Next Player: full screen, spacious, energetic */
+  .next-player-screen{
+    width:100vw!important;
+    height:100dvh!important;
+    min-height:100dvh!important;
+    overflow:hidden!important;
+    padding:34px 18px 14px!important;
+    box-sizing:border-box!important;
+    display:grid!important;
+    place-items:center!important;
+  }
+  .next-player-stage{
+    width:min(820px,92vw)!important;
+    height:calc(100dvh - 52px)!important;
+    display:grid!important;
+    grid-template-rows:auto 1fr auto auto 1fr!important;
+    align-items:center!important;
+    justify-items:center!important;
+    text-align:center!important;
+    gap:8px!important;
+  }
+  .next-player-stage .ready-label{
+    font-size:clamp(1rem,4.5vh,1.45rem)!important;
+    letter-spacing:.18em!important;
+  }
+  .next-player-stage .ready-name{
+    font-size:clamp(3.8rem,17vh,7.2rem)!important;
+    line-height:.88!important;
+    align-self:end!important;
+  }
+  .next-player-hype{
+    font-size:clamp(1.25rem,5vh,2rem)!important;
+    font-weight:950!important;
+    letter-spacing:.12em!important;
+  }
+  .next-player-stage .ready-subtitle{
+    font-size:clamp(.95rem,4vh,1.3rem)!important;
+    margin:0!important;
+  }
+  .next-player-stage .big-countdown{
+    font-size:clamp(3.4rem,15vh,5.8rem)!important;
+    line-height:1!important;
+    align-self:start!important;
+  }
+
+  /* Actual Current Standings + score ribbon centered */
+  .result-screen .standings-block{
+    position:static!important;
+    width:min(760px,92vw)!important;
+    margin:0 auto 24px!important;
+    text-align:center!important;
+  }
+  .result-screen .current-standings-ribbon{
+    position:static!important;
+    width:min(620px,86vw)!important;
+    margin:18px auto 12px!important;
+    left:auto!important;
+    right:auto!important;
+    transform:none!important;
+    text-align:center!important;
+  }
+  .result-screen .standings-block .scoreboard{
+    position:static!important;
+    width:min(720px,90vw)!important;
+    max-width:720px!important;
+    margin:0 auto!important;
+    left:auto!important;
+    right:auto!important;
+    transform:none!important;
+    justify-content:center!important;
+  }
+}

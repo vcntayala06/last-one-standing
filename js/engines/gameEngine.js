@@ -256,10 +256,13 @@ export class GameEngine{
 
     app.innerHTML=`<section class="screen ready-screen next-player-screen">
       ${gameplayControls(this.state)}
-      <div class="ready-label">NEXT PLAYER</div>
-      <div class="ready-name">${playerDisplayName(p)}</div>
-      <div class="ready-subtitle">Your turn starts in...</div>
-      <div id="readyCount" class="big-countdown">${count}</div>
+      <div class="next-player-stage">
+        <div class="ready-label">NEXT PLAYER</div>
+        <div class="ready-name">${playerDisplayName(p)}</div>
+        <div class="next-player-hype">YOU’RE UP!</div>
+        <div class="ready-subtitle">GET READY</div>
+        <div id="readyCount" class="big-countdown">${count}</div>
+      </div>
     </section>`;
 
     this.attachTopControls();
@@ -422,8 +425,12 @@ export class GameEngine{
       <div class="result-word ${cls}">${label}</div>
       <div class="answer-label">CORRECT ANSWER</div>
       <div class="answer-big">${titleCase(q.answers[0])}</div>
-      <div class="heading" style="font-size:1.3rem;margin-top:10px">CURRENT STANDINGS</div>
-      ${scoreboardHtml(players,this.state)}
+      ${type==="correct"?`<div class="correct-sparkle-burst" aria-hidden="true">✦ ✧ ✦</div>`:""}
+      <div class="standings-block">
+        <div class="current-standings-ribbon">CURRENT STANDINGS</div>
+        ${scoreboardHtml(players,this.state)}
+      </div>
+      </div>
     </section>`;
 
     this.attachTopControls();
