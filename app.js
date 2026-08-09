@@ -1,35 +1,39 @@
 
 (()=>{
 "use strict";
-const BUILD="Clean Foundation 5.4 Voice Reliability";
+const BUILD="Clean Foundation 5.5 Core Stabilization";
 const app=document.getElementById("app");
 const STORAGE={names:"los5_names",voice:"los5_voice",volume:"los5_volume"};
+const EXTRA_CATEGORIES=[
+ "Music","Movies & TV","Sports","Food & Drink","History",
+ "Science & Nature","Geography","Pop Culture","90s & 2000s","Word Play"
+];
 const QUESTIONS=[
- {q:"What gas do humans need to breathe to survive?",a:"oxygen",alts:["oxygen"]},
- {q:"What planet is known as the Red Planet?",a:"Mars",alts:["mars"]},
- {q:"What is the largest ocean on Earth?",a:"Pacific Ocean",alts:["pacific","pacific ocean"]},
- {q:"How many days are in a leap year?",a:"366",alts:["366","three hundred sixty six","three hundred and sixty six"]},
- {q:"What is the capital of California?",a:"Sacramento",alts:["sacramento"]},
- {q:"What animal is known as man's best friend?",a:"Dog",alts:["dog","a dog"]},
- {q:"What color do you get when you mix blue and yellow?",a:"Green",alts:["green"]},
- {q:"How many sides does a triangle have?",a:"3",alts:["3","three"]},
- {q:"What is frozen water called?",a:"Ice",alts:["ice"]},
- {q:"What is the opposite of north?",a:"South",alts:["south"]},
- {q:"What fruit is traditionally used to make guacamole?",a:"Avocado",alts:["avocado"]},
- {q:"Which month comes after June?",a:"July",alts:["july"]},
- {q:"What is 5 times 5?",a:"25",alts:["25","twenty five"]},
- {q:"Which animal says moo?",a:"Cow",alts:["cow","a cow"]},
- {q:"What do bees make?",a:"Honey",alts:["honey"]},
- {q:"What is the first letter of the alphabet?",a:"A",alts:["a","letter a"]},
- {q:"What shape has four equal sides?",a:"Square",alts:["square"]},
- {q:"What star is closest to Earth?",a:"The Sun",alts:["sun","the sun"]},
- {q:"What instrument has black and white keys?",a:"Piano",alts:["piano"]},
- {q:"Which season comes after summer?",a:"Fall",alts:["fall","autumn"]}
+ {q:"What gas do humans need to breathe to survive?",cat:"Science & Nature",a:"oxygen",alts:["oxygen"]},
+ {q:"What planet is known as the Red Planet?",cat:"Science & Nature",a:"Mars",alts:["mars"]},
+ {q:"What is the largest ocean on Earth?",cat:"Geography",a:"Pacific Ocean",alts:["pacific","pacific ocean"]},
+ {q:"How many days are in a leap year?",cat:"General Knowledge",a:"366",alts:["366","three hundred sixty six","three hundred and sixty six"]},
+ {q:"What is the capital of California?",cat:"Geography",a:"Sacramento",alts:["sacramento"]},
+ {q:"What animal is known as man's best friend?",cat:"Science & Nature",a:"Dog",alts:["dog","a dog"]},
+ {q:"What color do you get when you mix blue and yellow?",cat:"General Knowledge",a:"Green",alts:["green"]},
+ {q:"How many sides does a triangle have?",cat:"General Knowledge",a:"3",alts:["3","three"]},
+ {q:"What is frozen water called?",cat:"Science & Nature",a:"Ice",alts:["ice"]},
+ {q:"What is the opposite of north?",cat:"Geography",a:"South",alts:["south"]},
+ {q:"What fruit is traditionally used to make guacamole?",cat:"Food & Drink",a:"Avocado",alts:["avocado"]},
+ {q:"Which month comes after June?",cat:"General Knowledge",a:"July",alts:["july"]},
+ {q:"What is 5 times 5?",cat:"General Knowledge",a:"25",alts:["25","twenty five"]},
+ {q:"Which animal says moo?",cat:"Science & Nature",a:"Cow",alts:["cow","a cow"]},
+ {q:"What do bees make?",cat:"Science & Nature",a:"Honey",alts:["honey"]},
+ {q:"What is the first letter of the alphabet?",cat:"Word Play",a:"A",alts:["a","letter a"]},
+ {q:"What shape has four equal sides?",cat:"General Knowledge",a:"Square",alts:["square"]},
+ {q:"What star is closest to Earth?",cat:"Science & Nature",a:"The Sun",alts:["sun","the sun"]},
+ {q:"What instrument has black and white keys?",cat:"Music",a:"Piano",alts:["piano"]},
+ {q:"Which season comes after summer?",cat:"General Knowledge",a:"Fall",alts:["fall","autumn"]}
 ];
 let state={
  screen:"home",mode:"friends",players:[],selectedIds:[],duration:15,questionSeconds:15,
  quick:false,voiceOn:localStorage.getItem(STORAGE.voice)!=="false",
- volume:Number(localStorage.getItem(STORAGE.volume)||.65),game:null
+ volume:Number(localStorage.getItem(STORAGE.volume)||.65),categories:[],game:null
 };
 let recognition=null,voiceContext="",questionTimer=null,flowTimer=null,audioCtx=null,musicTimer=null,pausedRemaining=null,pausedFrom=null;
 const uid=()=>Math.random().toString(36).slice(2,10);
@@ -80,18 +84,35 @@ function startVoice(ctx){
  const run=()=>{
   if(!state.voiceOn||voiceContext!==ctx)return;
   try{
-   const r=new SR();recognition=r;r.lang="en-US";r.interimResults=true;r.continuous=false;r.maxAlternatives=5;
+   const r=new SR();recognition=r;r.lang="en-US";r.interimResults=true;
+   r.continuous=["home","mode","fun","players","time","ready"].includes(ctx);
+   r.maxAlternatives=3;
+   let lastFast="";
    r.onresult=e=>{
     for(let x=e.resultIndex;x<e.results.length;x++){
-     const res=e.results[x];if(!res.isFinal)continue;
-     const h=res[0]?.transcript?.trim();if(h)heard(ctx,h);
-     if(voiceContext!==ctx)return;
+     const res=e.results[x], h=res[0]?.transcript?.trim();
+     if(!h)continue;
+     const n=norm(h), fast=globalCmd(h);
+     // Short navigation commands should feel immediate.
+     if(!res.isFinal && fast==="continue" && n!==lastFast && ["home","fun","time","ready"].includes(ctx)){
+       lastFast=n; primaryAction(); return;
+     }
+     if(!res.isFinal && fast==="back" && n!==lastFast && ["mode","fun","players","time","ready"].includes(ctx)){
+       lastFast=n; back(); return;
+     }
+     // Player/category edits wait for final recognition.
+     if(res.isFinal){
+       heard(ctx,h);
+       if(voiceContext!==ctx)return;
+     }
     }
    };
    r.onerror=()=>{};
-   r.onend=()=>{recognition=null;if(state.voiceOn&&voiceContext===ctx)setTimeout(run,120)};
+   r.onend=()=>{recognition=null;if(state.voiceOn&&voiceContext===ctx)setTimeout(run,70)};
    r.start();
-  }catch{recognition=null;if(state.voiceOn&&voiceContext===ctx)setTimeout(run,240)}
+  }catch{
+   recognition=null;if(state.voiceOn&&voiceContext===ctx)setTimeout(run,160)
+  }
  };
  run()
 }
@@ -115,36 +136,71 @@ function globalCmd(h){
  return""
 }
 function heard(ctx,h){
- const c=globalCmd(h);
- if(c==="volup"){setVolume(state.volume+.1);return} if(c==="voldown"){setVolume(state.volume-.1);return}
- if(c==="mute"){setVolume(0);return} if(c==="unmute"){setVolume(.65);return} if(c.startsWith("vol:")){setVolume(Number(c.slice(4))/100);return}
+ const c=globalCmd(h), n=norm(h);
+ if(c==="volup"){setVolume(state.volume+.1);return}
+ if(c==="voldown"){setVolume(state.volume-.1);return}
+ if(c==="mute"){setVolume(0);return}
+ if(c==="unmute"){setVolume(.65);return}
+ if(c.startsWith("vol:")){setVolume(Number(c.slice(4))/100);return}
+
  if(ctx==="question"){
    state.game.speechLog.push(h);
    if(c==="pause"){pauseGame();return}
-   if(/^(pass|i pass|ill pass|i ll pass|skip|skip it|skip this one|skip question|next question|im passing|i m passing)$/.test(norm(h))){finish("pass");return}
+   if(/^(pass|i pass|ill pass|i ll pass|skip|skip it|skip this one|skip question|next question|im passing|i m passing)$/.test(n)){finish("pass");return}
    if(accepted(h,state.game.current)){finish("correct");return}
    return
  }
- if(ctx==="paused"){if(c==="resume")resumeGame();else if(c==="leave")leaveGame();else if(c==="end")confirmEnd();return}
+ if(ctx==="paused"){
+   if(c==="resume"||c==="continue"){resumeGame();return}
+   if(c==="leave"){leaveGame();return}
+   if(c==="end"){confirmEnd();return}
+   return
+ }
+
  if(c==="back"){back();return}
- if(ctx==="home"&&(/^(start game|start|lets play|let s play|play)$/.test(norm(h))||c==="continue")){chooseGame();return}
+
+ if(ctx==="home"){
+   if(/^(start game|start|lets play|let s play|play)$/.test(n)||c==="continue"){primaryAction();return}
+ }
+
  if(ctx==="mode"){
-   const n=norm(h);
-   if(/^(quick|quick game|quit game|start a quick game|start quick game)$/.test(n)){state.quick=true;state.duration=3;go("players");return}
-   if(/^(work|work game)$/.test(n)){state.mode="work";go("players");return}
-   if(/^(family|family game)$/.test(n)){state.mode="family";go("players");return}
-   if(/^(friends|friend|friends game)$/.test(n)){state.mode="friends";go("players");return}
-   if(/^(solo|solo game)$/.test(n)){state.mode="solo";go("players");return}
+   if(/^(quick|quick game|quit game|start a quick game|start quick game)$/.test(n)){state.quick=true;state.duration=3;state.mode="friends";go("fun");return}
+   if(/^(work|work game)$/.test(n)){state.mode="work";state.quick=false;go("fun");return}
+   if(/^(family|family game)$/.test(n)){state.mode="family";state.quick=false;go("fun");return}
+   if(/^(friends|friend|friends game)$/.test(n)){state.mode="friends";state.quick=false;go("fun");return}
+   if(/^(solo|solo game)$/.test(n)){state.mode="solo";state.quick=false;go("fun");return}
  }
- if(ctx==="fun"){if(/^(skip|skip this|no thanks)$/.test(norm(h))||c==="continue"){go("players");return}}
- if(ctx==="players"){if(handlePlayerVoice(h))return;if(c==="continue"){state.players=state.players.filter(p=>(p.name||"").trim());if(state.players.length<(state.mode==="solo"?1:2)){players();return}rememberNames();go("time");return}}
+
+ if(ctx==="fun"){
+   if(/^(skip|skip this|no thanks|none|no extra categories)$/.test(n)){state.categories=[];go("players");return}
+   let m=h.match(/^(?:add|include|select|choose)\s+(.+)$/i);
+   if(m){
+     const target=norm(m[1]), cat=EXTRA_CATEGORIES.find(x=>norm(x)===target||norm(x).includes(target)||target.includes(norm(x)));
+     if(cat){const set=new Set(state.categories||[]);set.add(cat);state.categories=[...set];fun();return}
+   }
+   m=h.match(/^(?:remove|delete|deselect)\s+(.+)$/i);
+   if(m){
+     const target=norm(m[1]), cat=EXTRA_CATEGORIES.find(x=>norm(x)===target||norm(x).includes(target)||target.includes(norm(x)));
+     if(cat){state.categories=(state.categories||[]).filter(x=>x!==cat);fun();return}
+   }
+   if(c==="continue"){primaryAction();return}
+ }
+
+ if(ctx==="players"){
+   if(handlePlayerVoice(h))return;
+   if(c==="continue"){primaryAction();return}
+ }
+
  if(ctx==="time"){
-   const n=norm(h);let m=n.match(/^(\d+)\s*seconds?$/);if(m){state.questionSeconds=Math.max(5,Math.min(30,Number(m[1])));time();return}
-   m=n.match(/^(\d+)\s*minutes?$/);if(m){state.duration=Number(m[1]);state.quick=false;time();return}
+   let m=n.match(/^(\d+)\s*seconds?$/);
+   if(m){state.questionSeconds=Math.max(5,Math.min(30,Number(m[1])));time();return}
+   m=n.match(/^(\d+)\s*minutes?$/);
+   if(m){state.duration=Number(m[1]);state.quick=false;time();return}
    if(/^(quick|quick game|quit game)$/.test(n)){state.quick=true;state.duration=3;time();return}
-   if(c==="continue"){go("ready");return}
+   if(c==="continue"){primaryAction();return}
  }
- if(ctx==="ready"&&c==="continue"){startGame();return}
+
+ if(ctx==="ready"&&c==="continue"){primaryAction();return}
 }
 function accepted(spoken,q){const n=norm(spoken);return q.alts.some(a=>{const x=norm(a);return n===x||n.includes(x)})}
 let renamePending=null;
@@ -193,10 +249,30 @@ function handlePlayerVoice(h){
  return false
 }
 function setVolume(v){state.volume=Math.max(0,Math.min(1,v));localStorage.setItem(STORAGE.volume,String(state.volume));const e=document.getElementById("vol");if(e)e.value=state.volume;const p=document.getElementById("volPct");if(p)p.textContent=Math.round(state.volume*100)+"%"}
-function go(s){clearRuntime();state.screen=s;render()}
+function primaryAction(){
+ switch(state.screen){
+  case "home": chooseGame(); return true;
+  case "mode": return false;
+  case "fun": go("players"); return true;
+  case "players":
+   state.players=state.players.filter(p=>(p.name||"").trim());
+   if(state.players.length<(state.mode==="solo"?1:2)){players();return true}
+   rememberNames();go("time");return true;
+  case "time": go("ready"); return true;
+  case "ready": startGame(); return true;
+  case "paused": resumeGame(); return true;
+  default:return false;
+ }
+}
+let navLock=false;
+function go(s){
+ if(navLock)return;
+ navLock=true;clearRuntime();state.screen=s;render();
+ setTimeout(()=>{navLock=false},220)
+}
 function back(){const m={mode:"home",fun:"mode",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
 function home(){
- state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.4</div></div><div class="actions"><button id="start" class="btn primary large">START GAME</button></div>`);
+ state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.5</div></div><div class="actions"><button id="start" class="btn primary large">START GAME</button></div>`);
  document.getElementById("start").onclick=chooseGame;startMusic();startVoice("home")
 }
 function chooseGame(){ensureAudio();go("mode")}
@@ -205,8 +281,21 @@ function mode(){
  document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{const x=b.dataset.mode;if(x==="quick"){state.quick=true;state.duration=3;state.mode="friends"}else{state.quick=false;state.mode=x}go("fun")});startVoice("mode")
 }
 function fun(){
- app.innerHTML=shell("ADD MORE CATEGORIES",`<div class="card center"><div style="font-size:1.5rem;font-weight:1000">Optional extras can live here.</div><div class="subtle" style="margin-top:8px">Choose anything you want — or just say “Skip.”</div></div>`,`<button id="skip" class="btn">SKIP</button><button id="cont" class="btn primary">CONTINUE</button>`);
- document.getElementById("skip").onclick=()=>go("players");document.getElementById("cont").onclick=()=>go("players");startVoice("fun")
+ const selected=new Set(state.categories||[]);
+ const cards=EXTRA_CATEGORIES.map(name=>`<button class="btn category-choice ${selected.has(name)?"selected":""}" data-cat="${esc(name)}">${esc(name)}</button>`).join("");
+ app.innerHTML=shell("ADD MORE CATEGORIES",
+   `<div class="category-intro">MIX IN EXTRA TRIVIA</div>
+    <div class="category-grid">${cards}</div>
+    <div class="subtle center">Pick as many as you want, or say “Skip.” You can also say “Add Music,” “Add Sports,” or “Remove Geography.”</div>`,
+   `<button id="skip" class="btn">SKIP</button><button id="cont" class="btn primary">CONTINUE</button>`);
+ document.querySelectorAll("[data-cat]").forEach(b=>b.onclick=()=>{
+   const name=b.dataset.cat, set=new Set(state.categories||[]);
+   if(set.has(name))set.delete(name);else set.add(name);
+   state.categories=[...set];fun()
+ });
+ document.getElementById("skip").onclick=()=>{state.categories=[];go("players")};
+ document.getElementById("cont").onclick=()=>go("players");
+ startVoice("fun")
 }
 function players(){
  ensurePlayers();const list=state.players.map((p,i)=>`<div class="player-row"><div class="player-num">PLAYER ${i+1}</div><input data-p="${p.id}" value="${esc(p.name)}" placeholder="Name"><button class="btn" data-remove="${p.id}">×</button></div>`).join("");
@@ -222,7 +311,7 @@ function time(){
  document.getElementById("quick").onclick=()=>{state.quick=true;state.duration=3;time()};document.getElementById("vol").oninput=e=>setVolume(Number(e.target.value));document.getElementById("voiceOn").onclick=()=>{state.voiceOn=true;save();time()};document.getElementById("voiceOff").onclick=()=>{state.voiceOn=false;save();time()};document.getElementById("back").onclick=back;document.getElementById("continue").onclick=()=>go("ready");startVoice("time")
 }
 function ready(){
- app.innerHTML=shell("READY TO PLAY?",`<div class="card center"><div style="font-size:1.5rem;font-weight:1000">${state.players.map(p=>esc(p.name)).join(" · ")}</div><div class="subtle" style="margin-top:10px">${state.quick?"QUICK GAME":state.duration+" MIN"} · ${state.questionSeconds} SEC QUESTIONS · ${state.voiceOn?"VOICE ON":"VOICE OFF"}</div><div style="margin-top:14px;font-weight:1000;color:var(--gold)">3 STRIKES AND YOU’RE OUT.</div></div>`,`<button id="back" class="btn">BACK</button><button id="play" class="btn primary large">START GAME</button>`);
+ app.innerHTML=shell("READY TO PLAY?",`<div class="card center"><div style="font-size:1.5rem;font-weight:1000">${state.players.map(p=>esc(p.name)).join(" · ")}</div><div class="subtle" style="margin-top:10px">${state.quick?"QUICK GAME":state.duration+" MIN"} · ${state.questionSeconds} SEC QUESTIONS · ${state.voiceOn?"VOICE ON":"VOICE OFF"}${state.categories?.length?` · EXTRAS: ${state.categories.map(esc).join(", ")}`:""}</div><div style="margin-top:14px;font-weight:1000;color:var(--gold)">3 STRIKES AND YOU’RE OUT.</div></div>`,`<button id="back" class="btn">BACK</button><button id="play" class="btn primary large">START GAME</button>`);
  document.getElementById("back").onclick=back;document.getElementById("play").onclick=startGame;startVoice("ready")
 }
 function selectedPlayers(){return state.mode==="solo"?state.players.slice(0,1):state.players}
@@ -244,7 +333,20 @@ function transition(kind,done){
  clearRuntime();state.screen="transition";const map={question:["LOCK IN","QUESTION INCOMING"],next:["NEXT TURN","GET READY"],elimination:["PLAYER ELIMINATED","THE GAME CONTINUES"],showdown:["FINAL SHOWDOWN","PLAYOFF MODE"]};const [a,b]=map[kind]||map.next;
  app.innerHTML=`<section class="screen transition-screen"><div class="transition-stage"><div class="transition-glow"></div><div class="transition-copy"><div class="transition-big">${a}</div><div class="transition-small">${b}</div></div></div></section>`;sting();flowTimer=setTimeout(done,kind==="elimination"?2200:1800)
 }
-function pickQuestion(){const g=state.game;if(g.used.length>=QUESTIONS.length)g.used=[];let i;do{i=Math.floor(Math.random()*QUESTIONS.length)}while(g.used.includes(i));g.used.push(i);return QUESTIONS[i]}
+function pickQuestion(){
+ const g=state.game;
+ if(g.used.length>=QUESTIONS.length)g.used=[];
+ const selected=new Set(state.categories||[]);
+ let pool=QUESTIONS.map((q,i)=>({q,i})).filter(x=>!g.used.includes(x.i));
+ if(selected.size){
+   const preferred=pool.filter(x=>selected.has(x.q.cat));
+   // Keep extras as a mix, not an exclusive filter.
+   if(preferred.length && Math.random()<.55)pool=preferred;
+ }
+ if(!pool.length){g.used=[];pool=QUESTIONS.map((q,i)=>({q,i}))}
+ const item=pool[Math.floor(Math.random()*pool.length)];
+ g.used.push(item.i);return item.q
+}
 function question(){
  clearRuntime();state.screen="question";const g=state.game;
  const regularSeconds=Number(state.questionSeconds)||15;
@@ -391,5 +493,5 @@ function render(){clearRuntime();({home,mode,fun,players,time,ready,handoff,ques
 function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
-document.documentElement.dataset.build="5.4";viewport();home();
+document.documentElement.dataset.build="5.5";viewport();home();
 })();
