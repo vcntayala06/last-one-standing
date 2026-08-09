@@ -1,17 +1,22 @@
-# Clean Build 4.0 Acceptance Test
+# Foundation 5.0 Acceptance Test
 
-1. Opening says THINK FAST. STAY IN THE GAME. / 3 STRIKES AND YOU’RE OUT.
-2. No Page 1 label and no visible home transcript.
-3. Mode screen: saying QUICK GAME works.
-4. Mode screen: saying QUIT GAME also selects Quick Game.
-5. During gameplay, QUIT GAME is NOT treated as Quick Game.
-6. You’re Up: no player name in top zone.
-7. You’re Up: player name is large/bold directly above YOU’RE UP!
-8. Host Voice card is obvious in setup.
-9. Host choices include CHICANO and URBAN STREET.
-10. Selecting a host gives a preview and Ready screen shows selection.
-11. Pass/skip = strike.
-12. Final Showdown = 3 strikes and out.
-13. Red 5-4-3-2-1, urgent ticks, timeout buzzer remain.
-14. No yellow transition swipe; LOCK IN wording remains.
-15. Landscape remains clear.
+1. Home copy is exact and there is no Page 1 / transcript.
+2. Say Start Game on home.
+3. Setup Continue buttons also respond to Start / Let's start.
+4. On game selection/setup, Quit Game can mean Quick Game; not during active gameplay.
+5. Vicente, Todd, Maria preload.
+6. Voice rename and spelling work.
+7. You’re Up shows player name directly above YOU’RE UP.
+8. Question timer ticks from the beginning.
+9. 5,4,3,2,1 are red and ticks accelerate.
+10. Timeout plays a buzzer and adds a strike.
+11. Pass/Skip ends question and adds a strike.
+12. Three strikes eliminates player.
+13. Transition visuals/sounds play between You’re Up → Question and Result → next turn.
+14. No moving yellow swipe.
+15. Final Showdown starts finalists at zero strikes.
+16. Final Showdown = 3 strikes and out.
+17. Pause/Resume/Leave/End work by tap and voice.
+18. Portrait and landscape remain easy to scan.
+19. Champion screen has confetti and victory sound.
+20. No Host Voice UI appears in this foundation.

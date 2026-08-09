@@ -1,4 +1,15 @@
-LAST ONE STANDING — CLEAN BUILD 4.0 HOST STUDIO
-FULL replacement build.
-Keep the hidden .git folder. Replace current app files with everything in this ZIP.
-GitHub Desktop Summary: Clean Build 4.0 Host Studio
+LAST ONE STANDING — CLEAN FOUNDATION 5.0
+
+This is a COMPLETE replacement foundation.
+
+1. In your local repository, KEEP the hidden .git folder.
+2. Delete the current app files.
+3. Extract this ZIP.
+4. Copy ALL extracted files into the repository root.
+5. GitHub Desktop Summary:
+   Clean Foundation 5.0
+6. Commit to main.
+7. Push origin.
+8. Wait for GitHub Pages.
+9. Test in the browser first.
+10. Fully close and reopen the Home Screen app.
