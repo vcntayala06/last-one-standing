@@ -263,3 +263,26 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
 @media (orientation:portrait){
  .voice-feedback{max-width:42vw;font-size:.58rem}
 }
+
+/* =========================================================
+   5.7 CORE FLOW + PRESSURE
+   ========================================================= */
+.industry-grid{
+  width:min(900px,100%);
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px
+}
+.industry-choice{min-height:62px}
+.industry-choice.selected{
+  background:linear-gradient(180deg,rgba(255,208,79,.24),rgba(255,208,79,.10));
+  border-color:rgba(255,208,79,.65);
+  box-shadow:0 0 0 2px rgba(255,208,79,.16) inset
+}
+@media (min-width:760px){
+  .industry-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (orientation:portrait){
+  .industry-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .industry-choice{min-height:54px;padding:10px 8px;font-size:.86rem}
+}

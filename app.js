@@ -1,9 +1,14 @@
 
 (()=>{
 "use strict";
-const BUILD="Clean Foundation 5.6 Voice Control Foundation";
+const BUILD="Clean Foundation 5.7 Core Flow + Pressure";
 const app=document.getElementById("app");
-const STORAGE={names:"los5_names",voice:"los5_voice",volume:"los5_volume"};
+const STORAGE={names:"los5_names",voice:"los5_voice",volume:"los5_volume",activeGame:"los5_active_game"};
+const WORK_INDUSTRIES=[
+ "General Workplace","Healthcare","Education","Construction","Hospitality",
+ "Retail","Finance","Technology","Manufacturing","Automotive",
+ "Government / Public Safety","Other"
+];
 const EXTRA_CATEGORIES=[
  "Music","Movies & TV","Sports","Food & Drink","History",
  "Science & Nature","Geography","Pop Culture","90s & 2000s","Word Play"
@@ -33,7 +38,7 @@ const QUESTIONS=[
 let state={
  screen:"home",mode:"friends",players:[],selectedIds:[],duration:15,questionSeconds:15,
  quick:false,voiceOn:localStorage.getItem(STORAGE.voice)!=="false",
- volume:Number(localStorage.getItem(STORAGE.volume)||.65),categories:[],game:null
+ volume:Number(localStorage.getItem(STORAGE.volume)||.65),categories:[],industry:"",game:null
 };
 let recognition=null,voiceContext="",questionTimer=null,flowTimer=null,audioCtx=null,musicTimer=null,pausedRemaining=null,pausedFrom=null;
 const uid=()=>Math.random().toString(36).slice(2,10);
@@ -56,10 +61,8 @@ function handoffTick(){tone(520,.045,.045,"square")}
 function tickSound(rem){
  if(rem<=0)return;
  if(rem>=6){tone(500,.045,.05,"square");return}
- // Final five: red digits are handled by the timer class; audio accelerates.
- tone(820,.04,.075,"square");
- setTimeout(()=>tone(900,.032,.065,"square"),260);
- if(rem<=3)setTimeout(()=>tone(980,.03,.06,"square"),520);
+ // Pressure zone: four ticks per second at 5–1.
+ [0,250,500,750].forEach((ms,i)=>setTimeout(()=>tone(820+i*45,.032,.067,"square"),ms))
 }
 function buzzer(){tone(175,.22,.12,"square");tone(150,.24,.11,"square",.17)}
 function good(){tone(620,.08,.07,"triangle");tone(820,.12,.07,"triangle",.08)}
@@ -268,12 +271,17 @@ function heard(ctx,h){
 
  if(ctx==="mode"){
    if(/^(quick|quick game|quit game|start a quick game|start quick game)$/.test(n)){state.quick=true;state.duration=3;state.mode="friends";go("fun");return}
-   if(/^(work|work game)$/.test(n)){state.mode="work";state.quick=false;go("fun");return}
+   if(/^(work|work game)$/.test(n)){state.mode="work";state.quick=false;go("industry");return}
    if(/^(family|family game)$/.test(n)){state.mode="family";state.quick=false;go("fun");return}
    if(/^(friends|friend|friends game)$/.test(n)){state.mode="friends";state.quick=false;go("fun");return}
    if(/^(solo|solo game)$/.test(n)){state.mode="solo";state.quick=false;go("fun");return}
  }
 
+ if(ctx==="industry"){
+   const target=WORK_INDUSTRIES.find(x=>phraseMatch(h,x)||norm(x)===norm(h));
+   if(target){state.industry=target;voiceFeedback("✓ "+target,"action");industry();return}
+   if(c==="continue"&&state.industry){go("fun");return}
+ }
  if(ctx==="fun"){
    if(/^(skip|skip this|no thanks|none|no extra categories)$/.test(n)){state.categories=[];go("players");return}
    let m=h.match(/^(?:add|include|select|choose)\s+(.+)$/i);
@@ -369,10 +377,40 @@ function decorateVoiceTargets(){
    if(aliasMap[key]&&!el.dataset.voiceAliases)el.dataset.voiceAliases=aliasMap[key]
  })
 }
+function saveActiveGame(){
+ if(!state.game){localStorage.removeItem(STORAGE.activeGame);return}
+ try{
+  const payload={
+   version:1,
+   savedAt:Date.now(),
+   mode:state.mode,quick:state.quick,duration:state.duration,
+   questionSeconds:state.questionSeconds,categories:state.categories||[],
+   industry:state.industry||"",players:state.players,game:state.game
+  };
+  localStorage.setItem(STORAGE.activeGame,JSON.stringify(payload))
+ }catch{}
+}
+function loadActiveGame(){
+ try{return JSON.parse(localStorage.getItem(STORAGE.activeGame)||"null")}catch{return null}
+}
+function hasActiveGame(){const x=loadActiveGame();return !!(x&&x.game&&Array.isArray(x.game.players)&&x.game.players.length)}
+function clearActiveGame(){localStorage.removeItem(STORAGE.activeGame)}
+function resumeSavedGame(){
+ const x=loadActiveGame();if(!x||!x.game){clearActiveGame();home();return}
+ state.mode=x.mode||"friends";state.quick=!!x.quick;state.duration=x.duration||10;
+ state.questionSeconds=x.questionSeconds||15;state.categories=x.categories||[];
+ state.industry=x.industry||"";state.players=x.players||[];
+ state.game=x.game;
+ // Resume cleanly at the beginning of the saved player's turn.
+ const alive=state.game.players.filter(p=>!p.eliminated);
+ if(!alive.length){clearActiveGame();home();return}
+ state.screen="handoff";handoff()
+}
 function primaryAction(){
  switch(state.screen){
   case "home": chooseGame(); return true;
   case "mode": return false;
+  case "industry": if(state.industry){go("fun");return true} return false;
   case "fun": go("players"); return true;
   case "players":
    state.players=state.players.filter(p=>(p.name||"").trim());
@@ -390,15 +428,28 @@ function go(s){
  navLock=true;clearRuntime();state.screen=s;render();
  setTimeout(()=>{navLock=false},220)
 }
-function back(){const m={mode:"home",fun:"mode",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
+function back(){const m={mode:"home",industry:"mode",fun:state.mode==="work"?"industry":"mode",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
 function home(){
- state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.6</div></div><div class="actions"><button id="start" class="btn primary large">START GAME</button></div>`);
- document.getElementById("start").onclick=chooseGame;startMusic();startVoice("home")
+ state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.7</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
+ document.getElementById("start").onclick=chooseGame;const rs=document.getElementById("resumeSaved");if(rs)rs.onclick=resumeSavedGame;startMusic();startVoice("home")
 }
 function chooseGame(){ensureAudio();go("mode")}
 function mode(){
  app.innerHTML=shell("CHOOSE YOUR GAME",`<div class="grid"><button class="btn option" data-mode="work">WORK</button><button class="btn option" data-mode="family">FAMILY</button><button class="btn option" data-mode="friends">FRIENDS</button><button class="btn option" data-mode="solo">SOLO</button><button class="btn option primary" data-mode="quick">QUICK GAME</button></div><div class="subtle center">Say “Work,” “Family,” “Friends,” “Solo,” or “Quick Game.” If speech recognition hears “Quit Game” on this screen, it will be treated as Quick Game.</div>`);
- document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{const x=b.dataset.mode;if(x==="quick"){state.quick=true;state.duration=3;state.mode="friends"}else{state.quick=false;state.mode=x}go("fun")});startVoice("mode")
+ document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{const x=b.dataset.mode;if(x==="quick"){state.quick=true;state.duration=3;state.mode="friends";go("fun")}else{state.quick=false;state.mode=x;go(x==="work"?"industry":"fun")}});startVoice("mode")
+}
+function industry(){
+ const selected=state.industry||"";
+ const cards=WORK_INDUSTRIES.map(name=>`<button class="btn industry-choice ${selected===name?"selected":""}" data-industry="${esc(name)}">${esc(name)}</button>`).join("");
+ app.innerHTML=shell("CHOOSE YOUR INDUSTRY",
+   `<div class="category-intro">WORK MODE</div>
+    <div class="industry-grid">${cards}</div>
+    <div class="subtle center">Tap an industry or just say its name.</div>`,
+   `<button id="back" class="btn">BACK</button><button id="cont" class="btn primary">CONTINUE</button>`);
+ document.querySelectorAll("[data-industry]").forEach(b=>b.onclick=()=>{state.industry=b.dataset.industry;industry()});
+ document.getElementById("back").onclick=()=>go("mode");
+ document.getElementById("cont").onclick=()=>{if(!state.industry)return;go("fun")};
+ startVoice("industry");
 }
 function fun(){
  const selected=new Set(state.categories||[]);
@@ -431,12 +482,12 @@ function time(){
  document.getElementById("quick").onclick=()=>{state.quick=true;state.duration=3;time()};document.getElementById("vol").oninput=e=>setVolume(Number(e.target.value));document.getElementById("voiceOn").onclick=()=>{state.voiceOn=true;save();time()};document.getElementById("voiceOff").onclick=()=>{state.voiceOn=false;save();time()};document.getElementById("back").onclick=back;document.getElementById("continue").onclick=()=>go("ready");startVoice("time")
 }
 function ready(){
- app.innerHTML=shell("READY TO PLAY?",`<div class="card center"><div style="font-size:1.5rem;font-weight:1000">${state.players.map(p=>esc(p.name)).join(" · ")}</div><div class="subtle" style="margin-top:10px">${state.quick?"QUICK GAME":state.duration+" MIN"} · ${state.questionSeconds} SEC QUESTIONS · ${state.voiceOn?"VOICE ON":"VOICE OFF"}${state.categories?.length?` · EXTRAS: ${state.categories.map(esc).join(", ")}`:""}</div><div style="margin-top:14px;font-weight:1000;color:var(--gold)">3 STRIKES AND YOU’RE OUT.</div></div>`,`<button id="back" class="btn">BACK</button><button id="play" class="btn primary large">START GAME</button>`);
+ app.innerHTML=shell("READY TO PLAY?",`<div class="card center"><div style="font-size:1.5rem;font-weight:1000">${state.players.map(p=>esc(p.name)).join(" · ")}</div><div class="subtle" style="margin-top:10px">${state.quick?"QUICK GAME":state.duration+" MIN"} · ${state.questionSeconds} SEC QUESTIONS · ${state.voiceOn?"VOICE ON":"VOICE OFF"}${state.mode==="work"&&state.industry?` · ${esc(state.industry)}`:""}${state.categories?.length?` · EXTRAS: ${state.categories.map(esc).join(", ")}`:""}</div><div style="margin-top:14px;font-weight:1000;color:var(--gold)">3 STRIKES AND YOU’RE OUT.</div></div>`,`<button id="back" class="btn">BACK</button><button id="play" class="btn primary large">START GAME</button>`);
  document.getElementById("back").onclick=back;document.getElementById("play").onclick=startGame;startVoice("ready")
 }
 function selectedPlayers(){return state.mode==="solo"?state.players.slice(0,1):state.players}
 function startGame(){
- rememberNames();stopMusic();const ps=selectedPlayers();state.game={players:ps.map(p=>({...p,correct:0,wrong:0,timeout:0,strikes:0,eliminated:false})),startingCount:ps.length,idx:0,qnum:0,used:[],current:null,answered:false,started:Date.now(),speechLog:[],lastSpeechLog:[],showdown:false};handoff()
+ rememberNames();stopMusic();const ps=selectedPlayers();state.game={players:ps.map(p=>({...p,correct:0,wrong:0,timeout:0,strikes:0,eliminated:false})),startingCount:ps.length,idx:0,qnum:0,used:[],current:null,answered:false,started:Date.now(),speechLog:[],lastSpeechLog:[],showdown:false};saveActiveGame();handoff()
 }
 function activePlayers(){return state.game.players.filter(p=>!p.eliminated)}
 function nextActive(from){const g=state.game;for(let i=1;i<=g.players.length;i++){const x=(from+i)%g.players.length;if(!g.players[x].eliminated)return x}return from}
@@ -445,7 +496,7 @@ function gamebar(showName=true){
 }
 function bindGamebar(){document.getElementById("pause").onclick=pauseGame}
 function handoff(){
- clearRuntime();state.screen="handoff";const g=state.game;if(g.players[g.idx].eliminated)g.idx=nextActive(g.idx);const p=g.players[g.idx];
+ clearRuntime();state.screen="handoff";saveActiveGame();const g=state.game;if(g.players[g.idx].eliminated)g.idx=nextActive(g.idx);const p=g.players[g.idx];
  app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(false)}<div class="handoff"><div class="handoff-player-name">${esc(p.name)}</div><div class="handoff-hype">YOU’RE UP!</div><div class="handoff-sub">${g.showdown?"FINAL SHOWDOWN":""}</div><div id="handoffCount" class="handoff-count urgent">3</div></div></div></section>`;
  bindGamebar();startVoice("handoff");let n=3;handoffTick();questionTimer=setInterval(()=>{n--;if(n>0){const e=document.getElementById("handoffCount");if(e)e.textContent=n;handoffTick()}else{clearInterval(questionTimer);questionTimer=null;transition("question",()=>question())}},700)
 }
@@ -468,7 +519,7 @@ function pickQuestion(){
  g.used.push(item.i);return item.q
 }
 function question(){
- clearRuntime();state.screen="question";const g=state.game;
+ clearRuntime();state.screen="question";saveActiveGame();const g=state.game;
  const regularSeconds=Number(state.questionSeconds)||15;
  const remStart=g.showdown?Math.max(5,regularSeconds-5):regularSeconds;
  g.current=pickQuestion();g.answered=false;g.speechLog=[];
@@ -486,14 +537,14 @@ function question(){
  },1000)
 }
 function finish(outcome){
- const g=state.game;if(!g||g.answered)return;g.answered=true;clearRuntime();const p=g.players[g.idx];g.lastSpeechLog=[...g.speechLog];
+ const g=state.game;if(!g||g.answered)return;g.answered=true;clearRuntime();const p=g.players[g.idx];g.lastSpeechLog=[...g.speechLog];saveActiveGame();
  if(outcome==="correct"){p.correct++;good()}else{if(outcome==="timeout"){p.timeout++;buzzer()}else{p.wrong++;bad()}p.strikes++;if(p.strikes>=3)p.eliminated=true}
  result(outcome)
 }
 function marks(p){return "✕".repeat(Math.min(3,p.strikes))+"○".repeat(Math.max(0,3-p.strikes))}
 function standings(){return `<div class="standings">${[...state.game.players].sort((a,b)=>(a.eliminated-b.eliminated)||(a.strikes-b.strikes)||(b.correct-a.correct)).map(p=>`<div class="standing-row ${p.eliminated?"out":""}"><strong>${esc(p.name)}</strong><span>✓ ${p.correct}</span><span style="color:var(--red)">${marks(p)}</span><span>${p.eliminated?"OUT":"IN"}</span></div>`).join("")}</div>`}
 function result(outcome){
- state.screen="result";const g=state.game,p=g.players[g.idx],q=g.current;
+ state.screen="result";saveActiveGame();const g=state.game,p=g.players[g.idx],q=g.current;
  const label=outcome==="correct"?"CORRECT!":outcome==="pass"?"PASSED":outcome==="timeout"?"TIME’S UP!":"NOT QUITE";
  const strike=outcome!=="correct", eliminated=strike&&p.eliminated;
  const phase=g.showdown?"FINAL SHOWDOWN":"CURRENT STANDINGS";
@@ -543,7 +594,7 @@ function showdownIntro(){
  }
  g.players=finalists.map(p=>({...p,strikes:0,eliminated:false}));
  g.idx=0;g.showdown=true;g.qnum=0;g.used=[];
- state.screen="showdown";
+ state.screen="showdown";saveActiveGame();
  const secs=Math.max(5,(Number(state.questionSeconds)||15)-5);
  app.innerHTML=`<section class="screen showdown-screen"><div class="showdown-stage">
    <div class="showdown-kicker">ONLY TWO REMAIN</div>
@@ -579,7 +630,7 @@ function applause(){
  setTimeout(()=>{[523,659,784,1047].forEach((f,i)=>tone(f,.42,.04,"triangle",i*.07))},900);
 }
 function champion(p){
- clearRuntime();stopMusic();state.screen="complete";
+ clearRuntime();stopMusic();clearActiveGame();state.screen="complete";
  app.innerHTML=`<section class="screen complete-screen"><div class="confetti" id="confetti"></div><div class="complete-stage">
    <div class="complete-kicker champion-los">LAST ONE<br>STANDING</div>
    <div class="champion-box">
@@ -607,11 +658,11 @@ function pauseGame(){
  if(!state.game)return;pausedFrom=state.screen;clearRuntime();state.screen="paused";const o=document.createElement("div");o.className="overlay";o.id="pauseOverlay";o.innerHTML=`<div class="pause-card card"><div class="pause-title">GAME PAUSED</div><div class="pause-volume"><span>VOLUME</span><input id="pauseVol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="pauseVolPct">${Math.round(state.volume*100)}%</strong></div><button id="resume" class="btn primary large">RESUME</button><button id="leave" class="btn">LEAVE GAME</button><button id="end" class="btn danger">END GAME</button></div>`;document.body.appendChild(o);document.getElementById("resume").onclick=resumeGame;document.getElementById("leave").onclick=leaveGame;document.getElementById("end").onclick=confirmEnd;document.getElementById("pauseVol").oninput=e=>{setVolume(Number(e.target.value));document.getElementById("pauseVolPct").textContent=Math.round(state.volume*100)+"%"};startVoice("paused")
 }
 function resumeGame(){document.getElementById("pauseOverlay")?.remove();if(pausedFrom==="question")question();else handoff()}
-function leaveGame(){document.getElementById("pauseOverlay")?.remove();state.game=null;home()}
-function confirmEnd(){const c=document.querySelector(".pause-card");if(!c)return;c.innerHTML=`<div class="pause-title">END THIS GAME?</div><button id="yes" class="btn danger large">YES, END GAME</button><button id="no" class="btn">CANCEL</button>`;document.getElementById("yes").onclick=()=>{document.getElementById("pauseOverlay")?.remove();state.game=null;home()};document.getElementById("no").onclick=()=>{document.getElementById("pauseOverlay")?.remove();pauseGame()}}
-function render(){clearRuntime();({home,mode,fun,players,time,ready,handoff,question,result}[state.screen]||home)()}
+function leaveGame(){document.getElementById("pauseOverlay")?.remove();saveActiveGame();state.game=null;home()}
+function confirmEnd(){const c=document.querySelector(".pause-card");if(!c)return;c.innerHTML=`<div class="pause-title">END THIS GAME?</div><button id="yes" class="btn danger large">YES, END GAME</button><button id="no" class="btn">CANCEL</button>`;document.getElementById("yes").onclick=()=>{document.getElementById("pauseOverlay")?.remove();clearActiveGame();state.game=null;home()};document.getElementById("no").onclick=()=>{document.getElementById("pauseOverlay")?.remove();pauseGame()}}
+function render(){clearRuntime();({home,mode,industry,fun,players,time,ready,handoff,question,result}[state.screen]||home)()}
 function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
-window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
-document.documentElement.dataset.build="5.6";viewport();home();
+window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","industry","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
+document.documentElement.dataset.build="5.7";viewport();home();
 })();
