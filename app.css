@@ -738,3 +738,120 @@
     margin-top:5px;
   }
 }
+
+
+/* =========================================================
+   CLEAN BUILD 3.7 — GAME SHOW TRANSITIONS
+   ========================================================= */
+
+/* Player name is centered against the full screen, not the leftover
+   space between Pause and volume controls. */
+.game-topbar{
+  position:relative;
+}
+.game-player{
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+  width:min(56vw,620px);
+  text-align:center;
+  pointer-events:none;
+  z-index:1;
+}
+.game-controls,
+.volume-pill{
+  position:relative;
+  z-index:2;
+}
+.game-controls{justify-self:start}
+.volume-pill{justify-self:end}
+
+/* Actual visual transition stage between gameplay screens */
+.transition-screen{
+  overflow:hidden;
+}
+.transition-stage{
+  position:relative;
+  width:100%;
+  height:100%;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 50% 50%,rgba(255,200,75,.16),transparent 34%),
+    linear-gradient(180deg,#070b17,#03050c);
+}
+.transition-glow{
+  position:absolute;
+  width:70vmin;
+  height:70vmin;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(255,200,75,.18),transparent 65%);
+  animation:transitionPulse 1.8s ease-in-out both;
+}
+.transition-sweep{
+  position:absolute;
+  top:-20%;
+  bottom:-20%;
+  width:34%;
+  left:-45%;
+  transform:skewX(-18deg);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.24),rgba(255,200,75,.35),transparent);
+  filter:blur(2px);
+  animation:transitionSweep 1.8s cubic-bezier(.22,.7,.2,1) both;
+}
+.transition-copy{
+  position:relative;
+  z-index:3;
+  text-align:center;
+  padding:20px;
+  animation:transitionCopy 1.8s ease both;
+}
+.transition-big{
+  font-size:clamp(2.4rem,8vw,5rem);
+  line-height:.9;
+  font-weight:1000;
+  letter-spacing:.04em;
+  background:linear-gradient(105deg,#fff8ca 0%,#ffc94a 26%,#fff 48%,#ffc94a 70%,#fff8ca 100%);
+  background-size:200% 100%;
+  color:transparent;
+  background-clip:text;
+  -webkit-background-clip:text;
+  text-shadow:0 0 28px rgba(255,200,75,.12);
+}
+.transition-small{
+  margin-top:14px;
+  color:var(--muted);
+  font-size:clamp(.82rem,2.5vw,1.05rem);
+  font-weight:900;
+  letter-spacing:.18em;
+}
+@keyframes transitionSweep{
+  0%{left:-45%;opacity:0}
+  15%{opacity:1}
+  78%{opacity:1}
+  100%{left:120%;opacity:0}
+}
+@keyframes transitionPulse{
+  0%{transform:scale(.72);opacity:0}
+  35%{opacity:1}
+  100%{transform:scale(1.18);opacity:0}
+}
+@keyframes transitionCopy{
+  0%{transform:scale(.86);opacity:0}
+  22%{transform:scale(1);opacity:1}
+  75%{opacity:1}
+  100%{transform:scale(1.04);opacity:0}
+}
+
+/* Portrait maintains the centered top-zone player name. */
+@media (orientation:portrait){
+  .game-player{
+    width:min(58vw,440px);
+    font-size:clamp(1.7rem,7vw,2.45rem);
+    color:var(--gold);
+  }
+  .transition-big{
+    font-size:clamp(2.6rem,12vw,4.5rem);
+  }
+}

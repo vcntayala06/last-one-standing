@@ -522,11 +522,53 @@ function startGame(){
   };
   handoff();
 }
+
+function transitionSting(kind="next"){
+  ensureAudio();
+  if(!audioCtx)return;
+  const base = kind==="question" ? 520 : kind==="elimination" ? 180 : 360;
+  const now=audioCtx.currentTime;
+  [0,.10,.20].forEach((delay,i)=>{
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type=i===2?"triangle":"sine";
+    o.frequency.setValueAtTime(base*(1+i*.28),now+delay);
+    g.gain.setValueAtTime(.0001,now+delay);
+    g.gain.exponentialRampToValueAtTime(.08,now+delay+.012);
+    g.gain.exponentialRampToValueAtTime(.0001,now+delay+.22);
+    o.connect(g);g.connect(audioCtx.destination);
+    o.start(now+delay);o.stop(now+delay+.25);
+  });
+}
+function showGameTransition(kind,onDone){
+  clearRuntime();
+  const labels={
+    question:["LOCK IT IN","QUESTION INCOMING"],
+    next:["NEXT TURN","GET READY"],
+    elimination:["PLAYER ELIMINATED","THE GAME CONTINUES"],
+    showdown:["FINAL SHOWDOWN","PLAYOFF MODE"]
+  };
+  const [big,small]=labels[kind]||labels.next;
+  state.screen="transition";
+  app.innerHTML=`<section class="screen gameplay-screen transition-screen">
+    <div class="transition-stage">
+      <div class="transition-sweep"></div>
+      <div class="transition-glow"></div>
+      <div class="transition-copy">
+        <div class="transition-big">${big}</div>
+        <div class="transition-small">${small}</div>
+      </div>
+    </div>
+  </section>`;
+  transitionSting(kind);
+  const duration=kind==="elimination"?2200:1800;
+  resultTimer=setTimeout(()=>{resultTimer=null;onDone&&onDone()},duration);
+}
+
 function handoff(){
   clearRuntime();state.screen="handoff";const g=state.game;
   if(!g.showdown && g.players[g.playerIndex]?.eliminated)g.playerIndex=nextActiveIndex(g.playerIndex);
   const p=g.players[g.playerIndex];
-  app.innerHTML=`<section class="screen gameplay-screen"><div class="game-shell">${gamebar()}<div class="handoff"><div class="handoff-label">${g.showdown?"FINAL SHOWDOWN":"NEXT PLAYER"}</div><div class="handoff-name">${esc(p.name)}</div><div class="handoff-gap"></div><div class="handoff-hype">YOU'RE UP!</div><div class="handoff-sub">${g.showdown?"PLAYOFF PRESSURE":"GET READY"}</div><div class="countdown" id="handoffCount">3</div></div></div></section>`;
+  app.innerHTML=`<section class="screen gameplay-screen"><div class="game-shell">${gamebar()}<div class="handoff"><div class="handoff-label">${g.showdown?"FINAL SHOWDOWN":"IT’S YOUR TURN"}</div><div class="handoff-name">${esc(p.name)}</div><div class="handoff-gap"></div><div class="handoff-hype">YOU'RE UP!</div><div class="handoff-sub">${g.showdown?"PLAYOFF PRESSURE":"GET READY"}</div><div class="countdown" id="handoffCount">3</div></div></div></section>`;
   bindGamebar();setMusicForScreen();if(state.voiceOn)startVoice("handoff");
   let n=3;
   const handoffEl=document.getElementById("handoffCount");
@@ -542,7 +584,8 @@ function handoff(){
       }
       tick(n);
     }else{
-      clearInterval(countdownTimer);countdownTimer=null;renderQuestion(false);
+      clearInterval(countdownTimer);countdownTimer=null;
+      showGameTransition("question",()=>renderQuestion(false));
     }
   },650);
 }
@@ -630,21 +673,24 @@ function advance(){
   if(g.showdown){
     const champ=g.players.find(p=>(p.playoff||0)>=3);
     if(champ){championCelebration(champ);return}
-    g.playerIndex=(g.playerIndex+1)%g.players.length;handoff();return;
+    g.playerIndex=(g.playerIndex+1)%g.players.length;
+    showGameTransition("next",()=>handoff());return;
   }
 
   // If a larger field has been reduced to two survivors, the playoff begins.
   if((g.startingPlayerCount||g.players.length)>2 && activeCount()<=2){
-    startFinalShowdown();return;
+    showGameTransition("elimination",()=>startFinalShowdown());return;
   }
 
   // Game length remains the safety cap. If time/questions run out with more
   // than two players alive, the best two records advance to the playoff.
   const timeExpired=!state.quickGame&&(Date.now()-g.startedAt)/60000>=state.durationMinutes;
-  if(timeExpired||g.questionNumber>=g.maxQuestions){endGame();return}
+  if(timeExpired||g.questionNumber>=g.maxQuestions){
+    showGameTransition("showdown",()=>endGame());return;
+  }
 
   g.playerIndex=nextActiveIndex(g.playerIndex);
-  handoff();
+  showGameTransition("next",()=>handoff());
 }
 
 // ---------- PAUSE / SAVE ----------
