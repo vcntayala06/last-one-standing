@@ -860,3 +860,12 @@
 .transition-sweep{display:none!important}
 .home-screen .voice-transcript,.home-screen .transcript,.home-screen [class*="transcript"],
 .home-screen .heard,.home-screen [class*="heard"],#homeVoiceStatus{display:none!important}
+
+/* Clean Build 3.9 — Host Voices */
+.host-card{grid-column:1/-1}
+.host-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+.host-choice{min-height:46px;font-weight:950;letter-spacing:.04em}
+@media (orientation:portrait){
+  .host-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .host-choice{font-size:.78rem;min-height:42px;padding:8px 6px}
+}

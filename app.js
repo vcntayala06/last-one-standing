@@ -2,12 +2,13 @@
 "use strict";
 
 const app=document.getElementById("app");
-const BUILD="Clean Build 3.3";
+const BUILD="Clean Build 3.9 Host Voices";
 const STORAGE={
   names:"los_b3_names",
   volume:"los_b3_volume",
   voice:"los_b3_voice",
-  session:"los_b3_session"
+  session:"los_b3_session",
+  hostStyle:"los_b3_host_style"
 };
 
 const QUESTIONS=[
@@ -55,7 +56,8 @@ function speechSupported(){return !!(window.SpeechRecognition||window.webkitSpee
 function def(){return{
   screen:"home",mode:null,industry:null,packs:[],players:[],selectedPlayerIds:[],
   durationMinutes:15,quickGame:false,questionSeconds:15,
-  voiceOn:loadBool(STORAGE.voice,true),volume:loadNum(STORAGE.volume,.65),game:null
+  voiceOn:loadBool(STORAGE.voice,true),volume:loadNum(STORAGE.volume,.65),
+  hostStyle:localStorage.getItem(STORAGE.hostStyle)||"classic",game:null
 }}
 
 let state=def();
@@ -335,6 +337,51 @@ function backFromContext(ctx){
   if(target){go(target);return true}
   return false;
 }
+
+const HOST_STYLES=[
+  ["off","OFF"],["classic","CLASSIC"],["cowboy","COWBOY"],["newyork","NEW YORK"],
+  ["wiseguy","WISEGUY"],["preacher","PREACHER"],["norteno","NORTEÑO"],
+  ["bilingual","BILINGUAL"],["cholo","CHOLO"]
+];
+function availableVoices(){try{return speechSynthesis.getVoices()||[]}catch{return[]}}
+function chooseHostVoice(style){
+  const vs=availableVoices();if(!vs.length)return null;
+  const spanish=["norteno","bilingual","cholo"].includes(style);
+  const lang=spanish?"es":"en";
+  const preferred=vs.filter(v=>(v.lang||"").toLowerCase().startsWith(lang));
+  const natural=(preferred.length?preferred:vs).find(v=>/natural|neural|premium|enhanced|siri|google|microsoft/i.test(v.name));
+  return natural||(preferred[0]||vs[0]);
+}
+function hostLine(kind,p){
+  const n=p?.name||"player",s=state.hostStyle||"classic";
+  const lines={
+    classic:{turn:`${n}, you're up.`,correct:"Correct!",wrong:"That's a strike.",pass:"Pass. That's a strike.",timeout:"Time's up. That's a strike.",showdown:"Final Showdown. Three strikes and you're out.",champion:`${n} is the Last One Standing!`},
+    cowboy:{turn:`Alright ${n}, saddle up. You're up.`,correct:"That's right, partner!",wrong:"That's a strike, partner.",pass:"Pass. That's a strike.",timeout:"Time's up, partner. That's a strike.",showdown:"Final Showdown. Three strikes and you're out.",champion:`${n}, you're the Last One Standing!`},
+    newyork:{turn:`Alright ${n}, you're up. Let's go!`,correct:"That's right!",wrong:"Ah, that's a strike.",pass:"Pass. That's a strike.",timeout:"Time's up. That's a strike.",showdown:"Final Showdown. Three strikes and you're out. Let's go!",champion:`${n} takes it! Last One Standing!`},
+    wiseguy:{turn:`Alright ${n}, your turn. Make it count.`,correct:"Beautiful. That's correct.",wrong:"Oof. That's a strike.",pass:"You pass? That's a strike.",timeout:"Clock got you. That's a strike.",showdown:"Final Showdown. Three strikes and you're out.",champion:`${n}, look at you. Last One Standing.`},
+    preacher:{turn:`${n}, it's your turn. Bring it!`,correct:"Yes! That answer is correct!",wrong:"That's one strike. Stay in the game!",pass:"A pass is a strike. Stay in the game!",timeout:"Time is up. That's a strike!",showdown:"Final Showdown! Three strikes and you are out!",champion:`${n} is your champion! Last One Standing!`},
+    norteno:{turn:`Órale, ${n}. Te toca.`,correct:"¡Eso! Correcto.",wrong:"Una falla. Es strike.",pass:"Pasas. Es strike.",timeout:"Se acabó el tiempo. Es strike.",showdown:"Final Showdown. Tres strikes y quedas fuera.",champion:`¡${n} es el campeón! Last One Standing!`},
+    bilingual:{turn:`${n}, you're up. ¡Vámonos!`,correct:"Correct! ¡Eso es!",wrong:"That's a strike. Ponte listo.",pass:"Pass. That's a strike.",timeout:"Time's up. Se acabó. That's a strike.",showdown:"Final Showdown. Tres strikes and you're out.",champion:`${n} is the champion. ¡El Last One Standing!`},
+    cholo:{turn:`Órale, ${n}. You're up, homie. Lock in.`,correct:"Órale. That's right.",wrong:"Ay, that's a strike, homie.",pass:"You pass? That's a strike.",timeout:"Time's up, homie. That's a strike.",showdown:"Final Showdown, homies. Three strikes and you're out.",champion:`Órale, ${n}. You're the Last One Standing!`}
+  };
+  return (lines[s]||lines.classic)[kind]||"";
+}
+function hostSpeak(kind,p,after){
+  if((state.hostStyle||"classic")==="off"){after&&after();return}
+  const text=hostLine(kind,p);if(!text){after&&after();return}
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text),v=chooseHostVoice(state.hostStyle);
+    if(v){u.voice=v;u.lang=v.lang}
+    u.volume=Math.max(.35,state.volume);
+    u.rate=state.hostStyle==="preacher"?1.02:state.hostStyle==="newyork"?1.06:.96;
+    u.pitch=state.hostStyle==="cowboy"?.86:state.hostStyle==="wiseguy"?.84:state.hostStyle==="cholo"?.9:1;
+    if(after){u.onend=after;u.onerror=after}
+    speechSynthesis.speak(u);
+  }catch{after&&after()}
+}
+function saveHostStyle(){localStorage.setItem(STORAGE.hostStyle,state.hostStyle)}
+
 function startVoice(ctx){
   stopVoice();if(!state.voiceOn||!speechSupported())return;
   voiceContext=ctx;
@@ -487,19 +534,20 @@ function players(){
 function updatePlayerNext(){const b=document.getElementById("playersNext");if(b)b.disabled=!canContinuePlayers()}
 function choiceBtn(value,selected,attr,label){return `<button class="btn select-btn ${selected?"selected":""}" data-${attr}="${value}">${label}</button>`}
 function time(){
-  app.innerHTML=shell({title:"Game Time",back:"players",klass:"time-screen",content:`<div class="time-grid"><div class="time-card card"><div class="time-label">Game Length</div><div class="duration-grid"><button class="btn select-btn quick ${state.quickGame?"selected":""}" data-quick="1"><strong>QUICK GAME</strong><small>2–3 min • full ending</small></button>${[5,10,15,20].map(v=>choiceBtn(v,!state.quickGame&&state.durationMinutes===v,"dur",`${v} MIN`)).join("")}</div></div><div class="time-card card"><div class="time-label">Time per Question</div><div class="four-grid">${[10,15,20,30].map(v=>choiceBtn(v,state.questionSeconds===v,"sec",`${v} SEC`)).join("")}</div></div><div class="time-card card"><div class="time-label">Voice Recognition</div><div class="two-grid"><button id="voff" class="btn ${!state.voiceOn?"selected":""}">OFF</button><button id="von" class="btn ${state.voiceOn?"selected":""}">ON</button></div><div class="subtle center">${state.voiceOn?(speechSupported()?"Voice-first setup and gameplay enabled.":"Voice recognition is not supported in this browser."):"Silent play: answers will be typed."}</div></div><div class="time-card card"><div class="time-label">Game Volume</div><div class="volume-row"><span>🔈</span><input id="vol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="vp">${Math.round(state.volume*100)}%</strong></div></div></div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Try “Quick Game,” “20 seconds,” “Continue,” or “Back”":""}</div>`,footer:`<button id="timeNext" class="btn primary">CONTINUE ▶</button>`});
+  app.innerHTML=shell({title:"Game Time",back:"players",klass:"time-screen",content:`<div class="time-grid"><div class="time-card card"><div class="time-label">Game Length</div><div class="duration-grid"><button class="btn select-btn quick ${state.quickGame?"selected":""}" data-quick="1"><strong>QUICK GAME</strong><small>2–3 min • full ending</small></button>${[5,10,15,20].map(v=>choiceBtn(v,!state.quickGame&&state.durationMinutes===v,"dur",`${v} MIN`)).join("")}</div></div><div class="time-card card"><div class="time-label">Time per Question</div><div class="four-grid">${[10,15,20,30].map(v=>choiceBtn(v,state.questionSeconds===v,"sec",`${v} SEC`)).join("")}</div></div><div class="time-card card"><div class="time-label">Voice Recognition</div><div class="two-grid"><button id="voff" class="btn ${!state.voiceOn?"selected":""}">OFF</button><button id="von" class="btn ${state.voiceOn?"selected":""}">ON</button></div><div class="subtle center">${state.voiceOn?(speechSupported()?"Voice-first setup and gameplay enabled.":"Voice recognition is not supported in this browser."):"Silent play: answers will be typed."}</div></div><div class="time-card card host-card"><div class="time-label">Host Voice</div><div class="host-grid">${HOST_STYLES.map(([id,label])=>`<button class="btn host-choice ${state.hostStyle===id?"selected":""}" data-host="${id}">${label}</button>`).join("")}</div><div class="subtle center">Choose the host personality. Device voice quality varies; the game prefers enhanced/natural voices when available.</div></div><div class="time-card card"><div class="time-label">Game Volume</div><div class="volume-row"><span>🔈</span><input id="vol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="vp">${Math.round(state.volume*100)}%</strong></div></div></div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Try “Quick Game,” “20 seconds,” “Continue,” or “Back”":""}</div>`,footer:`<button id="timeNext" class="btn primary">CONTINUE ▶</button>`});
   bindBack("players");
   document.querySelector("[data-quick]").onclick=()=>{state.quickGame=true;state.durationMinutes=3;time()};
   document.querySelectorAll("[data-dur]").forEach(b=>b.onclick=()=>{state.quickGame=false;state.durationMinutes=Number(b.dataset.dur);time()});
   document.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{state.questionSeconds=Number(b.dataset.sec);time()});
   document.getElementById("voff").onclick=()=>{state.voiceOn=false;saveVoice();time()};
   document.getElementById("von").onclick=()=>{state.voiceOn=true;saveVoice();time()};
+  document.querySelectorAll("[data-host]").forEach(b=>b.onclick=()=>{state.hostStyle=b.dataset.host;saveHostStyle();hostSpeak("turn",{name:"Player"});setTimeout(time,650)});
   const v=document.getElementById("vol");v.oninput=()=>{state.volume=Number(v.value);localStorage.setItem(STORAGE.volume,String(state.volume));document.getElementById("vp").textContent=`${Math.round(state.volume*100)}%`};v.onchange=()=>tone();
   document.getElementById("timeNext").onclick=()=>go("ready");setMusicForScreen();bindVoiceHelp("time");
 }
 function ready(){
   const a=selectedPlayers();
-  app.innerHTML=shell({title:"Ready to Play?",back:"time",content:`<div class="ready-wrap"><div class="ready-card card"><div class="summary"><div class="summary-line"><span>Game</span><strong>${esc((state.mode||"").toUpperCase())}</strong></div><div class="summary-line"><span>Players</span><strong>${a.length}</strong></div><div class="summary-line"><span>Game Length</span><strong>${state.quickGame?"QUICK GAME":`${state.durationMinutes} min`}</strong></div><div class="summary-line"><span>Question Time</span><strong>${state.questionSeconds} sec</strong></div><div class="summary-line"><span>Voice</span><strong>${state.voiceOn?"ON":"OFF"}</strong></div></div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Say “Play,” “Start Game,” or “Back”":""}</div></div></div>`,footer:`<button id="play" class="btn primary large">PLAY ▶</button>`});
+  app.innerHTML=shell({title:"Ready to Play?",back:"time",content:`<div class="ready-wrap"><div class="ready-card card"><div class="summary"><div class="summary-line"><span>Game</span><strong>${esc((state.mode||"").toUpperCase())}</strong></div><div class="summary-line"><span>Players</span><strong>${a.length}</strong></div><div class="summary-line"><span>Game Length</span><strong>${state.quickGame?"QUICK GAME":`${state.durationMinutes} min`}</strong></div><div class="summary-line"><span>Question Time</span><strong>${state.questionSeconds} sec</strong></div><div class="summary-line"><span>Voice Recognition</span><strong>${state.voiceOn?"ON":"OFF"}</strong></div><div class="summary-line"><span>Host Voice</span><strong>${esc((HOST_STYLES.find(x=>x[0]===state.hostStyle)?.[1]||"CLASSIC"))}</strong></div></div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Say “Play,” “Start Game,” or “Back”":""}</div></div></div>`,footer:`<button id="play" class="btn primary large">PLAY ▶</button>`});
   bindBack("time");document.getElementById("play").onclick=()=>{ensureAudio();startGame()};setMusicForScreen();bindVoiceHelp("ready");
 }
 
@@ -570,7 +618,7 @@ function handoff(){
   if(!g.showdown && g.players[g.playerIndex]?.eliminated)g.playerIndex=nextActiveIndex(g.playerIndex);
   const p=g.players[g.playerIndex];
   app.innerHTML=`<section class="screen gameplay-screen"><div class="game-shell">${gamebar()}<div class="handoff"><div class="handoff-label">${g.showdown?"FINAL SHOWDOWN":"IT’S YOUR TURN"}</div><div class="handoff-name">${esc(p.name)}</div><div class="handoff-gap"></div><div class="handoff-hype">YOU'RE UP!</div><div class="handoff-sub">${g.showdown?"PLAYOFF PRESSURE":"GET READY"}</div><div class="countdown" id="handoffCount">3</div></div></div></section>`;
-  bindGamebar();setMusicForScreen();if(state.voiceOn)startVoice("handoff");
+  bindGamebar();setMusicForScreen();hostSpeak("turn",p);if(state.voiceOn)setTimeout(()=>{if(state.screen==="handoff")startVoice("handoff")},900);
   let n=3;
   const handoffEl=document.getElementById("handoffCount");
   if(handoffEl){handoffEl.classList.add("urgent");}
@@ -669,7 +717,7 @@ function result(outcome){
     : "";
 
   app.innerHTML=`<section class="screen gameplay-screen"><div class="game-shell result-shell">${gamebar()}<div class="result-body"><div class="result-word ${outcome}">${label}</div><div class="answer-label">CORRECT ANSWER</div><div class="answer-big">${esc(q.answer)}</div>${consequence}${g.showdown?`<div class="standings-title">FINAL SHOWDOWN — 3 STRIKES AND YOU’RE OUT</div>${scoreboard()}`:`<div class="standings-title">CURRENT STANDINGS</div>${scoreboard()}`}<div class="heard-back" id="heardBack"></div><div class="auto-next">${eliminated?"Elimination locked in…":g.showdown?"Showdown continues…":"Next player coming up…"}</div></div></div></section>`;
-  bindGamebar();setMusicForScreen();if(state.voiceOn)startVoice("result");
+  bindGamebar();setMusicForScreen();hostSpeak(outcome==="correct"?"correct":outcome==="pass"?"pass":outcome==="timeout"?"timeout":"wrong",p);if(state.voiceOn)setTimeout(()=>{if(state.screen==="result")startVoice("result")},900);
 
   const delay=g.showdown?2600:eliminated?4800:strikeMoment?3500:2300;
   resultTimer=setTimeout(advance,delay);
@@ -738,12 +786,12 @@ function startFinalShowdown(){
   clearRuntime();stopMusic();state.screen="showdownIntro";
   const finalSeconds=Math.max(5,state.questionSeconds-5);
   app.innerHTML=shell({title:"Final Showdown",klass:"final-screen",content:`<div class="final-card card showdown-intro portrait-showdown"><div class="final-kicker">THE PLAYOFF BEGINS</div><div class="final-title">FINAL SHOWDOWN</div><div class="showdown-vs"><strong class="showdown-player showdown-player-a">${esc(state.game.players[0].name)}</strong><span class="showdown-vs-mark">VS</span><strong class="showdown-player showdown-player-b">${esc(state.game.players[1].name)}</strong></div><div class="final-note">3 strikes and you’re out.<br>Playoff questions: ${finalSeconds} seconds each.</div></div>`});
-  tone(220,.25,.09,"sawtooth");tone(330,.25,.08,"sawtooth",.2);tone(440,.35,.08,"sawtooth",.4);setTimeout(handoff,2400);
+  tone(220,.25,.09,"sawtooth");tone(330,.25,.08,"sawtooth",.2);tone(440,.35,.08,"sawtooth",.4);hostSpeak("showdown",state.game.players[0]);setTimeout(handoff,3000);
 }
 function championCelebration(winner){
   clearRuntime();stopMusic();localStorage.removeItem(STORAGE.session);state.screen="complete";
   app.innerHTML=shell({title:"Game Complete",klass:"final-screen champion-screen",content:`<div id="confetti" class="confetti"></div><div class="final-card card champion-card"><div class="final-kicker">LAST ONE STANDING</div><div class="champion-crown">★</div><div class="final-title">${esc(winner.name)}</div><div class="champion-label">CHAMPION</div><div class="playoff-final">FINAL SHOWDOWN CHAMPION</div><div class="final-note">What a finish.</div></div>`,footer:`<button id="homeBtn" class="btn primary">BACK TO HOME</button>`});
-  document.getElementById("homeBtn").onclick=()=>{state=def();home()};victoryTrack();confetti();
+  document.getElementById("homeBtn").onclick=()=>{state=def();home()};victoryTrack();confetti();setTimeout(()=>hostSpeak("champion",winner),500);
 }
 function endGame(){
   clearRuntime();stopMusic();localStorage.removeItem(STORAGE.session);

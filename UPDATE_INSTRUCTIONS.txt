@@ -1,3 +1,4 @@
-CLEAN BUILD 3.8 — COMPLETE REPLACEMENT
-Keep .git, replace current app files, commit and push.
-GitHub Desktop Summary: Clean Build 3.8 Strike Showdown
+LAST ONE STANDING — CLEAN BUILD 3.9 HOST VOICES
+FULL replacement build.
+Keep the hidden .git folder and replace current app files with this ZIP.
+GitHub Desktop Summary: Clean Build 3.9 Host Voices
