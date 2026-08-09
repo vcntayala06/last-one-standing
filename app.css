@@ -869,3 +869,39 @@
   .host-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .host-choice{font-size:.78rem;min-height:42px;padding:8px 6px}
 }
+
+/* =========================================================
+   CLEAN BUILD 4.0 — HOST STUDIO + HANDOFF FIXES
+   ========================================================= */
+.host-card{
+  border:2px solid rgba(255,201,74,.58)!important;
+  box-shadow:0 0 0 1px rgba(255,255,255,.04),0 12px 36px rgba(0,0,0,.22)!important;
+}
+.host-card .time-label{
+  font-size:clamp(1.15rem,3vw,1.55rem)!important;
+  color:var(--gold)!important;
+  font-weight:1000!important;
+}
+.host-card .time-label::before{content:"🎙  "}
+.host-grid{margin-top:14px!important}
+.host-choice.selected{
+  outline:3px solid rgba(255,201,74,.8)!important;
+  transform:scale(1.025);
+}
+.handoff-player-name{
+  font-size:clamp(2.8rem,10vw,5.5rem);
+  font-weight:1000;
+  line-height:.9;
+  text-align:center;
+  color:var(--gold);
+  margin:0 0 10px;
+  letter-spacing:.015em;
+  text-shadow:0 3px 0 rgba(0,0,0,.35),0 0 24px rgba(255,201,74,.2);
+}
+@media (orientation:portrait){
+  .handoff-player-name{
+    font-size:clamp(3.2rem,14vw,5.4rem);
+    margin-bottom:10px;
+  }
+  .handoff .game-player{display:none!important}
+}

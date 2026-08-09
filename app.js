@@ -2,7 +2,7 @@
 "use strict";
 
 const app=document.getElementById("app");
-const BUILD="Clean Build 3.9 Host Voices";
+const BUILD="Clean Build 4.0 Host Studio";
 const STORAGE={
   names:"los_b3_names",
   volume:"los_b3_volume",
@@ -341,7 +341,7 @@ function backFromContext(ctx){
 const HOST_STYLES=[
   ["off","OFF"],["classic","CLASSIC"],["cowboy","COWBOY"],["newyork","NEW YORK"],
   ["wiseguy","WISEGUY"],["preacher","PREACHER"],["norteno","NORTEÑO"],
-  ["bilingual","BILINGUAL"],["cholo","CHOLO"]
+  ["bilingual","BILINGUAL"],["cholo","CHICANO"],["urban","URBAN STREET"]
 ];
 function availableVoices(){try{return speechSynthesis.getVoices()||[]}catch{return[]}}
 function chooseHostVoice(style){
@@ -362,7 +362,8 @@ function hostLine(kind,p){
     preacher:{turn:`${n}, it's your turn. Bring it!`,correct:"Yes! That answer is correct!",wrong:"That's one strike. Stay in the game!",pass:"A pass is a strike. Stay in the game!",timeout:"Time is up. That's a strike!",showdown:"Final Showdown! Three strikes and you are out!",champion:`${n} is your champion! Last One Standing!`},
     norteno:{turn:`Órale, ${n}. Te toca.`,correct:"¡Eso! Correcto.",wrong:"Una falla. Es strike.",pass:"Pasas. Es strike.",timeout:"Se acabó el tiempo. Es strike.",showdown:"Final Showdown. Tres strikes y quedas fuera.",champion:`¡${n} es el campeón! Last One Standing!`},
     bilingual:{turn:`${n}, you're up. ¡Vámonos!`,correct:"Correct! ¡Eso es!",wrong:"That's a strike. Ponte listo.",pass:"Pass. That's a strike.",timeout:"Time's up. Se acabó. That's a strike.",showdown:"Final Showdown. Tres strikes and you're out.",champion:`${n} is the champion. ¡El Last One Standing!`},
-    cholo:{turn:`Órale, ${n}. You're up, homie. Lock in.`,correct:"Órale. That's right.",wrong:"Ay, that's a strike, homie.",pass:"You pass? That's a strike.",timeout:"Time's up, homie. That's a strike.",showdown:"Final Showdown, homies. Three strikes and you're out.",champion:`Órale, ${n}. You're the Last One Standing!`}
+    cholo:{turn:`Órale, ${n}. You're up. Lock in.`,correct:"Órale. That's right.",wrong:"Ay, that's a strike. Stay in it.",pass:"You pass? That's a strike.",timeout:"Time's up. That's a strike.",showdown:"Final Showdown. Three strikes and you're out.",champion:`Órale, ${n}. You're the Last One Standing!`},
+    urban:{turn:`Aight, ${n}, you up. Lock in.`,correct:"Yeah! That's right.",wrong:"Nah, that's a strike. You still in it.",pass:"You pass? That's a strike.",timeout:"Time's up. That's a strike.",showdown:"Final Showdown. Three strikes and you out. Lock in.",champion:`Aight, ${n}! You the Last One Standing!`}
   };
   return (lines[s]||lines.classic)[kind]||"";
 }
@@ -375,7 +376,7 @@ function hostSpeak(kind,p,after){
     if(v){u.voice=v;u.lang=v.lang}
     u.volume=Math.max(.35,state.volume);
     u.rate=state.hostStyle==="preacher"?1.02:state.hostStyle==="newyork"?1.06:.96;
-    u.pitch=state.hostStyle==="cowboy"?.86:state.hostStyle==="wiseguy"?.84:state.hostStyle==="cholo"?.9:1;
+    u.pitch=state.hostStyle==="cowboy"?.86:state.hostStyle==="wiseguy"?.84:["cholo","urban"].includes(state.hostStyle)?.9:1;
     if(after){u.onend=after;u.onerror=after}
     speechSynthesis.speak(u);
   }catch{after&&after()}
@@ -474,7 +475,7 @@ function bindVoiceHelp(ctx){if(state.voiceOn)startVoice(ctx)}
 function home(){
   clearRuntime();state.screen="home";
   const hasSave=!!loadJSON(STORAGE.session,null);
-  app.innerHTML=`<section class="screen home-screen"><div class="home-inner"><div class="brand-wrap"><div class="brand">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. SPEAK UP. STAY IN THE GAME.</div></div><div class="home-actions"><button id="startBtn" class="btn primary hero-btn">START GAME</button>${hasSave?`<button id="resumeBtn" class="btn">RESUME GAME</button>`:""}<div class="voice-home" id="homeVoiceStatus">${state.voiceOn&&speechSupported()?"🎤 Voice ready — say “Start Game” • 🔊 Music on Page 1":"Tap Start Game"}</div></div><div class="build-stamp">${BUILD}</div></div></section>`;
+  app.innerHTML=`<section class="screen home-screen"><div class="home-inner"><div class="brand-wrap"><div class="brand">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div></div><div class="home-actions"><button id="startBtn" class="btn primary hero-btn">START GAME</button>${hasSave?`<button id="resumeBtn" class="btn">RESUME GAME</button>`:""}<div class="voice-home" id="homeVoiceStatus">${state.voiceOn&&speechSupported()?"🎤 Voice ready — say “Start Game” • 🔊 Music on Page 1":"Tap Start Game"}</div></div><div class="build-stamp">${BUILD}</div></div></section>`;
   document.getElementById("startBtn").onclick=()=>{ensureAudio();startMusic();go("mode")};
   const rb=document.getElementById("resumeBtn");if(rb)rb.onclick=()=>{ensureAudio();resumeSaved()};
   setMusicForScreen();bindVoiceHelp("home");

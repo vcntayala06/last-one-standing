@@ -1,4 +1,4 @@
-LAST ONE STANDING — CLEAN BUILD 3.9 HOST VOICES
+LAST ONE STANDING — CLEAN BUILD 4.0 HOST STUDIO
 FULL replacement build.
-Keep the hidden .git folder and replace current app files with this ZIP.
-GitHub Desktop Summary: Clean Build 3.9 Host Voices
+Keep the hidden .git folder. Replace current app files with everything in this ZIP.
+GitHub Desktop Summary: Clean Build 4.0 Host Studio

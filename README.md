@@ -1,10 +1,16 @@
-# Last One Standing — Clean Build 3.9 Host Voices
+# Last One Standing — Clean Build 4.0 Host Studio
 
-Full replacement build based on Clean Build 3.8.
+Full replacement build.
 
-Adds a Host Voice selector:
-OFF, CLASSIC, COWBOY, NEW YORK, WISEGUY, PREACHER, NORTEÑO, BILINGUAL, CHOLO.
-
-The host speaks short introductions, results, Final Showdown, and champion announcements.
-The app prefers enhanced/natural system voices when the device exposes them. Voice personality also changes phrasing, cadence, rate and pitch.
-Trivia question wording remains clear and neutral; personality is concentrated in host moments.
+Corrections and additions:
+- Opening tagline is exactly:
+  THINK FAST. STAY IN THE GAME.
+  3 STRIKES AND YOU’RE OUT.
+- Page 1 label remains removed.
+- On the mode screen, “quit game” is accepted as “Quick Game” because speech recognition can confuse the phrases. This alias is context-specific.
+- You’re Up screen removes the player name from the top zone and puts the name directly above YOU’RE UP! in large bold type.
+- Host Voice selection is visually prominent in setup and includes:
+  OFF, CLASSIC, COWBOY, NEW YORK, WISEGUY, PREACHER, NORTEÑO, BILINGUAL, CHICANO, URBAN STREET.
+- CHOLO menu label changed to CHICANO.
+- URBAN STREET added as a separate contemporary street-influenced host performance style.
+- All prior 3.8/3.9 strike, pass, timer, buzzer, transition, portrait, voice-name, and Final Showdown behavior retained.
