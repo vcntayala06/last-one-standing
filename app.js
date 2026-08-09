@@ -1,7 +1,7 @@
 
 (()=>{
 "use strict";
-const BUILD="Clean Foundation 5.0";
+const BUILD="Clean Foundation 5.1";
 const app=document.getElementById("app");
 const STORAGE={names:"los5_names",voice:"los5_voice",volume:"los5_volume"};
 const QUESTIONS=[
@@ -147,7 +147,7 @@ function setVolume(v){state.volume=Math.max(0,Math.min(1,v));localStorage.setIte
 function go(s){clearRuntime();state.screen=s;render()}
 function back(){const m={mode:"home",fun:"mode",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
 function home(){
- state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div></div><div class="actions"><button id="start" class="btn primary large">START GAME</button></div>`);
+ state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.1</div></div><div class="actions"><button id="start" class="btn primary large">START GAME</button></div>`);
  document.getElementById("start").onclick=chooseGame;startMusic();startVoice("home")
 }
 function chooseGame(){ensureAudio();go("mode")}
@@ -242,5 +242,5 @@ function render(){clearRuntime();({home,mode,fun,players,time,ready,handoff,ques
 function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
-viewport();home();
+document.documentElement.dataset.build="5.1";viewport();home();
 })();

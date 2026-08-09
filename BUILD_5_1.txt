@@ -1,0 +1,11 @@
+LAST ONE STANDING
+CLEAN FOUNDATION 5.1
+
+If you can see this file in the repository, GitHub Desktop is looking at the new foundation.
+
+Expected home screen:
+THINK FAST. STAY IN THE GAME.
+3 STRIKES AND YOU'RE OUT.
+
+Visible app marker:
+BUILD 5.1

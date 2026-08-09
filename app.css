@@ -87,3 +87,18 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
   .standing-row{grid-template-columns:1fr 44px 72px 40px;font-size:.68rem}
   .showdown-vs{flex-direction:column;gap:10px}
 }
+
+
+/* Clean Foundation 5.1 — visible deployment marker */
+.build-badge{
+  display:inline-block;
+  margin-top:16px;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,208,79,.4);
+  color:var(--gold);
+  background:rgba(255,208,79,.07);
+  font-size:.72rem;
+  font-weight:1000;
+  letter-spacing:.14em;
+}
