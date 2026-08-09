@@ -1,27 +1,13 @@
-# Clean Build 3.1 — Testing Checklist
+# Clean Build 3.2 Testing Checklist
 
-1. Page 1
-   - Confirm LOS icon appears when re-added to Home Screen.
-   - Confirm game-show music is present on Page 1 after the first permitted interaction.
-   - Say “Start Game” and confirm it advances.
-
-2. Voice Back
-   - On Choose Your Game, say “Back”.
-   - Repeat on Work Type, Add Some Fun, Players, Game Time, and Ready screens.
-
-3. Player Voice Entry
-   - In multiplayer say “Player 1 Vicente”.
-   - Say “Player 2 Todd”.
-   - Confirm both names appear without tapping an input box.
-   - Say “Continue” and confirm Game Time opens.
-   - Try “Add Player Maria”.
-   - Confirm an unused blank extra player row does not keep Continue disabled when at least two players have names.
-
-4. Gameplay
-   - Confirm question, Voice Active/Listening and Your Answer row, and large timer layout.
-   - Confirm spoken trivia answers still respond quickly.
-   - Pause and test Resume, Leave Game, and End Game voice commands.
-   - Rotate portrait/landscape and confirm the screen redraws without needing a tap.
-
-5. Quick Game
-   - Select Quick Game and confirm the full ending appears after the short game.
+1. Page 1: tagline says “Think Fast. Speak Up. Stay in the Game.” Music begins after the browser's first allowed interaction.
+2. Add Some Fun: Skip button works; voice “Skip” works.
+3. Players: try “Let’s make player 1 Joe, player 2 can be Tom.” Also test add/change/remove and Continue/Back.
+4. Volume: try “volume up,” “turn it down,” “volume 60,” “mute,” and “unmute.”
+5. Question: voice mode shows only the question and large timer. Background/unmatched speech does not mark an answer wrong.
+6. After a question: say “What did you hear?” and confirm the game speaks the recognition transcript captured during that question window.
+7. Pause: Resume, Leave Game, and End Game buttons have strong contrast and voice commands work.
+8. Time's Up: correct answer dominates; Current Standings is compact.
+9. Multiplayer ending: regular game transitions to Final Showdown; top two play first to 3 correct answers.
+10. Champion: confetti and original victory track play; winner is prominent.
+11. Rotate portrait/landscape repeatedly during setup and gameplay; verify no stuck layout.

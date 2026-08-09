@@ -1,15 +1,9 @@
-LAST ONE STANDING — CLEAN BUILD 3.1
+CLEAN BUILD 3.2
 
-For the safest update:
-1. Extract this ZIP.
-2. Open your local GitHub repository folder.
-3. Turn on Hidden items in File Explorer.
-4. KEEP the hidden .git folder.
-5. Delete the other old app files/folders.
-6. Copy all files from this extracted ZIP next to .git.
-7. In GitHub Desktop use Summary: Clean Build 3.1 Voice Players
-8. Commit to main.
-9. Push origin.
-10. Wait about 1–3 minutes, then test the normal browser first.
-
-If the Home Screen/Desktop shortcut is stale after several minutes, delete it and add it again.
+For a clean GitHub repository update:
+1. Keep the hidden .git folder.
+2. Replace the existing app files with all files from this folder.
+3. In GitHub Desktop use Summary: Clean Build 3.2 Final Showdown
+4. Commit to main.
+5. Push origin.
+6. Allow GitHub Pages a few minutes, then fully close/reopen the Home Screen app.

@@ -2,7 +2,7 @@
 "use strict";
 
 const app=document.getElementById("app");
-const BUILD="Clean Build 3.1";
+const BUILD="Clean Build 3.2";
 const STORAGE={
   names:"los_b3_names",
   volume:"los_b3_volume",
@@ -179,6 +179,12 @@ function globalCommand(t){
   if(/\b(play|begin)\b/.test(n))return"play";
   if(/\b(voice on|turn voice on)\b/.test(n))return"voiceOn";
   if(/\b(voice off|turn voice off)\b/.test(n))return"voiceOff";
+  if(/\b(mute|sound off)\b/.test(n))return"vol:0";
+  if(/\b(unmute|sound on)\b/.test(n))return"vol:60";
+  if(/\b(volume up|turn it up|louder)\b/.test(n))return"volUp";
+  if(/\b(volume down|turn it down|quieter|lower the volume)\b/.test(n))return"volDown";
+  const vol=n.match(/\b(?:volume|sound)(?: to| at)? (\d{1,3})\b/);if(vol)return`vol:${Math.max(0,Math.min(100,Number(vol[1])))}`;
+  if(/\b(what did you hear|repeat what you heard|what was heard|i said that)\b/.test(n))return"heardBack";
   if(/\b(quick game|demo game|short game)\b/.test(n))return"quick";
   const sec=n.match(/\b(10|ten|15|fifteen|20|twenty|30|thirty)\s*(seconds|second|sec)?\b/);
   if(sec){const map={ten:10,fifteen:15,twenty:20,thirty:30};return`sec:${map[sec[1]]||Number(sec[1])}`}
@@ -223,16 +229,16 @@ function addPlayerByVoice(name=""){
 }
 function handlePlayerVoice(h){
   const raw=String(h||"").trim();
-  let m=raw.match(/^(?:select\s+)?player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:is\s+|named\s+|name\s+is\s+)?(.+)$/i);
-  if(m){const idx=spokenNumber(m[1])-1,name=cleanSpokenName(m[2]);return setPlayerNameByVoice(idx,name)}
-  m=raw.match(/^(?:add|select)\s+player(?:\s+(?:named|name\s+is|is))?\s+(.+)$/i);
-  if(m){return addPlayerByVoice(cleanSpokenName(m[1]))}
-  if(/^(add|select)\s+player$/i.test(raw)){return addPlayerByVoice("")}
-  m=raw.match(/^remove\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)$/i);
-  if(m&&state.mode!=="solo"){
-    const idx=spokenNumber(m[1])-1;
-    if(idx>=0&&idx<state.players.length){state.players.splice(idx,1);ensurePlayerRows();players();return true}
-  }
+  // Pull every "player N [is/can be/make ...] Name" phrase from casual speech.
+  const re=/player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:is\s+|can\s+be\s+|will\s+be\s+|named\s+|name\s+is\s+|(?:should\s+be\s+)?|)([a-z][a-z'’-]*(?:\s+[a-z][a-z'’-]*)?)(?=\s*(?:,|and\s+player|player\s+(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+)|$))/ig;
+  let m,changed=false;
+  while((m=re.exec(raw))){const idx=spokenNumber(m[1])-1,name=cleanSpokenName(m[2]);if(idx>=0&&name){while(state.players.length<=idx)state.players.push({id:uid(),name:""});state.players[idx].name=name;changed=true}}
+  if(changed){players();return true}
+  m=raw.match(/(?:add|make|put)\s+(?:a\s+)?player(?:\s+(?:named|name\s+is|is))?\s+(.+)/i);
+  if(m)return addPlayerByVoice(cleanSpokenName(m[1]));
+  if(/\b(add|select)\s+(?:a\s+)?player\b/i.test(raw))return addPlayerByVoice("");
+  m=raw.match(/remove\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)/i);
+  if(m&&state.mode!=="solo"){const idx=spokenNumber(m[1])-1;if(idx>=0&&idx<state.players.length){state.players.splice(idx,1);ensurePlayerRows();players();return true}}
   return false;
 }
 function backFromContext(ctx){
@@ -269,9 +275,16 @@ function showHeard(text){
   const ids=["heard","pauseVoiceStatus","setupVoiceStatus","homeVoiceStatus"];
   for(const id of ids){const e=document.getElementById(id);if(e)e.textContent=`Heard: “${text}”`}
 }
+function setVolume(v){state.volume=Math.max(0,Math.min(1,v));localStorage.setItem(STORAGE.volume,String(state.volume));const vp=document.getElementById("vp");if(vp)vp.textContent=`${Math.round(state.volume*100)}%`;for(const id of ["vol","gameVol"]){const e=document.getElementById(id);if(e)e.value=state.volume}}
+function speakHeardBack(){const text=(state.game?.lastSpeechLog||[]).join(" ").trim();const msg=text?`The game heard: ${text}`:"The game did not capture any clear speech during that question.";const box=document.getElementById("heardBack");if(box)box.textContent=msg;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(msg);u.volume=Math.max(.25,state.volume);speechSynthesis.speak(u)}catch{}}
 function handleHeard(ctx,h){
-  showHeard(h);
   const c=globalCommand(h);
+  if(c==="volUp"){setVolume(state.volume+.1);return}
+  if(c==="volDown"){setVolume(state.volume-.1);return}
+  if(c.startsWith("vol:")){setVolume(Number(c.slice(4))/100);return}
+  if(c==="heardBack"){speakHeardBack();return}
+  if(ctx==="question"&&state.game){state.game.speechLog=state.game.speechLog||[];if(!state.game.speechLog.includes(h))state.game.speechLog.push(h)}
+  if(!["question","result"].includes(ctx))showHeard(h);
 
   if(["mode","industry","packs","players","time","ready"].includes(ctx)&&c==="back"){backFromContext(ctx);return}
 
@@ -325,7 +338,7 @@ function bindVoiceHelp(ctx){if(state.voiceOn)startVoice(ctx)}
 function home(){
   clearRuntime();state.screen="home";
   const hasSave=!!loadJSON(STORAGE.session,null);
-  app.innerHTML=`<section class="screen home-screen"><div class="home-inner"><div class="brand-wrap"><div class="brand">LAST ONE<br>STANDING</div><div class="tagline">THE LAST ANSWER WINS.</div></div><div class="home-actions"><button id="startBtn" class="btn primary hero-btn">START GAME</button>${hasSave?`<button id="resumeBtn" class="btn">RESUME GAME</button>`:""}<div class="voice-home" id="homeVoiceStatus">${state.voiceOn&&speechSupported()?"🎤 Voice ready — say “Start Game” • 🔊 Music on Page 1":"Tap Start Game"}</div></div><div class="build-stamp">${BUILD}</div></div></section>`;
+  app.innerHTML=`<section class="screen home-screen"><div class="home-inner"><div class="brand-wrap"><div class="brand">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. SPEAK UP. STAY IN THE GAME.</div></div><div class="home-actions"><button id="startBtn" class="btn primary hero-btn">START GAME</button>${hasSave?`<button id="resumeBtn" class="btn">RESUME GAME</button>`:""}<div class="voice-home" id="homeVoiceStatus">${state.voiceOn&&speechSupported()?"🎤 Voice ready — say “Start Game” • 🔊 Music on Page 1":"Tap Start Game"}</div></div><div class="build-stamp">${BUILD}</div></div></section>`;
   document.getElementById("startBtn").onclick=()=>{ensureAudio();startMusic();go("mode")};
   const rb=document.getElementById("resumeBtn");if(rb)rb.onclick=()=>{ensureAudio();resumeSaved()};
   setMusicForScreen();bindVoiceHelp("home");
@@ -344,8 +357,8 @@ function industry(){
 }
 function togglePack(pack){const i=state.packs.indexOf(pack);if(i>=0)state.packs.splice(i,1);else state.packs.push(pack)}
 function packs(){
-  app.innerHTML=shell({title:"Add Some Fun?",back:state.mode==="work"?"industry":"mode",content:`<div class="instruction">Pick any extra categories you want in your game. Choose as many as you like — or skip this step.</div><div class="pack-grid">${FUN_PACKS.map(p=>`<button class="pack ${state.packs.includes(p)?"selected":""}" data-pack="${esc(p)}">${esc(p)}</button>`).join("")}</div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Say a category, “Skip,” “Continue,” or “Back”":""}</div>`,footer:`<button id="packsNext" class="btn primary">CONTINUE ▶</button>`});
-  bindBack(state.mode==="work"?"industry":"mode");document.querySelectorAll("[data-pack]").forEach(b=>b.onclick=()=>{togglePack(b.dataset.pack);packs()});document.getElementById("packsNext").onclick=()=>go("players");setMusicForScreen();bindVoiceHelp("packs");
+  app.innerHTML=shell({title:"Add Some Fun?",back:state.mode==="work"?"industry":"mode",content:`<div class="instruction">Pick any extra categories you want in your game. Choose as many as you like — or skip this step.</div><div class="pack-grid">${FUN_PACKS.map(p=>`<button class="pack ${state.packs.includes(p)?"selected":""}" data-pack="${esc(p)}">${esc(p)}</button>`).join("")}</div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Say a category, “Skip,” “Continue,” or “Back”":""}</div>`,footer:`<button id="packsSkip" class="btn">SKIP</button><button id="packsNext" class="btn primary">CONTINUE ▶</button>`});
+  bindBack(state.mode==="work"?"industry":"mode");document.querySelectorAll("[data-pack]").forEach(b=>b.onclick=()=>{togglePack(b.dataset.pack);packs()});document.getElementById("packsNext").onclick=()=>go("players");document.getElementById("packsSkip").onclick=()=>go("players");setMusicForScreen();bindVoiceHelp("packs");
 }
 function ensurePlayerRows(){const need=state.mode==="solo"?1:2;while(state.players.length<need)state.players.push({id:uid(),name:""});if(state.mode==="solo")state.selectedPlayerIds=state.players.length?[state.players[0].id]:[]}
 function namedPlayers(){return state.players.filter(p=>(p.name||"").trim())}
@@ -409,31 +422,36 @@ function chooseQ(){const g=state.game;let pool=QUESTIONS.map((_,i)=>i).filter(i=
 function renderQuestion(resume=false){
   clearRuntime();stopMusic();state.screen="question";const g=state.game,q=resume&&g.current?g.current:chooseQ();g.answered=false;
   let rem=resume&&pausedRemaining!=null?pausedRemaining:state.questionSeconds;pausedRemaining=null;g.questionRemaining=rem;
-  app.innerHTML=`<section class="screen gameplay-screen"><div class="game-shell question-shell">${gamebar()}<div class="question-card"><div class="question-text">${esc(q.q)}</div><div class="voice-answer-row">${state.voiceOn?`<div class="voice-box"><div class="voice-status"><span class="voice-dot"></span>VOICE ACTIVE</div><div class="voice-sub">Listening to your answer</div></div><div class="answer-box"><div class="answer-box-label">YOUR ANSWER</div><div class="heard answer-live" id="heard">Listening…</div></div>`:`<div class="voice-box silent"><div class="voice-status">KEYBOARD ACTIVE</div><div class="voice-sub">Type your answer</div></div><div class="answer-box"><div class="answer-box-label">YOUR ANSWER</div><div class="typed-answer-wrap"><input id="typed" class="input" type="text" autocomplete="off" placeholder="Type your answer…"><button id="submit" class="btn primary">SUBMIT</button></div><div class="heard answer-live" id="heard"></div></div>`}</div><div class="timer-label">TIME REMAINING</div><div class="timer ${rem<=5?"urgent":""}" id="timer">${rem}</div></div><div class="manual-controls"><button id="hostCorrect" class="btn success">✓ CORRECT</button><button id="hostWrong" class="btn danger">✕ WRONG</button><button id="hostTimeout" class="btn">⏱ TIME OUT</button></div></div></section>`;
-  bindGamebar();document.getElementById("hostCorrect").onclick=()=>finishQuestion("correct");document.getElementById("hostWrong").onclick=()=>finishQuestion("wrong");document.getElementById("hostTimeout").onclick=()=>finishQuestion("timeout");
+  g.speechLog=[];
+  app.innerHTML=`<section class="screen gameplay-screen"><div class="game-shell question-shell">${gamebar()}<div class="question-card"><div class="question-text">${esc(q.q)}</div>${state.voiceOn?``:`<div class="typed-answer-wrap keyboard-answer"><input id="typed" class="input" type="text" autocomplete="off" placeholder="Type your answer…"><button id="submit" class="btn primary">SUBMIT</button></div>`}<div class="timer ${rem<=5?"urgent":""}" id="timer">${rem}</div></div></div></section>`;
+  bindGamebar();
   if(state.voiceOn)startVoice("question");else{
     const i=document.getElementById("typed"),s=document.getElementById("submit");
-    const doit=()=>{const v=i.value.trim();if(!v)return;document.getElementById("heard").textContent=`You answered: “${v}”`;if(accepted(v,q))finishQuestion("correct");else{i.value="";i.focus()}};
+    const doit=()=>{const v=i.value.trim();if(!v)return;if(accepted(v,q))finishQuestion("correct");else{i.value="";i.focus()}};
     s.onclick=doit;i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();doit()}};
   }
   questionTimer=setInterval(()=>{rem--;g.questionRemaining=rem;const t=document.getElementById("timer");if(t){t.textContent=Math.max(rem,0);t.classList.toggle("urgent",rem<=5)}tick(rem);if(rem<=0)finishQuestion("timeout")},1000);
 }
 function finishQuestion(outcome){
   const g=state.game;if(!g||g.answered)return;g.answered=true;clearRuntime();const p=g.players[g.playerIndex];
+  g.lastSpeechLog=[...(g.speechLog||[])];
+  if(g.showdown){if(outcome==="correct"){p.playoff=(p.playoff||0)+1;correctSound()}else{wrongSound()} result(outcome);return}
   if(outcome==="correct"){p.correct++;correctSound()}else if(outcome==="wrong"){p.wrong++;wrongSound()}else{p.timeout++;wrongSound()}
   result(outcome);
 }
 function scoreboard(){
   const sorted=[...state.game.players].sort((a,b)=>(b.correct-a.correct)||(a.wrong-b.wrong)||(a.timeout-b.timeout));
-  return `<div class="scoreboard">${sorted.map((p,i)=>`<div class="score-ribbon"><div class="score-name">${i+1}. ${esc(p.name)}</div><div class="score-stat correct">✓ <span>Correct</span> ${p.correct}</div><div class="score-stat wrong">✕ <span>Wrong</span> ${p.wrong}</div><div class="score-stat timeout">⏱ <span>Timed Out</span> ${p.timeout}</div></div>`).join("")}</div>`;
+  return `<div class="scoreboard compact-board">${sorted.map((p,i)=>`<div class="score-ribbon"><div class="score-name">${i+1}. ${esc(p.name)}</div><div class="score-stat correct">✓ ${p.correct}</div><div class="score-stat wrong">✕ ${p.wrong}</div><div class="score-stat timeout">⏱ ${p.timeout}</div></div>`).join("")}</div>`;
 }
+function playoffBoard(){return `<div class="playoff-board">${state.game.players.map(p=>`<div class="playoff-player"><strong>${esc(p.name)}</strong><span>${p.playoff||0}</span></div>`).join("")}</div>`}
 function result(outcome){
   state.screen="result";const q=state.game.current,label=outcome==="correct"?"CORRECT!":outcome==="wrong"?"NOT QUITE":"TIME'S UP";
-  app.innerHTML=`<section class="screen gameplay-screen"><div class="game-shell result-shell">${gamebar()}<div class="result-body"><div class="result-word ${outcome}">${label}</div><div class="answer-label">CORRECT ANSWER</div><div class="answer-big">${esc(q.answer)}</div><div class="standings-title">CURRENT STANDINGS</div>${scoreboard()}<div class="auto-next">Next player coming up…</div></div></div></section>`;
-  bindGamebar();setMusicForScreen();resultTimer=setTimeout(advance,2700);
+  app.innerHTML=`<section class="screen gameplay-screen"><div class="game-shell result-shell">${gamebar()}<div class="result-body"><div class="result-word ${outcome}">${label}</div><div class="answer-label">CORRECT ANSWER</div><div class="answer-big">${esc(q.answer)}</div>${state.game.showdown?`<div class="standings-title">FINAL SHOWDOWN — FIRST TO 3</div>${playoffBoard()}`:`<div class="standings-title">CURRENT STANDINGS</div>${scoreboard()}`}<div class="heard-back" id="heardBack"></div><div class="auto-next">${state.game.showdown?"Showdown continues…":"Next player coming up…"}</div></div></div></section>`;
+  bindGamebar();setMusicForScreen();if(state.voiceOn)startVoice("result");resultTimer=setTimeout(advance,state.game.showdown?2300:2700);
 }
 function advance(){
   clearRuntime();const g=state.game;g.questionNumber++;
+  if(g.showdown){const champ=g.players.find(p=>(p.playoff||0)>=3);if(champ){championCelebration(champ);return}g.playerIndex=(g.playerIndex+1)%g.players.length;handoff();return}
   if((!state.quickGame&&(Date.now()-g.startedAt)/60000>=state.durationMinutes)||g.questionNumber>=g.maxQuestions){endGame();return}
   g.playerIndex=(g.playerIndex+1)%g.players.length;handoff();
 }
@@ -442,7 +460,7 @@ function advance(){
 function pauseGame(intent=""){
   if(!state.game)return;pausedAt=state.screen;if(state.screen==="question")pausedRemaining=state.game.questionRemaining;clearRuntime();stopMusic();
   const o=document.createElement("div");o.className="overlay";o.id="pauseOverlay";
-  o.innerHTML=`<div class="pause-card card"><div class="pause-title">GAME PAUSED</div><button id="resumePause" class="btn primary large">RESUME</button><button id="leavePause" class="btn">PAUSE & LEAVE</button><button id="endPause" class="btn danger">END GAME</button>${state.voiceOn?`<div class="pause-help">Say “Resume,” “Leave Game,” or “End Game.”</div><div class="pause-heard" id="pauseVoiceStatus">🎤 Listening…</div>`:""}</div>`;
+  o.innerHTML=`<div class="pause-card card"><div class="pause-title">GAME PAUSED</div><button id="resumePause" class="btn primary large">RESUME</button><button id="leavePause" class="btn">LEAVE GAME</button><button id="endPause" class="btn danger">END GAME</button>${state.voiceOn?`<div class="pause-help">Say “Resume,” “Leave Game,” or “End Game.”</div><div class="pause-heard" id="pauseVoiceStatus">🎤 Listening…</div>`:""}</div>`;
   document.body.appendChild(o);document.getElementById("resumePause").onclick=resumePause;document.getElementById("leavePause").onclick=pauseLeave;document.getElementById("endPause").onclick=confirmEnd;
   if(state.voiceOn)startVoice("paused");
   if(intent==="leave")setTimeout(pauseLeave,120);if(intent==="end")setTimeout(confirmEnd,120);
@@ -461,10 +479,26 @@ function confirmEnd(){
   document.getElementById("yesEnd").onclick=()=>{closePause();localStorage.removeItem(STORAGE.session);endGame()};
   document.getElementById("backPause").onclick=()=>{closePause();pauseGame()};
 }
+function victoryTrack(){
+  ensureAudio();const notes=[523.25,659.25,783.99,1046.5,783.99,880,987.77,1046.5];notes.forEach((f,i)=>tone(f,.22,.09,i%2?"square":"triangle",i*.13));[130.81,164.81,196,261.63].forEach((f,i)=>tone(f,.32,.08,"sawtooth",i*.26));
+}
+function confetti(){const root=document.getElementById("confetti");if(!root)return;for(let i=0;i<70;i++){const x=document.createElement("i");x.style.left=`${Math.random()*100}%`;x.style.animationDelay=`${Math.random()*.7}s`;x.style.animationDuration=`${1.8+Math.random()*1.8}s`;x.style.transform=`rotate(${Math.random()*360}deg)`;root.appendChild(x)}}
+function startFinalShowdown(){
+  const ranked=[...state.game.players].sort((a,b)=>(b.correct-a.correct)||(a.wrong-b.wrong)||(a.timeout-b.timeout));
+  state.game.players=ranked.slice(0,2).map(p=>({...p,playoff:0}));state.game.playerIndex=0;state.game.showdown=true;state.game.questionNumber=0;state.game.maxQuestions=99;state.game.used=[];
+  clearRuntime();stopMusic();state.screen="showdownIntro";
+  app.innerHTML=shell({title:"Final Showdown",klass:"final-screen",content:`<div class="final-card card showdown-intro"><div class="final-kicker">THE PLAYOFF BEGINS</div><div class="final-title">FINAL SHOWDOWN</div><div class="showdown-vs"><strong>${esc(state.game.players[0].name)}</strong><span>VS</span><strong>${esc(state.game.players[1].name)}</strong></div><div class="final-note">First to 3 correct answers becomes the champion.</div></div>`});
+  tone(220,.25,.09,"sawtooth");tone(330,.25,.08,"sawtooth",.2);tone(440,.35,.08,"sawtooth",.4);setTimeout(handoff,1800);
+}
+function championCelebration(winner){
+  clearRuntime();stopMusic();localStorage.removeItem(STORAGE.session);state.screen="complete";
+  app.innerHTML=shell({title:"Game Complete",klass:"final-screen champion-screen",content:`<div id="confetti" class="confetti"></div><div class="final-card card champion-card"><div class="final-kicker">LAST ONE STANDING</div><div class="champion-crown">★</div><div class="final-title">${esc(winner.name)}</div><div class="champion-label">CHAMPION</div><div class="playoff-final">Final Showdown ${winner.playoff||3} wins</div><div class="final-note">What a finish.</div></div>`,footer:`<button id="homeBtn" class="btn primary">BACK TO HOME</button>`});
+  document.getElementById("homeBtn").onclick=()=>{state=def();home()};victoryTrack();confetti();
+}
 function endGame(){
-  clearRuntime();stopMusic();localStorage.removeItem(STORAGE.session);const ranked=[...state.game.players].sort((a,b)=>(b.correct-a.correct)||(a.wrong-b.wrong)||(a.timeout-b.timeout)),winner=ranked[0];
-  app.innerHTML=shell({title:state.mode==="solo"?"Final Challenge":"Final Showdown",klass:"final-screen",content:`<div class="final-card card"><div class="final-kicker">GAME COMPLETE</div><div class="final-title">${state.mode==="solo"?"Great Run!":`${esc(winner.name)} Wins!`}</div>${scoreboard()}<div class="final-note">${state.quickGame?"Quick Game complete — you saw the full ending.":"Thanks for playing Last One Standing."}</div></div>`,footer:`<button id="homeBtn" class="btn primary">BACK TO HOME</button>`});
-  document.getElementById("homeBtn").onclick=()=>{state=def();home()};
+  clearRuntime();stopMusic();localStorage.removeItem(STORAGE.session);
+  if(state.mode!=="solo"&&state.game.players.length>1&&!state.game.showdown){startFinalShowdown();return}
+  const winner=[...state.game.players].sort((a,b)=>(b.correct-a.correct)||(a.wrong-b.wrong)||(a.timeout-b.timeout))[0];championCelebration(winner);
 }
 
 // ---------- ORIENTATION / VIEWPORT ----------
