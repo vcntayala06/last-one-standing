@@ -2,7 +2,7 @@
 "use strict";
 
 const app=document.getElementById("app");
-const BUILD="Clean Build 3.2";
+const BUILD="Clean Build 3.3";
 const STORAGE={
   names:"los_b3_names",
   volume:"los_b3_volume",
@@ -77,6 +77,25 @@ function stopVoice(){
 }
 function clearRuntime(){clearTimers();stopVoice()}
 function selectedPlayers(){return state.mode==="solo"?state.players.slice(0,1):state.players.filter(p=>state.selectedPlayerIds.includes(p.id))}
+function activePlayers(){return state.game?.players?.filter(p=>!p.eliminated)||[]}
+function activeCount(){return activePlayers().length}
+function nextActiveIndex(from){
+  const g=state.game;if(!g?.players?.length)return 0;
+  for(let step=1;step<=g.players.length;step++){
+    const idx=(from+step)%g.players.length;
+    if(!g.players[idx].eliminated)return idx;
+  }
+  return from;
+}
+function regularRanking(players=state.game?.players||[]){
+  return [...players].sort((a,b)=>
+    (Number(a.eliminated)-Number(b.eliminated))||
+    ((a.strikes||0)-(b.strikes||0))||
+    ((b.correct||0)-(a.correct||0))||
+    ((a.wrong||0)-(b.wrong||0))||
+    ((a.timeout||0)-(b.timeout||0))
+  );
+}
 function remembered(){return loadJSON(STORAGE.names,[]).filter(x=>typeof x==="string"&&x.trim())}
 function rememberNames(){
   const a=[...remembered()];
@@ -360,7 +379,23 @@ function packs(){
   app.innerHTML=shell({title:"Add Some Fun?",back:state.mode==="work"?"industry":"mode",content:`<div class="instruction">Pick any extra categories you want in your game. Choose as many as you like — or skip this step.</div><div class="pack-grid">${FUN_PACKS.map(p=>`<button class="pack ${state.packs.includes(p)?"selected":""}" data-pack="${esc(p)}">${esc(p)}</button>`).join("")}</div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Say a category, “Skip,” “Continue,” or “Back”":""}</div>`,footer:`<button id="packsSkip" class="btn">SKIP</button><button id="packsNext" class="btn primary">CONTINUE ▶</button>`});
   bindBack(state.mode==="work"?"industry":"mode");document.querySelectorAll("[data-pack]").forEach(b=>b.onclick=()=>{togglePack(b.dataset.pack);packs()});document.getElementById("packsNext").onclick=()=>go("players");document.getElementById("packsSkip").onclick=()=>go("players");setMusicForScreen();bindVoiceHelp("packs");
 }
-function ensurePlayerRows(){const need=state.mode==="solo"?1:2;while(state.players.length<need)state.players.push({id:uid(),name:""});if(state.mode==="solo")state.selectedPlayerIds=state.players.length?[state.players[0].id]:[]}
+function ensurePlayerRows(){
+  if(state.mode==="solo"){
+    if(!state.players.length)state.players=[{id:uid(),name:"Vicente"}];
+    state.players=state.players.slice(0,1);
+    state.selectedPlayerIds=state.players.length?[state.players[0].id]:[];
+    return;
+  }
+  if(!state.players.length){
+    state.players=[
+      {id:uid(),name:"Vicente"},
+      {id:uid(),name:"Todd"},
+      {id:uid(),name:"Maria"}
+    ];
+  }
+  while(state.players.length<2)state.players.push({id:uid(),name:""});
+  state.selectedPlayerIds=state.players.filter(p=>(p.name||"").trim()).map(p=>p.id);
+}
 function namedPlayers(){return state.players.filter(p=>(p.name||"").trim())}
 function canContinuePlayers(){return state.mode==="solo"?!!((state.players[0]?.name||"").trim()):namedPlayers().length>=2}
 function continueFromPlayers(){
@@ -409,19 +444,28 @@ function bindGamebar(){
 }
 function startGame(){
   rememberNames();
-  state.game={players:selectedPlayers().map(p=>({...p,correct:0,wrong:0,timeout:0})),playerIndex:0,questionNumber:0,used:[],current:null,answered:false,startedAt:Date.now(),questionRemaining:state.questionSeconds,maxQuestions:state.quickGame?5:25};
+  const starting=selectedPlayers();
+  state.game={
+    players:starting.map(p=>({...p,correct:0,wrong:0,timeout:0,strikes:0,eliminated:false})),
+    startingPlayerCount:starting.length,
+    playerIndex:0,questionNumber:0,used:[],current:null,answered:false,
+    startedAt:Date.now(),questionRemaining:state.questionSeconds,maxQuestions:state.quickGame?6:40
+  };
   handoff();
 }
 function handoff(){
-  clearRuntime();state.screen="handoff";const g=state.game,p=g.players[g.playerIndex];
-  app.innerHTML=`<section class="screen gameplay-screen"><div class="game-shell">${gamebar()}<div class="handoff"><div class="handoff-label">NEXT PLAYER</div><div class="handoff-name">${esc(p.name)}</div><div class="handoff-gap"></div><div class="handoff-hype">YOU'RE UP!</div><div class="handoff-sub">GET READY</div><div class="countdown" id="handoffCount">3</div></div></div></section>`;
+  clearRuntime();state.screen="handoff";const g=state.game;
+  if(!g.showdown && g.players[g.playerIndex]?.eliminated)g.playerIndex=nextActiveIndex(g.playerIndex);
+  const p=g.players[g.playerIndex];
+  app.innerHTML=`<section class="screen gameplay-screen"><div class="game-shell">${gamebar()}<div class="handoff"><div class="handoff-label">${g.showdown?"FINAL SHOWDOWN":"NEXT PLAYER"}</div><div class="handoff-name">${esc(p.name)}</div><div class="handoff-gap"></div><div class="handoff-hype">YOU'RE UP!</div><div class="handoff-sub">${g.showdown?"PLAYOFF PRESSURE":"GET READY"}</div><div class="countdown" id="handoffCount">3</div></div></div></section>`;
   bindGamebar();setMusicForScreen();if(state.voiceOn)startVoice("handoff");
-  let n=3;countdownTimer=setInterval(()=>{n--;if(n>0){const c=document.getElementById("handoffCount");if(c)c.textContent=n;tone(420+n*60,.04,.045)}else{clearInterval(countdownTimer);countdownTimer=null;renderQuestion(false)}},700);
+  let n=3;countdownTimer=setInterval(()=>{n--;if(n>0){const c=document.getElementById("handoffCount");if(c)c.textContent=n;tone(420+n*60,.04,.045)}else{clearInterval(countdownTimer);countdownTimer=null;renderQuestion(false)}},850);
 }
 function chooseQ(){const g=state.game;let pool=QUESTIONS.map((_,i)=>i).filter(i=>!g.used.includes(i));if(!pool.length){g.used=[];pool=QUESTIONS.map((_,i)=>i)}const i=pool[Math.floor(Math.random()*pool.length)];g.used.push(i);g.current=QUESTIONS[i];return g.current}
 function renderQuestion(resume=false){
   clearRuntime();stopMusic();state.screen="question";const g=state.game,q=resume&&g.current?g.current:chooseQ();g.answered=false;
-  let rem=resume&&pausedRemaining!=null?pausedRemaining:state.questionSeconds;pausedRemaining=null;g.questionRemaining=rem;
+  const roundSeconds=g.showdown?Math.max(5,state.questionSeconds-5):state.questionSeconds;
+  let rem=resume&&pausedRemaining!=null?pausedRemaining:roundSeconds;pausedRemaining=null;g.questionRemaining=rem;
   g.speechLog=[];
   app.innerHTML=`<section class="screen gameplay-screen"><div class="game-shell question-shell">${gamebar()}<div class="question-card"><div class="question-text">${esc(q.q)}</div>${state.voiceOn?``:`<div class="typed-answer-wrap keyboard-answer"><input id="typed" class="input" type="text" autocomplete="off" placeholder="Type your answer…"><button id="submit" class="btn primary">SUBMIT</button></div>`}<div class="timer ${rem<=5?"urgent":""}" id="timer">${rem}</div></div></div></section>`;
   bindGamebar();
@@ -435,25 +479,72 @@ function renderQuestion(resume=false){
 function finishQuestion(outcome){
   const g=state.game;if(!g||g.answered)return;g.answered=true;clearRuntime();const p=g.players[g.playerIndex];
   g.lastSpeechLog=[...(g.speechLog||[])];
-  if(g.showdown){if(outcome==="correct"){p.playoff=(p.playoff||0)+1;correctSound()}else{wrongSound()} result(outcome);return}
-  if(outcome==="correct"){p.correct++;correctSound()}else if(outcome==="wrong"){p.wrong++;wrongSound()}else{p.timeout++;wrongSound()}
+
+  if(g.showdown){
+    if(outcome==="correct"){p.playoff=(p.playoff||0)+1;correctSound()}else{wrongSound()}
+    result(outcome);return;
+  }
+
+  if(outcome==="correct"){
+    p.correct++;correctSound();
+  }else{
+    if(outcome==="wrong")p.wrong++;else p.timeout++;
+    p.strikes=(p.strikes||0)+1;
+    if(p.strikes>=3)p.eliminated=true;
+    wrongSound();
+  }
   result(outcome);
 }
+function strikeMarks(p){
+  const n=Math.min(3,p.strikes||0);
+  return `${"✕".repeat(n)}${"○".repeat(Math.max(0,3-n))}`;
+}
 function scoreboard(){
-  const sorted=[...state.game.players].sort((a,b)=>(b.correct-a.correct)||(a.wrong-b.wrong)||(a.timeout-b.timeout));
-  return `<div class="scoreboard compact-board">${sorted.map((p,i)=>`<div class="score-ribbon"><div class="score-name">${i+1}. ${esc(p.name)}</div><div class="score-stat correct">✓ ${p.correct}</div><div class="score-stat wrong">✕ ${p.wrong}</div><div class="score-stat timeout">⏱ ${p.timeout}</div></div>`).join("")}</div>`;
+  const sorted=regularRanking();
+  return `<div class="scoreboard compact-board">${sorted.map((p,i)=>`<div class="score-ribbon ${p.eliminated?"eliminated":""}"><div class="score-name">${i+1}. ${esc(p.name)}</div><div class="score-stat correct">✓ ${p.correct}</div><div class="score-stat strikes">${strikeMarks(p)}</div><div class="score-stat status">${p.eliminated?"OUT":"IN"}</div></div>`).join("")}</div>`;
 }
 function playoffBoard(){return `<div class="playoff-board">${state.game.players.map(p=>`<div class="playoff-player"><strong>${esc(p.name)}</strong><span>${p.playoff||0}</span></div>`).join("")}</div>`}
 function result(outcome){
-  state.screen="result";const q=state.game.current,label=outcome==="correct"?"CORRECT!":outcome==="wrong"?"NOT QUITE":"TIME'S UP";
-  app.innerHTML=`<section class="screen gameplay-screen"><div class="game-shell result-shell">${gamebar()}<div class="result-body"><div class="result-word ${outcome}">${label}</div><div class="answer-label">CORRECT ANSWER</div><div class="answer-big">${esc(q.answer)}</div>${state.game.showdown?`<div class="standings-title">FINAL SHOWDOWN — FIRST TO 3</div>${playoffBoard()}`:`<div class="standings-title">CURRENT STANDINGS</div>${scoreboard()}`}<div class="heard-back" id="heardBack"></div><div class="auto-next">${state.game.showdown?"Showdown continues…":"Next player coming up…"}</div></div></div></section>`;
-  bindGamebar();setMusicForScreen();if(state.voiceOn)startVoice("result");resultTimer=setTimeout(advance,state.game.showdown?2300:2700);
+  state.screen="result";
+  const g=state.game,q=g.current,p=g.players[g.playerIndex];
+  const label=outcome==="correct"?"CORRECT!":outcome==="wrong"?"NOT QUITE":"TIME'S UP";
+  const strikeMoment=!g.showdown&&outcome!=="correct";
+  const eliminated=strikeMoment&&p.eliminated;
+  const consequence=strikeMoment
+    ? `<div class="strike-moment ${eliminated?"elimination":""}">
+         <div class="strike-label">${eliminated?"THIRD STRIKE":"STRIKE"}</div>
+         <div class="strike-count">${strikeMarks(p)}</div>
+         <div class="strike-copy">${eliminated?`${esc(p.name)} HAS BEEN ELIMINATED`:`${p.strikes} OF 3 STRIKES`}</div>
+       </div>`
+    : "";
+
+  app.innerHTML=`<section class="screen gameplay-screen"><div class="game-shell result-shell">${gamebar()}<div class="result-body"><div class="result-word ${outcome}">${label}</div><div class="answer-label">CORRECT ANSWER</div><div class="answer-big">${esc(q.answer)}</div>${consequence}${g.showdown?`<div class="standings-title">FINAL SHOWDOWN — FIRST TO 3</div>${playoffBoard()}`:`<div class="standings-title">CURRENT STANDINGS</div>${scoreboard()}`}<div class="heard-back" id="heardBack"></div><div class="auto-next">${eliminated?"Elimination locked in…":g.showdown?"Showdown continues…":"Next player coming up…"}</div></div></div></section>`;
+  bindGamebar();setMusicForScreen();if(state.voiceOn)startVoice("result");
+
+  const delay=g.showdown?2600:eliminated?4800:strikeMoment?3500:2300;
+  resultTimer=setTimeout(advance,delay);
 }
 function advance(){
   clearRuntime();const g=state.game;g.questionNumber++;
-  if(g.showdown){const champ=g.players.find(p=>(p.playoff||0)>=3);if(champ){championCelebration(champ);return}g.playerIndex=(g.playerIndex+1)%g.players.length;handoff();return}
-  if((!state.quickGame&&(Date.now()-g.startedAt)/60000>=state.durationMinutes)||g.questionNumber>=g.maxQuestions){endGame();return}
-  g.playerIndex=(g.playerIndex+1)%g.players.length;handoff();
+
+  if(g.showdown){
+    const champ=g.players.find(p=>(p.playoff||0)>=3);
+    if(champ){championCelebration(champ);return}
+    g.playerIndex=(g.playerIndex+1)%g.players.length;handoff();return;
+  }
+
+  // If a larger field has been reduced to two survivors, the playoff begins.
+  if((g.startingPlayerCount||g.players.length)>2 && activeCount()<=2){
+    startFinalShowdown();return;
+  }
+
+  // Game length remains the safety cap. If time/questions run out with more
+  // than two players alive, the best two records advance to the playoff.
+  const timeExpired=!state.quickGame&&(Date.now()-g.startedAt)/60000>=state.durationMinutes;
+  if(timeExpired||g.questionNumber>=g.maxQuestions){endGame();return}
+
+  g.playerIndex=nextActiveIndex(g.playerIndex);
+  handoff();
 }
 
 // ---------- PAUSE / SAVE ----------
@@ -484,11 +575,14 @@ function victoryTrack(){
 }
 function confetti(){const root=document.getElementById("confetti");if(!root)return;for(let i=0;i<70;i++){const x=document.createElement("i");x.style.left=`${Math.random()*100}%`;x.style.animationDelay=`${Math.random()*.7}s`;x.style.animationDuration=`${1.8+Math.random()*1.8}s`;x.style.transform=`rotate(${Math.random()*360}deg)`;root.appendChild(x)}}
 function startFinalShowdown(){
-  const ranked=[...state.game.players].sort((a,b)=>(b.correct-a.correct)||(a.wrong-b.wrong)||(a.timeout-b.timeout));
-  state.game.players=ranked.slice(0,2).map(p=>({...p,playoff:0}));state.game.playerIndex=0;state.game.showdown=true;state.game.questionNumber=0;state.game.maxQuestions=99;state.game.used=[];
+  const survivors=activePlayers();
+  const finalists=(survivors.length===2?survivors:regularRanking().slice(0,2));
+  state.game.players=finalists.map(p=>({...p,playoff:0,eliminated:false}));
+  state.game.playerIndex=0;state.game.showdown=true;state.game.questionNumber=0;state.game.maxQuestions=99;state.game.used=[];
   clearRuntime();stopMusic();state.screen="showdownIntro";
-  app.innerHTML=shell({title:"Final Showdown",klass:"final-screen",content:`<div class="final-card card showdown-intro"><div class="final-kicker">THE PLAYOFF BEGINS</div><div class="final-title">FINAL SHOWDOWN</div><div class="showdown-vs"><strong>${esc(state.game.players[0].name)}</strong><span>VS</span><strong>${esc(state.game.players[1].name)}</strong></div><div class="final-note">First to 3 correct answers becomes the champion.</div></div>`});
-  tone(220,.25,.09,"sawtooth");tone(330,.25,.08,"sawtooth",.2);tone(440,.35,.08,"sawtooth",.4);setTimeout(handoff,1800);
+  const finalSeconds=Math.max(5,state.questionSeconds-5);
+  app.innerHTML=shell({title:"Final Showdown",klass:"final-screen",content:`<div class="final-card card showdown-intro"><div class="final-kicker">THE PLAYOFF BEGINS</div><div class="final-title">FINAL SHOWDOWN</div><div class="showdown-vs"><strong>${esc(state.game.players[0].name)}</strong><span>VS</span><strong>${esc(state.game.players[1].name)}</strong></div><div class="final-note">First to 3 correct answers becomes the champion.<br>Playoff questions: ${finalSeconds} seconds each.</div></div>`});
+  tone(220,.25,.09,"sawtooth");tone(330,.25,.08,"sawtooth",.2);tone(440,.35,.08,"sawtooth",.4);setTimeout(handoff,2400);
 }
 function championCelebration(winner){
   clearRuntime();stopMusic();localStorage.removeItem(STORAGE.session);state.screen="complete";
@@ -498,7 +592,7 @@ function championCelebration(winner){
 function endGame(){
   clearRuntime();stopMusic();localStorage.removeItem(STORAGE.session);
   if(state.mode!=="solo"&&state.game.players.length>1&&!state.game.showdown){startFinalShowdown();return}
-  const winner=[...state.game.players].sort((a,b)=>(b.correct-a.correct)||(a.wrong-b.wrong)||(a.timeout-b.timeout))[0];championCelebration(winner);
+  const winner=regularRanking()[0];championCelebration(winner);
 }
 
 // ---------- ORIENTATION / VIEWPORT ----------

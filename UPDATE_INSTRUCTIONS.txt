@@ -1,9 +1,18 @@
-CLEAN BUILD 3.2
+LAST ONE STANDING — CLEAN BUILD 3.3
 
-For a clean GitHub repository update:
-1. Keep the hidden .git folder.
-2. Replace the existing app files with all files from this folder.
-3. In GitHub Desktop use Summary: Clean Build 3.2 Final Showdown
-4. Commit to main.
-5. Push origin.
-6. Allow GitHub Pages a few minutes, then fully close/reopen the Home Screen app.
+This ZIP is a COMPLETE replacement build, not a small patch.
+
+1. In the local last-one-standing repository folder, keep the hidden .git folder.
+2. Delete the current app files.
+3. Extract this ZIP.
+4. Copy ALL files from the extracted ZIP into the repository root.
+5. GitHub Desktop Summary:
+   Clean Build 3.3 Strike Elimination
+6. Commit to main.
+7. Push origin.
+8. Wait for GitHub Pages.
+9. Test in the regular browser first.
+10. Then fully close and reopen the Home Screen app.
+
+Temporary test players in this build:
+Vicente / Todd / Maria
