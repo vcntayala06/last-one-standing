@@ -102,3 +102,83 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
   font-weight:1000;
   letter-spacing:.14em;
 }
+
+/* =========================================================
+   CLEAN FOUNDATION 5.2 — CORRECTION / RESTORATION
+   ========================================================= */
+.player-num{white-space:nowrap;min-width:88px}
+.player-row{grid-template-columns:92px minmax(0,1fr) auto}
+.roster-sub{font-size:.82rem;letter-spacing:.18em;font-weight:1000;color:var(--gold);text-align:center;margin-bottom:2px}
+.topbar-spacer{width:76px}
+.game-topbar{grid-template-columns:76px 1fr 76px}
+.answer-panel{
+  width:min(920px,96%);padding:18px 18px 20px;border-radius:22px;
+  background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.035));
+  border:1px solid rgba(255,208,79,.22)
+}
+.answer-label{font-size:clamp(.8rem,2.4vw,1rem);margin-bottom:8px}
+.answer-big{display:block!important;visibility:visible!important;opacity:1!important;color:#fff!important;-webkit-text-fill-color:#fff!important;overflow-wrap:anywhere}
+.phase-heading{font-weight:1000;letter-spacing:.14em;color:var(--muted);font-size:.78rem;margin-top:3px}
+.pause-volume{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:14px}
+.pause-volume span{font-size:.72rem;font-weight:1000;letter-spacing:.12em}
+.pause-volume input{width:100%}
+
+/* Restored Final Showdown treatment */
+.showdown-screen{padding:0}
+.showdown-stage{
+  width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:clamp(20px,5vw,64px);
+  background:radial-gradient(circle at 50% 45%,rgba(255,208,79,.13),transparent 32%),linear-gradient(#0a0e1b,#03050b)
+}
+.showdown-kicker{font-size:clamp(.85rem,2.5vw,1.15rem);letter-spacing:.25em;font-weight:1000;color:var(--muted)}
+.showdown-title{
+  font-size:clamp(3.4rem,12vw,8.2rem);line-height:.78;margin:12px 0 28px;
+  font-weight:1000;letter-spacing:.015em;
+  background:linear-gradient(100deg,#fff7c7,#ffc83e,#fff,#ffc83e,#fff3b2);
+  background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 5px 0 rgba(0,0,0,.28),0 0 38px rgba(255,200,60,.12)
+}
+.showdown-vs{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:clamp(16px,4vw,44px);width:min(980px,100%)}
+.finalist-card{flex:1;min-width:0;padding:18px;border:1px solid rgba(255,208,79,.3);border-radius:24px;background:rgba(255,255,255,.055)}
+.showdown-name{font-size:clamp(2.1rem,7vw,4.8rem);font-weight:1000;line-height:.9;overflow-wrap:anywhere}
+.showdown-strikes{margin-top:12px;color:var(--red);font-size:clamp(1.4rem,4vw,2.1rem);letter-spacing:.18em}
+.showdown-rule{margin-top:24px;color:var(--gold);font-weight:1000;font-size:clamp(1.1rem,3vw,1.55rem)}
+.showdown-time{margin-top:7px;color:var(--muted);font-weight:900;letter-spacing:.13em;font-size:.8rem}
+
+/* Restored / enlarged champion payoff */
+.complete-screen{padding:0;overflow:hidden}
+.complete-stage{
+  position:relative;z-index:2;width:100%;height:100%;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;padding:24px;
+  background:radial-gradient(circle at 50% 48%,rgba(255,208,79,.16),transparent 35%)
+}
+.complete-kicker{font-size:clamp(1rem,3vw,1.4rem);font-weight:1000;letter-spacing:.22em;color:var(--gold);margin-bottom:16px}
+.champion-box{
+  width:min(940px,94vw);min-height:min(47vh,430px);display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border-radius:34px;padding:28px;border:2px solid rgba(255,208,79,.5);
+  background:linear-gradient(180deg,rgba(255,208,79,.10),rgba(255,255,255,.045));
+  box-shadow:0 24px 80px rgba(0,0,0,.42),0 0 48px rgba(255,208,79,.09);margin-bottom:22px
+}
+.champion-name{
+  font-size:clamp(4rem,15vw,10rem);font-weight:1000;line-height:.8;overflow-wrap:anywhere;
+  background:linear-gradient(100deg,#fff8ce,#ffc83e,#fff,#ffc83e,#fff6c5);background-size:220% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 6px 0 rgba(0,0,0,.3),0 0 40px rgba(255,200,60,.14)
+}
+.champion-label{margin-top:24px;font-size:clamp(1.3rem,4vw,2rem);font-weight:1000;letter-spacing:.25em;color:#fff}
+.confetti{z-index:3}
+.confetti i:nth-child(3n){background:#fff}
+.confetti i:nth-child(3n+1){background:var(--gold)}
+.confetti i:nth-child(3n+2){background:var(--red)}
+
+@media (orientation:portrait){
+  .player-row{grid-template-columns:92px minmax(0,1fr) 48px}
+  .player-num{font-size:.78rem}
+  .showdown-vs{flex-direction:column;gap:10px}
+  .finalist-card{width:min(88vw,520px);padding:13px}
+  .showdown-title{font-size:clamp(3.7rem,17vw,6rem);margin-bottom:20px}
+  .showdown-name{font-size:clamp(2.5rem,12vw,4.5rem)}
+  .showdown-rule{margin-top:17px}
+  .champion-box{min-height:52vh}
+  .champion-name{font-size:clamp(4rem,20vw,7rem)}
+}

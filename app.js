@@ -1,7 +1,7 @@
 
 (()=>{
 "use strict";
-const BUILD="Clean Foundation 5.1";
+const BUILD="Clean Foundation 5.2 Correction";
 const app=document.getElementById("app");
 const STORAGE={names:"los5_names",voice:"los5_voice",volume:"los5_volume"};
 const QUESTIONS=[
@@ -42,7 +42,16 @@ function tone(freq=440,d=.05,gain=.06,type="sine",delay=0){
  o.type=type;o.frequency.setValueAtTime(freq,now);g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(Math.max(.001,gain*state.volume),now+.01);g.gain.exponentialRampToValueAtTime(.0001,now+d);
  o.connect(g);g.connect(audioCtx.destination);o.start(now);o.stop(now+d+.02)
 }
-function tickSound(rem){if(rem>5)tone(470,.035,.045,"square");else if(rem>0){tone(760,.035,.075,"square");setTimeout(()=>tone(830,.03,.06,"square"),280);if(rem<=3)setTimeout(()=>tone(900,.026,.055,"square"),540)}}
+function tickSound(rem){
+ if(rem<=0)return;
+ if(rem>5){tone(500,.045,.05,"square");return}
+ tone(790,.045,.08,"square");
+ if(rem<=5)setTimeout(()=>tone(880,.035,.065,"square"),330);
+ if(rem<=3){
+   setTimeout(()=>tone(940,.03,.06,"square"),170);
+   setTimeout(()=>tone(1010,.028,.055,"square"),500);
+ }
+}
 function buzzer(){tone(175,.22,.12,"square");tone(150,.24,.11,"square",.17)}
 function good(){tone(620,.08,.07,"triangle");tone(820,.12,.07,"triangle",.08)}
 function bad(){tone(220,.13,.09,"square")}
@@ -140,6 +149,14 @@ function handlePlayerVoice(h){
  if(m){const p=state.players.find(x=>norm(x.name)===norm(m[1]));if(p){p.name=m[2].trim();players();return true}}
  m=n.match(/^(?:change|rename)\s+player\s*(\d+)$/);if(m){const p=state.players[Number(m[1])-1];if(p){renamePending={id:p.id,spell:false};return true}}
  m=n.match(/^spell\s+player\s*(\d+)$/);if(m){const p=state.players[Number(m[1])-1];if(p){renamePending={id:p.id,spell:true};return true}}
+ m=h.match(/^(?:delete|remove)\s+player\s*(\d+)$/i);
+ if(m){const i=Number(m[1])-1;if(i>=0&&i<state.players.length){state.players.splice(i,1);players();return true}}
+ m=h.match(/^(?:delete|remove)\s+(.+)$/i);
+ if(m){
+   const target=norm(m[1]);
+   const i=state.players.findIndex(p=>norm(p.name)===target);
+   if(i>=0){state.players.splice(i,1);players();return true}
+ }
  m=h.match(/^add player(?:\s+(.+))?$/i);if(m){state.players.push({id:uid(),name:(m[1]||"").trim()});players();return true}
  return false
 }
@@ -147,7 +164,7 @@ function setVolume(v){state.volume=Math.max(0,Math.min(1,v));localStorage.setIte
 function go(s){clearRuntime();state.screen=s;render()}
 function back(){const m={mode:"home",fun:"mode",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
 function home(){
- state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.1</div></div><div class="actions"><button id="start" class="btn primary large">START GAME</button></div>`);
+ state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.2</div></div><div class="actions"><button id="start" class="btn primary large">START GAME</button></div>`);
  document.getElementById("start").onclick=chooseGame;startMusic();startVoice("home")
 }
 function chooseGame(){ensureAudio();go("mode")}
@@ -161,7 +178,7 @@ function fun(){
 }
 function players(){
  ensurePlayers();const list=state.players.map((p,i)=>`<div class="player-row"><div class="player-num">PLAYER ${i+1}</div><input data-p="${p.id}" value="${esc(p.name)}" placeholder="Name"><button class="btn" data-remove="${p.id}">×</button></div>`).join("");
- app.innerHTML=shell("YOUR PLAYERS",`<div class="players-list">${list}</div><button id="add" class="btn">ADD PLAYER</button><div class="subtle center">Try: “Player 1 Joe,” “Change player 2 to Tom,” “Spell player 2,” or “Add player Maria.”</div>`,`<button id="back" class="btn">BACK</button><button id="continue" class="btn primary">CONTINUE</button>`);
+ app.innerHTML=shell("WHO’S IN?",`<div class="roster-sub">ENTER THE CONTENDERS</div><div class="players-list">${list}</div><button id="add" class="btn">ADD PLAYER</button><div class="subtle center">Try: “Player 1 Joe,” “Change player 2 to Tom,” “Spell player 2,” or “Add player Maria.”</div>`,`<button id="back" class="btn">BACK</button><button id="continue" class="btn primary">CONTINUE</button>`);
  document.querySelectorAll("[data-p]").forEach(e=>e.oninput=()=>{const p=state.players.find(x=>x.id===e.dataset.p);p.name=e.value});
  document.querySelectorAll("[data-remove]").forEach(b=>b.onclick=()=>{state.players=state.players.filter(p=>p.id!==b.dataset.remove);players()});
  document.getElementById("add").onclick=()=>{state.players.push({id:uid(),name:""});players()};document.getElementById("back").onclick=back;
@@ -183,12 +200,12 @@ function startGame(){
 function activePlayers(){return state.game.players.filter(p=>!p.eliminated)}
 function nextActive(from){const g=state.game;for(let i=1;i<=g.players.length;i++){const x=(from+i)%g.players.length;if(!g.players[x].eliminated)return x}return from}
 function gamebar(showName=true){
- const p=state.game.players[state.game.idx];return `<header class="game-topbar"><div class="controls"><button id="pause" class="btn">PAUSE</button></div>${showName?`<div class="game-player">${esc(p.name)}</div>`:""}<div class="volume-wrap"><input id="vol" type="range" min="0" max="1" step=".05" value="${state.volume}"></div></header>`
+ const p=state.game.players[state.game.idx];return `<header class="game-topbar"><div class="controls"><button id="pause" class="btn">PAUSE</button></div>${showName?`<div class="game-player">${esc(p.name)}</div>`:""}<div class="topbar-spacer"></div></header>`
 }
-function bindGamebar(){document.getElementById("pause").onclick=pauseGame;const v=document.getElementById("vol");if(v)v.oninput=e=>setVolume(Number(e.target.value))}
+function bindGamebar(){document.getElementById("pause").onclick=pauseGame}
 function handoff(){
  clearRuntime();state.screen="handoff";const g=state.game;if(g.players[g.idx].eliminated)g.idx=nextActive(g.idx);const p=g.players[g.idx];
- app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(false)}<div class="handoff"><div class="handoff-player-name">${esc(p.name)}</div><div class="handoff-hype">YOU’RE UP!</div><div class="handoff-sub">${g.showdown?"FINAL SHOWDOWN":"IT’S YOUR TURN"}</div><div id="handoffCount" class="handoff-count urgent">3</div></div></div></section>`;
+ app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(false)}<div class="handoff"><div class="handoff-player-name">${esc(p.name)}</div><div class="handoff-hype">YOU’RE UP!</div><div class="handoff-sub">${g.showdown?"FINAL SHOWDOWN":""}</div><div id="handoffCount" class="handoff-count urgent">3</div></div></div></section>`;
  bindGamebar();startVoice("handoff");let n=3;tickSound(n);questionTimer=setInterval(()=>{n--;if(n>0){const e=document.getElementById("handoffCount");if(e)e.textContent=n;tickSound(n)}else{clearInterval(questionTimer);questionTimer=null;transition("question",()=>question())}},700)
 }
 function transition(kind,done){
@@ -197,9 +214,21 @@ function transition(kind,done){
 }
 function pickQuestion(){const g=state.game;if(g.used.length>=QUESTIONS.length)g.used=[];let i;do{i=Math.floor(Math.random()*QUESTIONS.length)}while(g.used.includes(i));g.used.push(i);return QUESTIONS[i]}
 function question(){
- clearRuntime();state.screen="question";const g=state.game,p=g.players[g.idx];g.current=pickQuestion();g.answered=false;g.speechLog=[];let rem=g.showdown?Math.max(5,state.questionSeconds-5):state.questionSeconds;
- app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(true)}<div class="question-area"><div class="question-text">${esc(g.current.q)}</div><div id="timer" class="timer ${rem<=5?"urgent":""}">${rem}</div></div></div></section>`;bindGamebar();startVoice("question");tickSound(rem);
- questionTimer=setInterval(()=>{rem--;const t=document.getElementById("timer");if(t){t.textContent=Math.max(0,rem);t.classList.toggle("urgent",rem<=5)}if(rem>0)tickSound(rem);if(rem<=0){clearInterval(questionTimer);questionTimer=null;finish("timeout")}},1000)
+ clearRuntime();state.screen="question";const g=state.game;
+ const regularSeconds=Number(state.questionSeconds)||15;
+ const remStart=g.showdown?Math.max(5,regularSeconds-5):regularSeconds;
+ g.current=pickQuestion();g.answered=false;g.speechLog=[];
+ let rem=remStart;
+ app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(true)}<div class="question-area"><div class="question-text">${esc(g.current.q)}</div><div id="timer" class="timer ${rem<=5?"urgent":""}">${rem}</div></div></div></section>`;
+ bindGamebar();startVoice("question");
+ tickSound(rem);
+ questionTimer=setInterval(()=>{
+   rem--;
+   const t=document.getElementById("timer");
+   if(t){t.textContent=Math.max(0,rem);t.classList.toggle("urgent",rem<=5)}
+   if(rem>0)tickSound(rem);
+   if(rem<=0){clearInterval(questionTimer);questionTimer=null;finish("timeout")}
+ },1000)
 }
 function finish(outcome){
  const g=state.game;if(!g||g.answered)return;g.answered=true;clearRuntime();const p=g.players[g.idx];g.lastSpeechLog=[...g.speechLog];
@@ -209,9 +238,24 @@ function finish(outcome){
 function marks(p){return "✕".repeat(Math.min(3,p.strikes))+"○".repeat(Math.max(0,3-p.strikes))}
 function standings(){return `<div class="standings">${[...state.game.players].sort((a,b)=>(a.eliminated-b.eliminated)||(a.strikes-b.strikes)||(b.correct-a.correct)).map(p=>`<div class="standing-row ${p.eliminated?"out":""}"><strong>${esc(p.name)}</strong><span>✓ ${p.correct}</span><span style="color:var(--red)">${marks(p)}</span><span>${p.eliminated?"OUT":"IN"}</span></div>`).join("")}</div>`}
 function result(outcome){
- state.screen="result";const g=state.game,p=g.players[g.idx],q=g.current;const label=outcome==="correct"?"CORRECT!":outcome==="pass"?"PASSED":outcome==="timeout"?"TIME’S UP":"NOT QUITE";const strike=outcome!=="correct";const eliminated=strike&&p.eliminated;
- app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(true)}<div class="result-body"><div class="result-word">${label}</div><div class="answer-label">CORRECT ANSWER</div><div class="answer-big">${esc(q.answer)}</div>${strike?`<div class="strike-box"><div>${eliminated?"THIRD STRIKE":"STRIKE"}</div><div class="strike-marks">${marks(p)}</div><div>${eliminated?esc(p.name)+" HAS BEEN ELIMINATED":p.strikes+" OF 3 STRIKES"}</div></div>`:""}<div class="subtle">${g.showdown?"FINAL SHOWDOWN — 3 STRIKES AND YOU’RE OUT":"CURRENT STANDINGS"}</div>${standings()}</div></div></section>`;bindGamebar();startVoice("result");
- const delay=g.showdown?(eliminated?5200:3800):eliminated?5200:strike?4000:3000;flowTimer=setTimeout(advance,delay)
+ state.screen="result";const g=state.game,p=g.players[g.idx],q=g.current;
+ const label=outcome==="correct"?"CORRECT!":outcome==="pass"?"PASSED":outcome==="timeout"?"TIME’S UP!":"NOT QUITE";
+ const strike=outcome!=="correct", eliminated=strike&&p.eliminated;
+ const phase=g.showdown?"FINAL SHOWDOWN":"CURRENT STANDINGS";
+ app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(true)}
+ <div class="result-body">
+   <div class="result-word">${label}</div>
+   <div class="answer-panel">
+     <div class="answer-label">CORRECT ANSWER</div>
+     <div class="answer-big">${esc(q?.a||"")}</div>
+   </div>
+   ${strike?`<div class="strike-box"><div>${eliminated?"THIRD STRIKE — ELIMINATED":"STRIKE"}</div><div class="strike-marks">${marks(p)}</div><div>${eliminated?esc(p.name)+" IS OUT":p.strikes+" OF 3 STRIKES"}</div></div>`:""}
+   <div class="phase-heading">${phase}</div>
+   ${standings()}
+ </div></div></section>`;
+ bindGamebar();startVoice("result");
+ const delay=g.showdown?(eliminated?5200:3900):eliminated?5200:strike?4200:3200;
+ flowTimer=setTimeout(advance,delay)
 }
 function advance(){
  clearRuntime();const g=state.game;g.qnum++;
@@ -222,18 +266,77 @@ function advance(){
  g.idx=nextActive(g.idx);transition("next",handoff)
 }
 function showdownIntro(){
- const g=state.game;const survivors=activePlayers();const finalists=(survivors.length===2?survivors:[...g.players].sort((a,b)=>(a.strikes-b.strikes)||(b.correct-a.correct)).slice(0,2));
- g.players=finalists.map(p=>({...p,strikes:0,eliminated:false}));g.idx=0;g.showdown=true;g.qnum=0;g.used=[];
- state.screen="showdown";const secs=Math.max(5,state.questionSeconds-5);
- app.innerHTML=shell("FINAL SHOWDOWN",`<div class="showdown-card card"><div class="subtle">THE PLAYOFF BEGINS</div><div class="showdown-title">FINAL SHOWDOWN</div><div class="showdown-vs"><div class="showdown-name">${esc(g.players[0].name)}</div><div class="vs">VS</div><div class="showdown-name">${esc(g.players[1].name)}</div></div><div style="font-weight:1000">3 STRIKES AND YOU’RE OUT.</div><div class="subtle">${secs}-second playoff questions</div></div>`);sting();flowTimer=setTimeout(handoff,3200)
+ clearRuntime();
+ const g=state.game;
+ let finalists=activePlayers();
+ if(finalists.length>2){
+   finalists=[...finalists].sort((a,b)=>(a.strikes-b.strikes)||(b.correct-a.correct)).slice(0,2);
+ }
+ if(finalists.length<2){
+   const champ=finalists[0]||g.players.find(p=>!p.eliminated)||g.players[0];
+   champion(champ);return;
+ }
+ g.players=finalists.map(p=>({...p,strikes:0,eliminated:false}));
+ g.idx=0;g.showdown=true;g.qnum=0;g.used=[];
+ state.screen="showdown";
+ const secs=Math.max(5,(Number(state.questionSeconds)||15)-5);
+ app.innerHTML=`<section class="screen showdown-screen"><div class="showdown-stage">
+   <div class="showdown-kicker">ONLY TWO REMAIN</div>
+   <div class="showdown-title">FINAL<br>SHOWDOWN</div>
+   <div class="showdown-vs">
+     <div class="finalist-card"><div class="showdown-name">${esc(g.players[0].name)}</div><div class="showdown-strikes">○ ○ ○</div></div>
+     <div class="vs">VS</div>
+     <div class="finalist-card"><div class="showdown-name">${esc(g.players[1].name)}</div><div class="showdown-strikes">○ ○ ○</div></div>
+   </div>
+   <div class="showdown-rule">3 STRIKES AND YOU’RE OUT.</div>
+   <div class="showdown-time">${secs} SECOND QUESTIONS</div>
+ </div></section>`;
+ sting();flowTimer=setTimeout(handoff,3600)
+}
+function applause(){
+ ensureAudio();if(!audioCtx)return;
+ const now=audioCtx.currentTime;
+ for(let burst=0;burst<7;burst++){
+   const when=now+burst*.42;
+   for(let i=0;i<18;i++){
+     const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+     o.type=i%3===0?"sawtooth":"triangle";
+     o.frequency.setValueAtTime(900+Math.random()*1900,when+Math.random()*.18);
+     g.gain.setValueAtTime(.0001,when);
+     g.gain.exponentialRampToValueAtTime((.007+Math.random()*.012)*state.volume,when+.008);
+     g.gain.exponentialRampToValueAtTime(.0001,when+.055+Math.random()*.08);
+     o.connect(g);g.connect(audioCtx.destination);o.start(when);o.stop(when+.16);
+   }
+ }
+ tone(520,.18,.055,"triangle",.2);tone(660,.2,.06,"triangle",.38);tone(820,.3,.065,"triangle",.58)
 }
 function champion(p){
- clearRuntime();stopMusic();state.screen="complete";app.innerHTML=shell("GAME COMPLETE",`<div class="confetti" id="confetti"></div><div class="card center"><div class="subtle">LAST ONE STANDING</div><div class="champion">${esc(p.name)}</div><div style="font-size:1.4rem;font-weight:1000">CHAMPION</div></div>`,`<button id="home" class="btn primary">BACK TO HOME</button>`);document.getElementById("home").onclick=()=>{state.game=null;home()};victory();confetti()
+ clearRuntime();stopMusic();state.screen="complete";
+ app.innerHTML=`<section class="screen complete-screen"><div class="confetti" id="confetti"></div><div class="complete-stage">
+   <div class="complete-kicker">LAST ONE STANDING</div>
+   <div class="champion-box">
+     <div class="champion-name">${esc(p.name)}</div>
+     <div class="champion-label">CHAMPION</div>
+   </div>
+   <button id="home" class="btn primary large">BACK TO HOME</button>
+ </div></section>`;
+ document.getElementById("home").onclick=()=>{state.game=null;home()};
+ victory();applause();confetti();
 }
-function victory(){[220,330,440,660].forEach((f,i)=>tone(f,.25,.08,"triangle",i*.12))}
-function confetti(){const box=document.getElementById("confetti");if(!box)return;for(let i=0;i<70;i++){const x=document.createElement("i");x.style.left=Math.random()*100+"%";x.style.animationDelay=Math.random()*.7+"s";x.style.transform=`rotate(${Math.random()*180}deg)`;box.appendChild(x)}}
+function victory(){[220,330,440,660].forEach((f,i)=>tone(f,.28,.08,"triangle",i*.12))}
+function confetti(){
+ const box=document.getElementById("confetti");if(!box)return;
+ const spawn=()=>{
+   if(state.screen!=="complete")return;
+   for(let i=0;i<22;i++){
+     const x=document.createElement("i");x.style.left=Math.random()*100+"%";x.style.animationDuration=(2.1+Math.random()*2)+"s";x.style.animationDelay=Math.random()*.25+"s";x.style.transform=`rotate(${Math.random()*180}deg)`;box.appendChild(x);
+     setTimeout(()=>x.remove(),4500)
+   }
+ };
+ spawn();const id=setInterval(()=>{if(state.screen!=="complete"){clearInterval(id);return}spawn()},700)
+}
 function pauseGame(){
- if(!state.game)return;pausedFrom=state.screen;clearRuntime();state.screen="paused";const o=document.createElement("div");o.className="overlay";o.id="pauseOverlay";o.innerHTML=`<div class="pause-card card"><div class="pause-title">GAME PAUSED</div><button id="resume" class="btn primary large">RESUME</button><button id="leave" class="btn">LEAVE GAME</button><button id="end" class="btn danger">END GAME</button></div>`;document.body.appendChild(o);document.getElementById("resume").onclick=resumeGame;document.getElementById("leave").onclick=leaveGame;document.getElementById("end").onclick=confirmEnd;startVoice("paused")
+ if(!state.game)return;pausedFrom=state.screen;clearRuntime();state.screen="paused";const o=document.createElement("div");o.className="overlay";o.id="pauseOverlay";o.innerHTML=`<div class="pause-card card"><div class="pause-title">GAME PAUSED</div><div class="pause-volume"><span>VOLUME</span><input id="pauseVol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="pauseVolPct">${Math.round(state.volume*100)}%</strong></div><button id="resume" class="btn primary large">RESUME</button><button id="leave" class="btn">LEAVE GAME</button><button id="end" class="btn danger">END GAME</button></div>`;document.body.appendChild(o);document.getElementById("resume").onclick=resumeGame;document.getElementById("leave").onclick=leaveGame;document.getElementById("end").onclick=confirmEnd;document.getElementById("pauseVol").oninput=e=>{setVolume(Number(e.target.value));document.getElementById("pauseVolPct").textContent=Math.round(state.volume*100)+"%"};startVoice("paused")
 }
 function resumeGame(){document.getElementById("pauseOverlay")?.remove();if(pausedFrom==="question")question();else handoff()}
 function leaveGame(){document.getElementById("pauseOverlay")?.remove();state.game=null;home()}
@@ -242,5 +345,5 @@ function render(){clearRuntime();({home,mode,fun,players,time,ready,handoff,ques
 function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
-document.documentElement.dataset.build="5.1";viewport();home();
+document.documentElement.dataset.build="5.2";viewport();home();
 })();

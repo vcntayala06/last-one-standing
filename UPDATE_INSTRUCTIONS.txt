@@ -1,21 +1,11 @@
-LAST ONE STANDING — CLEAN FOUNDATION 5.1
+LAST ONE STANDING — CLEAN FOUNDATION 5.2 CORRECTION
 
-THIS PACKAGE IS INTENTIONALLY DIFFERENT FROM 5.0 SO GITHUB DESKTOP SHOULD REGISTER CHANGES.
-
-1. Keep the hidden .git folder in your repository.
-2. Delete every other app file in the repository folder.
-3. Extract this ZIP somewhere else.
-4. Copy ALL files from the extracted ZIP into the repository folder.
-5. In GitHub Desktop you should see changes including:
-   - BUILD_5_1.txt (new file)
-   - index.html
-   - app.js
-   - app.css
-   - manifest.webmanifest
-6. Summary:
-   Clean Foundation 5.1
-7. Commit to main.
-8. Push origin.
-9. Wait for GitHub Pages.
-10. Open Safari directly.
-11. The home screen MUST show BUILD 5.1.
+1. KEEP your repository's hidden .git folder.
+2. Replace the app files with ALL files from this ZIP.
+3. GitHub Desktop must show BUILD_5_2.txt as a new file.
+4. Summary: Clean Foundation 5.2 Correction
+5. Commit to main.
+6. Push origin.
+7. Wait for GitHub Pages.
+8. Open Safari directly.
+9. Verify BUILD 5.2 on the home screen before testing gameplay.
