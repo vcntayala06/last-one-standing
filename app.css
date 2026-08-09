@@ -855,3 +855,8 @@
     font-size:clamp(2.6rem,12vw,4.5rem);
   }
 }
+
+/* Clean Build 3.8 */
+.transition-sweep{display:none!important}
+.home-screen .voice-transcript,.home-screen .transcript,.home-screen [class*="transcript"],
+.home-screen .heard,.home-screen [class*="heard"],#homeVoiceStatus{display:none!important}

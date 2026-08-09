@@ -380,6 +380,7 @@ function handleHeard(ctx,h){
     if(c==="pause"){pauseGame();return}
     if(c==="leave"){pauseGame("leave");return}
     if(c==="end"){pauseGame("end");return}
+    if(/^(pass|i pass|skip|skip it|skip this one|skip question|next question)$/.test(normalize(h))){finishQuestion("pass");return}
     if(state.game?.current&&accepted(h,state.game.current)){finishQuestion("correct");return}
     return;
   }
@@ -542,7 +543,7 @@ function transitionSting(kind="next"){
 function showGameTransition(kind,onDone){
   clearRuntime();
   const labels={
-    question:["LOCK IT IN","QUESTION INCOMING"],
+    question:["LOCK IN","QUESTION INCOMING"],
     next:["NEXT TURN","GET READY"],
     elimination:["PLAYER ELIMINATED","THE GAME CONTINUES"],
     showdown:["FINAL SHOWDOWN","PLAYOFF MODE"]
@@ -551,7 +552,7 @@ function showGameTransition(kind,onDone){
   state.screen="transition";
   app.innerHTML=`<section class="screen gameplay-screen transition-screen">
     <div class="transition-stage">
-      <div class="transition-sweep"></div>
+      
       <div class="transition-glow"></div>
       <div class="transition-copy">
         <div class="transition-big">${big}</div>
@@ -622,9 +623,14 @@ function finishQuestion(outcome){
   g.lastSpeechLog=[...(g.speechLog||[])];
 
   if(g.showdown){
-    if(outcome==="correct"){p.playoff=(p.playoff||0)+1;correctSound()}
-    else if(outcome==="timeout"){timeoutBuzzer()}
-    else{wrongSound()}
+    if(outcome==="correct"){p.correct=(p.correct||0)+1;correctSound()}
+    else{
+      if(outcome==="timeout"){p.timeout=(p.timeout||0)+1;timeoutBuzzer()}
+      else if(outcome==="pass"){p.wrong=(p.wrong||0)+1;wrongSound()}
+      else{p.wrong=(p.wrong||0)+1;wrongSound()}
+      p.strikes=(p.strikes||0)+1;
+      if(p.strikes>=3)p.eliminated=true;
+    }
     result(outcome);return;
   }
 
@@ -632,6 +638,7 @@ function finishQuestion(outcome){
     p.correct++;correctSound();
   }else{
     if(outcome==="wrong"){p.wrong++;wrongSound()}
+    else if(outcome==="pass"){p.wrong++;wrongSound()}
     else{p.timeout++;timeoutBuzzer()}
     p.strikes=(p.strikes||0)+1;
     if(p.strikes>=3)p.eliminated=true;
@@ -650,8 +657,8 @@ function playoffBoard(){return `<div class="playoff-board">${state.game.players.
 function result(outcome){
   state.screen="result";
   const g=state.game,q=g.current,p=g.players[g.playerIndex];
-  const label=outcome==="correct"?"CORRECT!":outcome==="wrong"?"NOT QUITE":"TIME'S UP";
-  const strikeMoment=!g.showdown&&outcome!=="correct";
+  const label=outcome==="correct"?"CORRECT!":outcome==="wrong"?"NOT QUITE":outcome==="pass"?"PASSED":"TIME'S UP";
+  const strikeMoment=outcome!=="correct";
   const eliminated=strikeMoment&&p.eliminated;
   const consequence=strikeMoment
     ? `<div class="strike-moment ${eliminated?"elimination":""}">
@@ -661,7 +668,7 @@ function result(outcome){
        </div>`
     : "";
 
-  app.innerHTML=`<section class="screen gameplay-screen"><div class="game-shell result-shell">${gamebar()}<div class="result-body"><div class="result-word ${outcome}">${label}</div><div class="answer-label">CORRECT ANSWER</div><div class="answer-big">${esc(q.answer)}</div>${consequence}${g.showdown?`<div class="standings-title">FINAL SHOWDOWN — FIRST TO 3</div>${playoffBoard()}`:`<div class="standings-title">CURRENT STANDINGS</div>${scoreboard()}`}<div class="heard-back" id="heardBack"></div><div class="auto-next">${eliminated?"Elimination locked in…":g.showdown?"Showdown continues…":"Next player coming up…"}</div></div></div></section>`;
+  app.innerHTML=`<section class="screen gameplay-screen"><div class="game-shell result-shell">${gamebar()}<div class="result-body"><div class="result-word ${outcome}">${label}</div><div class="answer-label">CORRECT ANSWER</div><div class="answer-big">${esc(q.answer)}</div>${consequence}${g.showdown?`<div class="standings-title">FINAL SHOWDOWN — 3 STRIKES AND YOU’RE OUT</div>${scoreboard()}`:`<div class="standings-title">CURRENT STANDINGS</div>${scoreboard()}`}<div class="heard-back" id="heardBack"></div><div class="auto-next">${eliminated?"Elimination locked in…":g.showdown?"Showdown continues…":"Next player coming up…"}</div></div></div></section>`;
   bindGamebar();setMusicForScreen();if(state.voiceOn)startVoice("result");
 
   const delay=g.showdown?2600:eliminated?4800:strikeMoment?3500:2300;
@@ -671,8 +678,11 @@ function advance(){
   clearRuntime();const g=state.game;g.questionNumber++;
 
   if(g.showdown){
-    const champ=g.players.find(p=>(p.playoff||0)>=3);
-    if(champ){championCelebration(champ);return}
+    const out=g.players.find(p=>p.eliminated);
+    if(out){
+      const champ=g.players.find(p=>p.id!==out.id);
+      championCelebration(champ);return;
+    }
     g.playerIndex=(g.playerIndex+1)%g.players.length;
     showGameTransition("next",()=>handoff());return;
   }
@@ -723,16 +733,16 @@ function confetti(){const root=document.getElementById("confetti");if(!root)retu
 function startFinalShowdown(){
   const survivors=activePlayers();
   const finalists=(survivors.length===2?survivors:regularRanking().slice(0,2));
-  state.game.players=finalists.map(p=>({...p,playoff:0,eliminated:false}));
+  state.game.players=finalists.map(p=>({...p,playoff:0,strikes:0,eliminated:false}));
   state.game.playerIndex=0;state.game.showdown=true;state.game.questionNumber=0;state.game.maxQuestions=99;state.game.used=[];
   clearRuntime();stopMusic();state.screen="showdownIntro";
   const finalSeconds=Math.max(5,state.questionSeconds-5);
-  app.innerHTML=shell({title:"Final Showdown",klass:"final-screen",content:`<div class="final-card card showdown-intro portrait-showdown"><div class="final-kicker">THE PLAYOFF BEGINS</div><div class="final-title">FINAL SHOWDOWN</div><div class="showdown-vs"><strong class="showdown-player showdown-player-a">${esc(state.game.players[0].name)}</strong><span class="showdown-vs-mark">VS</span><strong class="showdown-player showdown-player-b">${esc(state.game.players[1].name)}</strong></div><div class="final-note">First to 3 correct answers becomes the champion.<br>Playoff questions: ${finalSeconds} seconds each.</div></div>`});
+  app.innerHTML=shell({title:"Final Showdown",klass:"final-screen",content:`<div class="final-card card showdown-intro portrait-showdown"><div class="final-kicker">THE PLAYOFF BEGINS</div><div class="final-title">FINAL SHOWDOWN</div><div class="showdown-vs"><strong class="showdown-player showdown-player-a">${esc(state.game.players[0].name)}</strong><span class="showdown-vs-mark">VS</span><strong class="showdown-player showdown-player-b">${esc(state.game.players[1].name)}</strong></div><div class="final-note">3 strikes and you’re out.<br>Playoff questions: ${finalSeconds} seconds each.</div></div>`});
   tone(220,.25,.09,"sawtooth");tone(330,.25,.08,"sawtooth",.2);tone(440,.35,.08,"sawtooth",.4);setTimeout(handoff,2400);
 }
 function championCelebration(winner){
   clearRuntime();stopMusic();localStorage.removeItem(STORAGE.session);state.screen="complete";
-  app.innerHTML=shell({title:"Game Complete",klass:"final-screen champion-screen",content:`<div id="confetti" class="confetti"></div><div class="final-card card champion-card"><div class="final-kicker">LAST ONE STANDING</div><div class="champion-crown">★</div><div class="final-title">${esc(winner.name)}</div><div class="champion-label">CHAMPION</div><div class="playoff-final">Final Showdown ${winner.playoff||3} wins</div><div class="final-note">What a finish.</div></div>`,footer:`<button id="homeBtn" class="btn primary">BACK TO HOME</button>`});
+  app.innerHTML=shell({title:"Game Complete",klass:"final-screen champion-screen",content:`<div id="confetti" class="confetti"></div><div class="final-card card champion-card"><div class="final-kicker">LAST ONE STANDING</div><div class="champion-crown">★</div><div class="final-title">${esc(winner.name)}</div><div class="champion-label">CHAMPION</div><div class="playoff-final">FINAL SHOWDOWN CHAMPION</div><div class="final-note">What a finish.</div></div>`,footer:`<button id="homeBtn" class="btn primary">BACK TO HOME</button>`});
   document.getElementById("homeBtn").onclick=()=>{state=def();home()};victoryTrack();confetti();
 }
 function endGame(){

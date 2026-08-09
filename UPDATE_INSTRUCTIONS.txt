@@ -1,15 +1,3 @@
-LAST ONE STANDING — CLEAN BUILD 3.7
-
-COMPLETE replacement build — not a patch.
-
-1. Keep the hidden .git folder.
-2. Delete the current app files.
-3. Extract this ZIP.
-4. Copy ALL extracted files into the repository root.
-5. GitHub Desktop Summary:
-   Clean Build 3.7 Game Show Transitions
-6. Commit to main.
-7. Push origin.
-8. Wait for GitHub Pages.
-9. Test regular browser first.
-10. Fully close and reopen the Home Screen app.
+CLEAN BUILD 3.8 — COMPLETE REPLACEMENT
+Keep .git, replace current app files, commit and push.
+GitHub Desktop Summary: Clean Build 3.8 Strike Showdown
