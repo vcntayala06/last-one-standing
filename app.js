@@ -1,7 +1,7 @@
 
 (()=>{
 "use strict";
-const BUILD="Clean Foundation 5.5 Core Stabilization";
+const BUILD="Clean Foundation 5.6 Voice Control Foundation";
 const app=document.getElementById("app");
 const STORAGE={names:"los5_names",voice:"los5_voice",volume:"los5_volume"};
 const EXTRA_CATEGORIES=[
@@ -78,43 +78,146 @@ function ensurePlayers(){
 }
 function speechSupported(){return !!(window.SpeechRecognition||window.webkitSpeechRecognition)}
 function stopVoice(){try{recognition?.abort()}catch{}recognition=null;voiceContext=""}
+
+let voiceRestartTimer=null,voiceGeneration=0,lastVoiceAction={key:"",at:0};
+
+function voiceFeedback(text,kind="heard"){
+ const el=document.getElementById("voiceFeedback");if(!el)return;
+ el.textContent=text||"";el.dataset.kind=kind;
+ clearTimeout(voiceFeedback._t);
+ voiceFeedback._t=setTimeout(()=>{if(el)el.textContent=""},1500)
+}
+function commandKey(s){return norm(s).replace(/\b(the|button|option|please)\b/g,"").replace(/\s+/g," ").trim()}
+function phraseMatch(a,b){
+ a=commandKey(a);b=commandKey(b);if(!a||!b)return false;
+ if(a===b)return true;
+ if(a.length>=4&&(a.includes(b)||b.includes(a)))return true;
+ const aa=a.split(" "),bb=b.split(" ");
+ const common=aa.filter(x=>bb.includes(x)).length;
+ return common>=Math.min(2,Math.min(aa.length,bb.length))
+}
+function visibleVoiceTargets(){
+ return [...document.querySelectorAll('button:not([disabled]),[role="button"]:not([aria-disabled="true"]),input[type="button"]:not([disabled]),input[type="submit"]:not([disabled])')]
+   .filter(el=>{
+     const r=el.getBoundingClientRect(),cs=getComputedStyle(el);
+     return r.width>0&&r.height>0&&cs.visibility!=="hidden"&&cs.display!=="none"
+   })
+   .map(el=>{
+     const label=(el.dataset.voice||el.getAttribute("aria-label")||el.textContent||el.value||"").trim();
+     const aliases=(el.dataset.voiceAliases||"").split("|").map(x=>x.trim()).filter(Boolean);
+     return {el,label,phrases:[label,...aliases].filter(Boolean)}
+   })
+}
+function clickVoiceTarget(h){
+ const n=commandKey(h);if(!n)return false;
+ const generic=/^(continue|start|begin|next|go|go ahead|lets go|let s go|lets begin|let s begin|im ready|i m ready|were ready|we re ready|move on)$/;
+ if(generic.test(n)){
+   const primary=document.querySelector('button.primary:not([disabled]),#continue:not([disabled]),#cont:not([disabled]),#start:not([disabled])');
+   if(primary){voiceFeedback("✓ "+(primary.textContent||"CONTINUE").trim(),"action");primary.click();return true}
+ }
+ const targets=visibleVoiceTargets();
+ let best=null,bestScore=0;
+ for(const t of targets){
+   for(const p of t.phrases){
+     const k=commandKey(p);if(!k)continue;
+     let score=0;
+     if(n===k)score=100;
+     else if(n===`click ${k}`||n===`choose ${k}`||n===`select ${k}`||n===`pick ${k}`||n===`press ${k}`)score=95;
+     else if(phraseMatch(n,k))score=70+Math.min(k.length,20);
+     if(score>bestScore){best=t;bestScore=score}
+   }
+ }
+ if(best&&bestScore>=72){
+   const key=commandKey(best.label),now=Date.now();
+   if(lastVoiceAction.key===key&&now-lastVoiceAction.at<700)return true;
+   lastVoiceAction={key,at:now};
+   voiceFeedback("✓ "+best.label,"action");best.el.click();return true
+ }
+ return false
+}
+function universalVoiceCommand(h){
+ const n=norm(h);
+ if(/^(back|go back|previous|previous screen|take me back)$/.test(n)){voiceFeedback("✓ BACK","action");back();return true}
+ if(/^(volume up|turn it up|louder)$/.test(n)){setVolume(state.volume+.1);voiceFeedback("✓ VOLUME UP","action");return true}
+ if(/^(volume down|turn it down|quieter)$/.test(n)){setVolume(state.volume-.1);voiceFeedback("✓ VOLUME DOWN","action");return true}
+ if(/^(mute|mute it)$/.test(n)){setVolume(0);voiceFeedback("✓ MUTED","action");return true}
+ if(/^(unmute|sound on)$/.test(n)){setVolume(.65);voiceFeedback("✓ SOUND ON","action");return true}
+ const vm=n.match(/^volume\s+(\d{1,3})$/);if(vm){setVolume(Math.min(100,Number(vm[1]))/100);voiceFeedback("✓ VOLUME "+vm[1],"action");return true}
+ return clickVoiceTarget(h)
+}
 function startVoice(ctx){
- stopVoice();if(!state.voiceOn||!speechSupported())return;voiceContext=ctx;
+ voiceContext=ctx;
+ if(!state.voiceOn||!speechSupported()){stopVoice();return}
+ const generation=++voiceGeneration;
+ clearTimeout(voiceRestartTimer);
+ try{if(recognition){recognition.onend=null;recognition.abort()}}catch{}
+ recognition=null;
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
- const run=()=>{
-  if(!state.voiceOn||voiceContext!==ctx)return;
+ const launch=()=>{
+  if(!state.voiceOn||voiceContext!==ctx||generation!==voiceGeneration)return;
   try{
-   const r=new SR();recognition=r;r.lang="en-US";r.interimResults=true;
-   r.continuous=["home","mode","fun","players","time","ready"].includes(ctx);
-   r.maxAlternatives=3;
-   let lastFast="";
+   const r=new SR();recognition=r;r.lang="en-US";r.interimResults=true;r.continuous=true;r.maxAlternatives=5;
+   let interimHandled="";
+   r.onstart=()=>voiceFeedback("LISTENING","listening");
    r.onresult=e=>{
     for(let x=e.resultIndex;x<e.results.length;x++){
-     const res=e.results[x], h=res[0]?.transcript?.trim();
-     if(!h)continue;
-     const n=norm(h), fast=globalCmd(h);
-     // Short navigation commands should feel immediate.
-     if(!res.isFinal && fast==="continue" && n!==lastFast && ["home","fun","time","ready"].includes(ctx)){
-       lastFast=n; primaryAction(); return;
+     const res=e.results[x];
+     const alts=[...Array(Math.min(res.length,5)).keys()].map(i=>res[i]?.transcript?.trim()).filter(Boolean);
+     const h=alts[0];if(!h)continue;
+     if(!res.isFinal){
+       const n=norm(h);
+       // Only execute highly obvious short clickable/navigation commands on interim speech.
+       if(n!==interimHandled && n.split(" ").length<=4){
+         if(clickVoiceTarget(h)){interimHandled=n;return}
+       }
+       continue
      }
-     if(!res.isFinal && fast==="back" && n!==lastFast && ["mode","fun","players","time","ready"].includes(ctx)){
-       lastFast=n; back(); return;
+     voiceFeedback('HEARD: "'+h+'"',"heard");
+     // Screen-specific language first when it contains data such as player names.
+     if(ctx==="players"&&handlePlayerVoice(h))return;
+     if(ctx==="fun"){
+       let m=h.match(/^(?:add|include|select|choose)\s+(.+)$/i);
+       if(m){
+         const target=norm(m[1]),cat=EXTRA_CATEGORIES.find(x=>norm(x)===target||norm(x).includes(target)||target.includes(norm(x)));
+         if(cat){const set=new Set(state.categories||[]);set.add(cat);state.categories=[...set];voiceFeedback("✓ "+cat,"action");fun();return}
+       }
+       m=h.match(/^(?:remove|delete|deselect)\s+(.+)$/i);
+       if(m){
+         const target=norm(m[1]),cat=EXTRA_CATEGORIES.find(x=>norm(x)===target||norm(x).includes(target)||target.includes(norm(x)));
+         if(cat){state.categories=(state.categories||[]).filter(x=>x!==cat);voiceFeedback("✓ REMOVE "+cat,"action");fun();return}
+       }
      }
-     // Player/category edits wait for final recognition.
-     if(res.isFinal){
-       heard(ctx,h);
-       if(voiceContext!==ctx)return;
+     if(ctx==="question"){
+       state.game.speechLog.push(h);
+       const n=norm(h);
+       if(/^(pass|i pass|ill pass|i ll pass|skip|skip it|skip this one|skip question|next question|im passing|i m passing)$/.test(n)){voiceFeedback("✓ PASS","action");finish("pass");return}
+       if(accepted(h,state.game.current)){voiceFeedback("✓ ANSWER","action");finish("correct");return}
      }
+     // Universal click/command layer: if it is clickable, saying its label works.
+     if(universalVoiceCommand(h))return;
+     // Keep legacy intent router as fallback for natural phrases.
+     heard(ctx,h);
     }
    };
-   r.onerror=()=>{};
-   r.onend=()=>{recognition=null;if(state.voiceOn&&voiceContext===ctx)setTimeout(run,70)};
-   r.start();
+   r.onerror=e=>{
+     recognition=null;
+     if(e.error!=="aborted"&&e.error!=="no-speech")voiceFeedback("LISTENING…","listening");
+   };
+   r.onend=()=>{
+     recognition=null;
+     if(state.voiceOn&&voiceContext===ctx&&generation===voiceGeneration){
+       clearTimeout(voiceRestartTimer);voiceRestartTimer=setTimeout(launch,80)
+     }
+   };
+   r.start()
   }catch{
-   recognition=null;if(state.voiceOn&&voiceContext===ctx)setTimeout(run,160)
+   recognition=null;
+   if(state.voiceOn&&voiceContext===ctx&&generation===voiceGeneration){
+     clearTimeout(voiceRestartTimer);voiceRestartTimer=setTimeout(launch,180)
+   }
   }
  };
- run()
+ launch()
 }
 function ensureQuestionVoice(){
  if(state.voiceOn&&state.screen==="question"&&(!recognition||voiceContext!=="question"))startVoice("question")
@@ -249,6 +352,23 @@ function handlePlayerVoice(h){
  return false
 }
 function setVolume(v){state.volume=Math.max(0,Math.min(1,v));localStorage.setItem(STORAGE.volume,String(state.volume));const e=document.getElementById("vol");if(e)e.value=state.volume;const p=document.getElementById("volPct");if(p)p.textContent=Math.round(state.volume*100)+"%"}
+function decorateVoiceTargets(){
+ const aliasMap={
+  "CONTINUE":"start|begin|next|go ahead|lets go|let's go|im ready|i'm ready|move on",
+  "START":"begin|lets begin|let's begin|lets go|let's go|im ready|i'm ready",
+  "SKIP":"no thanks|none|no extra categories",
+  "BACK":"go back|previous",
+  "PAUSE":"hold on|stop for a second",
+  "RESUME":"keep going|continue game",
+  "PASS":"skip question|skip this one|i pass|ill pass|i'll pass",
+  "VOICE ON":"microphone on|turn voice on",
+  "VOICE OFF":"microphone off|turn voice off"
+ };
+ visibleVoiceTargets().forEach(({el,label})=>{
+   const key=label.replace(/\s+/g," ").trim().toUpperCase();
+   if(aliasMap[key]&&!el.dataset.voiceAliases)el.dataset.voiceAliases=aliasMap[key]
+ })
+}
 function primaryAction(){
  switch(state.screen){
   case "home": chooseGame(); return true;
@@ -272,7 +392,7 @@ function go(s){
 }
 function back(){const m={mode:"home",fun:"mode",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
 function home(){
- state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.5</div></div><div class="actions"><button id="start" class="btn primary large">START GAME</button></div>`);
+ state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.6</div></div><div class="actions"><button id="start" class="btn primary large">START GAME</button></div>`);
  document.getElementById("start").onclick=chooseGame;startMusic();startVoice("home")
 }
 function chooseGame(){ensureAudio();go("mode")}
@@ -493,5 +613,5 @@ function render(){clearRuntime();({home,mode,fun,players,time,ready,handoff,ques
 function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
-document.documentElement.dataset.build="5.5";viewport();home();
+document.documentElement.dataset.build="5.6";viewport();home();
 })();

@@ -242,3 +242,24 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
   .category-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
   .category-choice{min-height:54px;padding:10px 8px;font-size:.88rem}
 }
+
+/* =========================================================
+   5.6 VOICE CONTROL FOUNDATION
+   ========================================================= */
+.voice-feedback{
+ min-height:18px;
+ max-width:52vw;
+ overflow:hidden;
+ text-overflow:ellipsis;
+ white-space:nowrap;
+ font-size:.68rem;
+ font-weight:900;
+ letter-spacing:.08em;
+ color:rgba(255,255,255,.72);
+ text-align:center
+}
+.voice-feedback[data-kind="listening"]{color:rgba(255,208,79,.88)}
+.voice-feedback[data-kind="action"]{color:#6ff0a7}
+@media (orientation:portrait){
+ .voice-feedback{max-width:42vw;font-size:.58rem}
+}

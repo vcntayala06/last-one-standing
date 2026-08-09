@@ -1,10 +1,9 @@
-LAST ONE STANDING — BUILD 5.5 CORE STABILIZATION
+LAST ONE STANDING — BUILD 5.6 VOICE CONTROL FOUNDATION
 
-1. Keep the repository's hidden .git folder.
+1. Keep the hidden .git folder.
 2. Replace current app files with ALL files from this ZIP.
-3. GitHub Desktop should show BUILD_5_5.txt as a new file.
-4. Commit summary: Clean Foundation 5.5 Core Stabilization
+3. GitHub Desktop should show BUILD_5_6.txt.
+4. Commit summary: Clean Foundation 5.6 Voice Control Foundation
 5. Push origin.
 6. Wait for GitHub Pages.
-7. Open Safari directly.
-8. Verify BUILD 5.5 before testing.
+7. Open Safari and verify BUILD 5.6 before testing.
