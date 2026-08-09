@@ -197,3 +197,20 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
 @media (orientation:portrait){
   .champion-los{font-size:clamp(3.2rem,16vw,6.4rem)!important}
 }
+
+/* Clean Foundation 5.4 */
+.roster-error{min-height:22px;color:var(--red);font-size:.78rem;font-weight:1000;letter-spacing:.08em;text-align:center}
+.result-word.result-correct{color:var(--green)!important}
+.result-word.result-pass{color:#ff9f32!important}
+.result-word.result-wrong{color:var(--red)!important}
+.result-word.result-timeout{color:var(--red)!important}
+.answer-big{word-break:keep-all!important;overflow-wrap:normal!important;hyphens:none!important}
+.answer-big.answer-short{font-size:clamp(3.1rem,10vw,6rem)}
+.answer-big.answer-medium{font-size:clamp(2.6rem,8.5vw,5rem)}
+.answer-big.answer-long{font-size:clamp(2.05rem,6.8vw,4.1rem)}
+.champion-los{font-size:clamp(3.4rem,12vw,8.2rem)!important}
+@media (orientation:portrait){
+ .showdown-title{font-size:clamp(2.85rem,13vw,4.8rem)!important;line-height:.84!important;margin:10px 0 18px!important}
+ .showdown-kicker{font-size:.75rem!important}
+ .champion-los{font-size:clamp(3.8rem,18vw,6.8rem)!important}
+}

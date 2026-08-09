@@ -1,9 +1,4 @@
-LAST ONE STANDING — BUILD 5.3
-
-1. Keep the repository's hidden .git folder.
-2. Replace the app files with ALL files from this ZIP.
-3. GitHub Desktop should show BUILD_5_3.txt as a new file.
-4. Commit summary: Clean Foundation 5.3 Correction
-5. Push origin.
-6. Wait for GitHub Pages.
-7. Open Safari and verify BUILD 5.3 before testing.
+LAST ONE STANDING — BUILD 5.4
+Keep the hidden .git folder. Replace current app files with everything in this ZIP.
+GitHub Desktop Summary: Clean Foundation 5.4 Voice Reliability
+Push origin, then verify BUILD 5.4 in Safari.

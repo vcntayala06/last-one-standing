@@ -1,7 +1,7 @@
 
 (()=>{
 "use strict";
-const BUILD="Clean Foundation 5.3 Correction";
+const BUILD="Clean Foundation 5.4 Voice Reliability";
 const app=document.getElementById("app");
 const STORAGE={names:"los5_names",voice:"los5_voice",volume:"los5_volume"};
 const QUESTIONS=[
@@ -36,6 +36,12 @@ const uid=()=>Math.random().toString(36).slice(2,10);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
 const norm=s=>String(s||"").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu," ").replace(/\s+/g," ").trim();
 const save=()=>localStorage.setItem(STORAGE.voice,String(state.voiceOn));
+function spokenNumber(s){
+ const map={one:1,two:2,to:2,too:2,three:3,four:4,for:4,five:5,six:6,seven:7,eight:8,ate:8,nine:9,ten:10};
+ const n=Number(s);return Number.isFinite(n)&&n>0?n:(map[norm(s)]||0)
+}
+function nameKey(s){return norm(s).replace(/\b(player|please|the)\b/g,"").replace(/\s+/g," ").trim()}
+
 function ensureAudio(){if(!audioCtx)try{audioCtx=new (window.AudioContext||window.webkitAudioContext)()}catch{};if(audioCtx?.state==="suspended")audioCtx.resume()}
 function tone(freq=440,d=.05,gain=.06,type="sine",delay=0){
  ensureAudio();if(!audioCtx)return;const now=audioCtx.currentTime+delay,o=audioCtx.createOscillator(),g=audioCtx.createGain();
@@ -71,24 +77,39 @@ function stopVoice(){try{recognition?.abort()}catch{}recognition=null;voiceConte
 function startVoice(ctx){
  stopVoice();if(!state.voiceOn||!speechSupported())return;voiceContext=ctx;
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
- const run=()=>{if(!state.voiceOn||voiceContext!==ctx)return;try{
+ const run=()=>{
+  if(!state.voiceOn||voiceContext!==ctx)return;
+  try{
    const r=new SR();recognition=r;r.lang="en-US";r.interimResults=true;r.continuous=false;r.maxAlternatives=5;
-   r.onresult=e=>{for(let x=e.resultIndex;x<e.results.length;x++)for(let i=0;i<e.results[x].length;i++){const h=e.results[x][i].transcript.trim();if(h)heard(ctx,h);if(voiceContext!==ctx)return}};
-   r.onend=()=>{recognition=null;if(state.voiceOn&&voiceContext===ctx)setTimeout(run,120)};r.onerror=()=>{};r.start()
- }catch{setTimeout(run,220)}};run()
+   r.onresult=e=>{
+    for(let x=e.resultIndex;x<e.results.length;x++){
+     const res=e.results[x];if(!res.isFinal)continue;
+     const h=res[0]?.transcript?.trim();if(h)heard(ctx,h);
+     if(voiceContext!==ctx)return;
+    }
+   };
+   r.onerror=()=>{};
+   r.onend=()=>{recognition=null;if(state.voiceOn&&voiceContext===ctx)setTimeout(run,120)};
+   r.start();
+  }catch{recognition=null;if(state.voiceOn&&voiceContext===ctx)setTimeout(run,240)}
+ };
+ run()
+}
+function ensureQuestionVoice(){
+ if(state.voiceOn&&state.screen==="question"&&(!recognition||voiceContext!=="question"))startVoice("question")
 }
 function globalCmd(h){
  const n=norm(h);
- if(/^(back|go back|previous)$/.test(n))return"back";
- if(/^(continue|start|lets start|let s start|go|next)$/.test(n))return"continue";
- if(/^(pause|pause game)$/.test(n))return"pause";
- if(/^(resume|resume game|continue game)$/.test(n))return"resume";
- if(/^(leave game|exit game)$/.test(n))return"leave";
- if(/^(end game)$/.test(n))return"end";
+ if(/^(back|go back|previous|previous screen|take me back)$/.test(n))return"back";
+ if(/^(continue|start|lets start|let s start|lets begin|let s begin|begin|go|go ahead|next|move on|im ready|i m ready|were ready|we re ready|lets go|let s go|start the game|continue on)$/.test(n))return"continue";
+ if(/^(pause|pause game|hold on|stop for a second)$/.test(n))return"pause";
+ if(/^(resume|resume game|continue game|keep going)$/.test(n))return"resume";
+ if(/^(leave game|exit game|leave)$/.test(n))return"leave";
+ if(/^(end game|end the game|quit the game)$/.test(n))return"end";
  if(/^(volume up|turn it up|louder)$/.test(n))return"volup";
  if(/^(volume down|turn it down|quieter)$/.test(n))return"voldown";
- if(/^(mute)$/.test(n))return"mute";
- if(/^(unmute)$/.test(n))return"unmute";
+ if(/^(mute|mute it)$/.test(n))return"mute";
+ if(/^(unmute|sound on)$/.test(n))return"unmute";
  const m=n.match(/^volume\s+(\d{1,3})$/);if(m)return"vol:"+Math.min(100,Number(m[1]));
  if(/^(what did you hear|repeat what you heard|what was heard)$/.test(n))return"heard";
  return""
@@ -100,7 +121,7 @@ function heard(ctx,h){
  if(ctx==="question"){
    state.game.speechLog.push(h);
    if(c==="pause"){pauseGame();return}
-   if(/^(pass|i pass|skip|skip it|skip this one|skip question|next question)$/.test(norm(h))){finish("pass");return}
+   if(/^(pass|i pass|ill pass|i ll pass|skip|skip it|skip this one|skip question|next question|im passing|i m passing)$/.test(norm(h))){finish("pass");return}
    if(accepted(h,state.game.current)){finish("correct");return}
    return
  }
@@ -116,7 +137,7 @@ function heard(ctx,h){
    if(/^(solo|solo game)$/.test(n)){state.mode="solo";go("players");return}
  }
  if(ctx==="fun"){if(/^(skip|skip this|no thanks)$/.test(norm(h))||c==="continue"){go("players");return}}
- if(ctx==="players"){if(handlePlayerVoice(h))return;if(c==="continue"){go("time");return}}
+ if(ctx==="players"){if(handlePlayerVoice(h))return;if(c==="continue"){state.players=state.players.filter(p=>(p.name||"").trim());if(state.players.length<(state.mode==="solo"?1:2)){players();return}rememberNames();go("time");return}}
  if(ctx==="time"){
    const n=norm(h);let m=n.match(/^(\d+)\s*seconds?$/);if(m){state.questionSeconds=Math.max(5,Math.min(30,Number(m[1])));time();return}
    m=n.match(/^(\d+)\s*minutes?$/);if(m){state.duration=Number(m[1]);state.quick=false;time();return}
@@ -132,42 +153,50 @@ function spokenLetters(s){
  const p=norm(s).split(" ");let out="";for(const x of p){if(x.length===1)out+=x;else if(map[x])out+=map[x];else return""}return out
 }
 function handlePlayerVoice(h){
- const n=norm(h);
+ const n=norm(h);if(!n)return false;
  if(renamePending){
   const p=state.players.find(x=>x.id===renamePending.id);if(!p){renamePending=null;return false}
   if(/^(cancel|never mind|nevermind)$/.test(n)){renamePending=null;return true}
-  if(/^(spell|spell it|spell the name)$/.test(n)){renamePending.spell=true;return true}
+  if(/^(spell|spell it|spell the name|change the spelling)$/.test(n)){renamePending.spell=true;return true}
   if(renamePending.spell){const s=spokenLetters(h);if(s){p.name=s[0].toUpperCase()+s.slice(1);renamePending=null;players();return true}return true}
-  p.name=h.trim();renamePending=null;players();return true
+  const candidate=h.replace(/^(the name is|name is|make it|change it to|to)\s+/i,"").trim();
+  if(candidate){p.name=candidate;renamePending=null;players();return true}
+  return true
  }
- let m=h.match(/player\s*(\d+)\s+(?:is|to|should be|can be)?\s*(.+)$/i);
- if(m){const i=Number(m[1])-1;if(i>=0){while(state.players.length<=i)state.players.push({id:uid(),name:""});state.players[i].name=m[2].trim();players();return true}}
- m=h.match(/(?:change|rename)\s+player\s*(\d+)\s+to\s+(.+)$/i);
- if(m){const p=state.players[Number(m[1])-1];if(p){p.name=m[2].trim();players();return true}}
- m=h.match(/(?:change|rename)\s+(.+?)\s+to\s+(.+)$/i);
- if(m){const p=state.players.find(x=>norm(x.name)===norm(m[1]));if(p){p.name=m[2].trim();players();return true}}
- m=n.match(/^(?:change|rename)\s+player\s*(\d+)$/);if(m){const p=state.players[Number(m[1])-1];if(p){renamePending={id:p.id,spell:false};return true}}
- m=n.match(/^spell\s+player\s*(\d+)$/);if(m){const p=state.players[Number(m[1])-1];if(p){renamePending={id:p.id,spell:true};return true}}
- m=h.match(/^(?:please\s+)?(?:delete|remove)\s+(?:player\s+)?(.+?)(?:\s+please)?$/i);
+ const chunks=h.split(/\s*(?:,| and )\s*/i);let changed=false;
+ for(const chunk of chunks){
+  const bm=chunk.match(/player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:is|to|should be|can be|will be)?\s*(.+)$/i);
+  if(bm){const i=spokenNumber(bm[1])-1;if(i>=0){while(state.players.length<=i)state.players.push({id:uid(),name:""});state.players[i].name=bm[2].trim();changed=true}}
+ }
+ if(changed){players();return true}
+ let m=h.match(/^(?:please\s+)?add\s+(?:a\s+)?player(?:\s+(?:named|called))?\s+(.+)$/i);
+ if(m){const name=m[1].trim();if(name){state.players.push({id:uid(),name});players();return true}}
+ if(/^(?:please\s+)?add\s+(?:a\s+)?player$/i.test(h)){state.players.push({id:uid(),name:""});players();return true}
+ m=h.match(/^(?:please\s+)?(?:delete|remove|get rid of|take out)\s+(?:player\s+)?(.+?)(?:\s+please)?$/i);
  if(m){
-   const raw=m[1].trim(), n=spokenNumber(raw);
-   if(n){
-     const i=n-1;
-     if(i>=0&&i<state.players.length){state.players.splice(i,1);players();return true}
-   }
-   const target=nameKey(raw);
-   let i=state.players.findIndex(p=>nameKey(p.name)===target);
-   if(i<0)i=state.players.findIndex(p=>nameKey(p.name).startsWith(target)||target.startsWith(nameKey(p.name)));
-   if(i>=0){state.players.splice(i,1);players();return true}
+  const raw=m[1].trim(), num=spokenNumber(raw);
+  if(num){const i=num-1;if(i>=0&&i<state.players.length){state.players.splice(i,1);players();return true}}
+  const target=nameKey(raw);let i=state.players.findIndex(p=>nameKey(p.name)===target);
+  if(i<0)i=state.players.findIndex(p=>nameKey(p.name).startsWith(target)||target.startsWith(nameKey(p.name)));
+  if(i>=0){state.players.splice(i,1);players();return true}
  }
- m=h.match(/^add player(?:\s+(.+))?$/i);if(m){state.players.push({id:uid(),name:(m[1]||"").trim()});players();return true}
+ m=h.match(/^(?:change|rename|make|set)\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:to|as|is)\s+(.+)$/i);
+ if(m){const i=spokenNumber(m[1])-1;if(i>=0){while(state.players.length<=i)state.players.push({id:uid(),name:""});state.players[i].name=m[2].trim();players();return true}}
+ m=h.match(/^(?:i want|put|make)\s+(.+?)\s+(?:as|for)\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)$/i);
+ if(m){const i=spokenNumber(m[2])-1;if(i>=0){while(state.players.length<=i)state.players.push({id:uid(),name:""});state.players[i].name=m[1].trim();players();return true}}
+ m=h.match(/^(?:change|rename)\s+(.+?)\s+to\s+(.+)$/i);
+ if(m){const p=state.players.find(x=>nameKey(x.name)===nameKey(m[1]));if(p){p.name=m[2].trim();players();return true}}
+ m=n.match(/^(?:change|rename)\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)$/);
+ if(m){const p=state.players[spokenNumber(m[1])-1];if(p){renamePending={id:p.id,spell:false};return true}}
+ m=n.match(/^spell\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)$/);
+ if(m){const p=state.players[spokenNumber(m[1])-1];if(p){renamePending={id:p.id,spell:true};return true}}
  return false
 }
 function setVolume(v){state.volume=Math.max(0,Math.min(1,v));localStorage.setItem(STORAGE.volume,String(state.volume));const e=document.getElementById("vol");if(e)e.value=state.volume;const p=document.getElementById("volPct");if(p)p.textContent=Math.round(state.volume*100)+"%"}
 function go(s){clearRuntime();state.screen=s;render()}
 function back(){const m={mode:"home",fun:"mode",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
 function home(){
- state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.3</div></div><div class="actions"><button id="start" class="btn primary large">START GAME</button></div>`);
+ state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.4</div></div><div class="actions"><button id="start" class="btn primary large">START GAME</button></div>`);
  document.getElementById("start").onclick=chooseGame;startMusic();startVoice("home")
 }
 function chooseGame(){ensureAudio();go("mode")}
@@ -181,11 +210,11 @@ function fun(){
 }
 function players(){
  ensurePlayers();const list=state.players.map((p,i)=>`<div class="player-row"><div class="player-num">PLAYER ${i+1}</div><input data-p="${p.id}" value="${esc(p.name)}" placeholder="Name"><button class="btn" data-remove="${p.id}">×</button></div>`).join("");
- app.innerHTML=shell("WHO’S IN?",`<div class="roster-sub">ENTER THE CONTENDERS</div><div class="players-list">${list}</div><button id="add" class="btn">ADD PLAYER</button><div class="subtle center">Try: “Player 1 Joe,” “Change player 2 to Tom,” “Spell player 2,” or “Add player Maria.”</div>`,`<button id="back" class="btn">BACK</button><button id="continue" class="btn primary">CONTINUE</button>`);
+ app.innerHTML=shell("WHO’S IN?",`<div class="roster-sub">ENTER THE CONTENDERS</div><div class="players-list">${list}</div><div id="rosterError" class="roster-error"></div><button id="add" class="btn">ADD PLAYER</button><div class="subtle center">Try: “Player 1 Joe,” “Change player 2 to Tom,” “Spell player 2,” or “Add player Maria.”</div>`,`<button id="back" class="btn">BACK</button><button id="continue" class="btn primary">CONTINUE</button>`);
  document.querySelectorAll("[data-p]").forEach(e=>e.oninput=()=>{const p=state.players.find(x=>x.id===e.dataset.p);p.name=e.value});
  document.querySelectorAll("[data-remove]").forEach(b=>b.onclick=()=>{state.players=state.players.filter(p=>p.id!==b.dataset.remove);players()});
  document.getElementById("add").onclick=()=>{state.players.push({id:uid(),name:""});players()};document.getElementById("back").onclick=back;
- document.getElementById("continue").onclick=()=>{state.players=state.players.filter(p=>p.name.trim());if(state.players.length<(state.mode==="solo"?1:2))return;rememberNames();go("time")};startVoice("players")
+ document.getElementById("continue").onclick=()=>{state.players=state.players.filter(p=>(p.name||"").trim());if(state.players.length<(state.mode==="solo"?1:2)){const msg=document.getElementById("rosterError");if(msg)msg.textContent=state.mode==="solo"?"ADD A PLAYER NAME TO CONTINUE":"ADD AT LEAST TWO NAMED PLAYERS TO CONTINUE";return}rememberNames();go("time")};startVoice("players")
 }
 function time(){
  app.innerHTML=shell("GAME TIME",`<div class="grid"><div class="card center"><div style="font-weight:1000">QUESTION TIMER</div><div class="actions" style="margin-top:10px">${[10,15,20,30].map(s=>`<button class="btn ${state.questionSeconds===s?"selected":""}" data-sec="${s}">${s} SEC</button>`).join("")}</div></div><div class="card center"><div style="font-weight:1000">GAME LENGTH</div><div class="actions" style="margin-top:10px">${[5,10,15,20].map(m=>`<button class="btn ${!state.quick&&state.duration===m?"selected":""}" data-min="${m}">${m} MIN</button>`).join("")}<button class="btn ${state.quick?"selected":""}" id="quick">QUICK GAME</button></div></div><div class="card center"><div style="font-weight:1000">VOLUME</div><div class="volume-wrap" style="justify-content:center;margin-top:12px"><input id="vol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="volPct">${Math.round(state.volume*100)}%</strong></div></div><div class="card center"><div style="font-weight:1000">VOICE RECOGNITION</div><div class="actions" style="margin-top:10px"><button id="voiceOn" class="btn ${state.voiceOn?"selected":""}">ON</button><button id="voiceOff" class="btn ${!state.voiceOn?"selected":""}">OFF</button></div></div></div>`,`<button id="back" class="btn">BACK</button><button id="continue" class="btn primary">CONTINUE</button>`);
@@ -226,6 +255,7 @@ function question(){
  bindGamebar();startVoice("question");
  tickSound(rem);
  questionTimer=setInterval(()=>{
+   ensureQuestionVoice();
    rem--;
    const t=document.getElementById("timer");
    if(t){t.textContent=Math.max(0,rem);t.classList.toggle("urgent",rem<=5)}
@@ -247,10 +277,10 @@ function result(outcome){
  const phase=g.showdown?"FINAL SHOWDOWN":"CURRENT STANDINGS";
  app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(true)}
  <div class="result-body">
-   <div class="result-word">${label}</div>
+   <div class="result-word result-${outcome}">${label}</div>
    <div class="answer-panel">
      <div class="answer-label">CORRECT ANSWER</div>
-     <div class="answer-big">${esc(q?.a||"")}</div>
+     <div class="answer-big answer-${String(q?.a||"").length>16?"long":String(q?.a||"").length>10?"medium":"short"}">${esc(q?.a||"")}</div>
    </div>
    ${strike?`<div class="strike-box"><div>${eliminated?"THIRD STRIKE — ELIMINATED":"STRIKE"}</div><div class="strike-marks">${marks(p)}</div><div>${eliminated?esc(p.name)+" IS OUT":p.strikes+" OF 3 STRIKES"}</div></div>`:""}
    <div class="phase-heading">${phase}</div>
@@ -262,10 +292,20 @@ function result(outcome){
 }
 function advance(){
  clearRuntime();const g=state.game;g.qnum++;
- if(g.showdown){const out=g.players.find(p=>p.eliminated);if(out){const champ=g.players.find(p=>p.id!==out.id);champion(champ);return}g.idx=(g.idx+1)%g.players.length;transition("next",handoff);return}
- if(g.startingCount>2&&activePlayers().length<=2){transition("elimination",showdownIntro);return}
+ if(g.showdown){
+  const out=g.players.find(p=>p.eliminated);
+  if(out){const champ=g.players.find(p=>p.id!==out.id);champion(champ);return}
+  g.idx=(g.idx+1)%g.players.length;transition("next",handoff);return
+ }
+ const alive=activePlayers();
+ if(g.startingCount>=3&&alive.length===2){transition("elimination",showdownIntro);return}
+ if(g.startingCount===2&&alive.length===1){champion(alive[0]);return}
  const expired=!state.quick&&(Date.now()-g.started)/60000>=state.duration;
- if(expired||g.qnum>=(state.quick?6:40)){transition("showdown",showdownIntro);return}
+ if(expired||g.qnum>=(state.quick?6:40)){
+  if(g.startingCount>=3){transition("showdown",showdownIntro);return}
+  const champ=[...alive].sort((a,b)=>(a.strikes-b.strikes)||(b.correct-a.correct))[0]||g.players[0];
+  champion(champ);return
+ }
  g.idx=nextActive(g.idx);transition("next",handoff)
 }
 function showdownIntro(){
@@ -351,5 +391,5 @@ function render(){clearRuntime();({home,mode,fun,players,time,ready,handoff,ques
 function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
-document.documentElement.dataset.build="5.3";viewport();home();
+document.documentElement.dataset.build="5.4";viewport();home();
 })();
