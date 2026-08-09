@@ -1,16 +1,15 @@
-LAST ONE STANDING — CLEAN BUILD 3 INSTALL
+LAST ONE STANDING — CLEAN BUILD 3.1
 
-Use a clean replacement. Do not copy this build on top of old app files.
+For the safest update:
+1. Extract this ZIP.
+2. Open your local GitHub repository folder.
+3. Turn on Hidden items in File Explorer.
+4. KEEP the hidden .git folder.
+5. Delete the other old app files/folders.
+6. Copy all files from this extracted ZIP next to .git.
+7. In GitHub Desktop use Summary: Clean Build 3.1 Voice Players
+8. Commit to main.
+9. Push origin.
+10. Wait about 1–3 minutes, then test the normal browser first.
 
-1. Open your local Last One Standing repository folder in File Explorer.
-2. Make sure Hidden items are visible.
-3. KEEP the hidden .git folder.
-4. Delete the other old app files/folders.
-5. Copy ALL files from this Build 3 folder into the repository next to .git.
-6. Open GitHub Desktop.
-7. Summary: Clean Build 3 Voice Game Show
-8. Click Commit to main.
-9. Click Push origin.
-10. Wait 1–3 minutes, up to about 5.
-11. Test the normal browser first.
-12. If the Home Screen icon is stale, remove it and add it again from Safari.
+If the Home Screen/Desktop shortcut is stale after several minutes, delete it and add it again.

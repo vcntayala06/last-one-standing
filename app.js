@@ -2,7 +2,7 @@
 "use strict";
 
 const app=document.getElementById("app");
-const BUILD="Clean Build 3";
+const BUILD="Clean Build 3.1";
 const STORAGE={
   names:"los_b3_names",
   volume:"los_b3_volume",
@@ -173,6 +173,7 @@ function globalCommand(t){
   if(/\b(resume|continue game|keep going)\b/.test(n))return"resume";
   if(/\b(exit game|leave game|quit game|pause and leave)\b/.test(n))return"leave";
   if(/\b(end game|finish game|stop game)\b/.test(n))return"end";
+  if(/\b(back|go back|previous)\b/.test(n))return"back";
   if(/\b(skip|skip this|no extras|none)\b/.test(n))return"skip";
   if(/\b(continue|next)\b/.test(n))return"continue";
   if(/\b(play|begin)\b/.test(n))return"play";
@@ -186,6 +187,59 @@ function globalCommand(t){
   for(const [id,label] of WORK_TYPES){if(n.includes(normalize(label))||n===normalize(label.split(" /")[0]))return`industry:${id}`}
   for(const pack of FUN_PACKS){if(n.includes(normalize(pack)))return`pack:${pack}`}
   return"";
+}
+function spokenNumber(v){
+  const map={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10};
+  const n=Number(v);return Number.isFinite(n)&&n>0?n:(map[String(v).toLowerCase()]||0);
+}
+function cleanSpokenName(raw){
+  let n=String(raw||"").trim().replace(/^[,:;\-\s]+|[,:;\-\s]+$/g,"");
+  n=n.replace(/^(is|named|name is)\s+/i,"").trim();
+  if(!n)return"";
+  return n.split(/\s+/).map(w=>w? w[0].toUpperCase()+w.slice(1).toLowerCase():w).join(" ");
+}
+function setPlayerNameByVoice(index,name){
+  if(index<0||!name)return false;
+  while(state.players.length<=index)state.players.push({id:uid(),name:""});
+  state.players[index].name=name;
+  players();
+  return true;
+}
+function addPlayerByVoice(name=""){
+  if(state.mode==="solo"){
+    if(name){ensurePlayerRows();state.players[0].name=name;players();return true}
+    return false;
+  }
+  if(name){
+    const empty=state.players.findIndex(p=>!(p.name||"").trim());
+    if(empty>=0)return setPlayerNameByVoice(empty,name);
+    state.players.push({id:uid(),name});players();return true;
+  }
+  const hasEmpty=state.players.some(p=>!(p.name||"").trim());
+  if(!hasEmpty){state.players.push({id:uid(),name:""});players();return true}
+  const e=document.getElementById("setupVoiceStatus");
+  if(e)e.textContent="🎤 Say ‘Player 1 Vicente’ or ‘Add Player Maria’";
+  return true;
+}
+function handlePlayerVoice(h){
+  const raw=String(h||"").trim();
+  let m=raw.match(/^(?:select\s+)?player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:is\s+|named\s+|name\s+is\s+)?(.+)$/i);
+  if(m){const idx=spokenNumber(m[1])-1,name=cleanSpokenName(m[2]);return setPlayerNameByVoice(idx,name)}
+  m=raw.match(/^(?:add|select)\s+player(?:\s+(?:named|name\s+is|is))?\s+(.+)$/i);
+  if(m){return addPlayerByVoice(cleanSpokenName(m[1]))}
+  if(/^(add|select)\s+player$/i.test(raw)){return addPlayerByVoice("")}
+  m=raw.match(/^remove\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)$/i);
+  if(m&&state.mode!=="solo"){
+    const idx=spokenNumber(m[1])-1;
+    if(idx>=0&&idx<state.players.length){state.players.splice(idx,1);ensurePlayerRows();players();return true}
+  }
+  return false;
+}
+function backFromContext(ctx){
+  const target={mode:"home",industry:"mode",players:"packs",time:"players",ready:"time"}[ctx];
+  if(ctx==="packs")return go(state.mode==="work"?"industry":"mode"),true;
+  if(target){go(target);return true}
+  return false;
 }
 function startVoice(ctx){
   stopVoice();if(!state.voiceOn||!speechSupported())return;
@@ -219,6 +273,8 @@ function handleHeard(ctx,h){
   showHeard(h);
   const c=globalCommand(h);
 
+  if(["mode","industry","packs","players","time","ready"].includes(ctx)&&c==="back"){backFromContext(ctx);return}
+
   if(ctx==="question"){
     if(c==="pause"){pauseGame();return}
     if(c==="leave"){pauseGame("leave");return}
@@ -239,7 +295,7 @@ function handleHeard(ctx,h){
     return;
   }
   if(ctx==="home"){
-    if(c==="start"){go("mode");return}
+    if(c==="start"){ensureAudio();startMusic();go("mode");return}
     if(c==="resumeSaved"&&loadJSON(STORAGE.session,null)){resumeSaved();return}
   }
   if(ctx==="mode"&&["work","family","friends","solo"].includes(c)){chooseMode(c);return}
@@ -248,7 +304,10 @@ function handleHeard(ctx,h){
     if(c==="skip"||c==="continue"){go("players");return}
     if(c.startsWith("pack:")){togglePack(c.slice(5));packs();return}
   }
-  if(ctx==="players"&&c==="continue"){if(canContinuePlayers())go("time");return}
+  if(ctx==="players"){
+    if(handlePlayerVoice(h))return;
+    if(c==="continue"){continueFromPlayers();return}
+  }
   if(ctx==="time"){
     if(c==="quick"){state.quickGame=true;state.durationMinutes=3;time();return}
     if(c.startsWith("sec:")){state.questionSeconds=Number(c.slice(4));time();return}
@@ -266,7 +325,7 @@ function bindVoiceHelp(ctx){if(state.voiceOn)startVoice(ctx)}
 function home(){
   clearRuntime();state.screen="home";
   const hasSave=!!loadJSON(STORAGE.session,null);
-  app.innerHTML=`<section class="screen home-screen"><div class="home-inner"><div class="brand-wrap"><div class="brand">LAST ONE<br>STANDING</div><div class="tagline">THE LAST ANSWER WINS.</div></div><div class="home-actions"><button id="startBtn" class="btn primary hero-btn">START GAME</button>${hasSave?`<button id="resumeBtn" class="btn">RESUME GAME</button>`:""}<div class="voice-home" id="homeVoiceStatus">${state.voiceOn&&speechSupported()?"🎤 Voice ready — say “Start Game”":"Tap Start Game"}</div></div><div class="build-stamp">${BUILD}</div></div></section>`;
+  app.innerHTML=`<section class="screen home-screen"><div class="home-inner"><div class="brand-wrap"><div class="brand">LAST ONE<br>STANDING</div><div class="tagline">THE LAST ANSWER WINS.</div></div><div class="home-actions"><button id="startBtn" class="btn primary hero-btn">START GAME</button>${hasSave?`<button id="resumeBtn" class="btn">RESUME GAME</button>`:""}<div class="voice-home" id="homeVoiceStatus">${state.voiceOn&&speechSupported()?"🎤 Voice ready — say “Start Game” • 🔊 Music on Page 1":"Tap Start Game"}</div></div><div class="build-stamp">${BUILD}</div></div></section>`;
   document.getElementById("startBtn").onclick=()=>{ensureAudio();startMusic();go("mode")};
   const rb=document.getElementById("resumeBtn");if(rb)rb.onclick=()=>{ensureAudio();resumeSaved()};
   setMusicForScreen();bindVoiceHelp("home");
@@ -276,34 +335,41 @@ function chooseMode(m){
   if(m==="work")go("industry");else go("packs");
 }
 function mode(){
-  app.innerHTML=shell({title:"Choose Your Game",back:"home",klass:"mode-screen",content:`<div class="choice-grid mode-grid">${[["work","WORK"],["family","FAMILY"],["friends","FRIENDS"],["solo","SOLO"]].map(([id,label])=>`<button class="choice-card" data-mode="${id}"><span>${label}</span></button>`).join("")}</div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Say Work, Family, Friends, or Solo":""}</div>`});
+  app.innerHTML=shell({title:"Choose Your Game",back:"home",klass:"mode-screen",content:`<div class="choice-grid mode-grid">${[["work","WORK"],["family","FAMILY"],["friends","FRIENDS"],["solo","SOLO"]].map(([id,label])=>`<button class="choice-card" data-mode="${id}"><span>${label}</span></button>`).join("")}</div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Say Work, Family, Friends, Solo, or Back":""}</div>`});
   bindBack("home");document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>chooseMode(b.dataset.mode));setMusicForScreen();bindVoiceHelp("mode");
 }
 function industry(){
-  app.innerHTML=shell({title:"Choose Your Work Type",back:"mode",content:`<div class="choice-grid industry-grid">${WORK_TYPES.map(([id,label])=>`<button class="choice-card ${state.industry===id?"selected":""}" data-ind="${id}">${label}</button>`).join("")}</div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Say a work type to select it":""}</div>`});
+  app.innerHTML=shell({title:"Choose Your Work Type",back:"mode",content:`<div class="choice-grid industry-grid">${WORK_TYPES.map(([id,label])=>`<button class="choice-card ${state.industry===id?"selected":""}" data-ind="${id}">${label}</button>`).join("")}</div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Say a work type, or say Back":""}</div>`});
   bindBack("mode");document.querySelectorAll("[data-ind]").forEach(b=>b.onclick=()=>{state.industry=b.dataset.ind;go("packs")});setMusicForScreen();bindVoiceHelp("industry");
 }
 function togglePack(pack){const i=state.packs.indexOf(pack);if(i>=0)state.packs.splice(i,1);else state.packs.push(pack)}
 function packs(){
-  app.innerHTML=shell({title:"Add Some Fun?",back:state.mode==="work"?"industry":"mode",content:`<div class="instruction">Pick any extra categories you want in your game. Choose as many as you like — or skip this step.</div><div class="pack-grid">${FUN_PACKS.map(p=>`<button class="pack ${state.packs.includes(p)?"selected":""}" data-pack="${esc(p)}">${esc(p)}</button>`).join("")}</div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Say a category, “Skip,” or “Continue”":""}</div>`,footer:`<button id="packsNext" class="btn primary">CONTINUE ▶</button>`});
+  app.innerHTML=shell({title:"Add Some Fun?",back:state.mode==="work"?"industry":"mode",content:`<div class="instruction">Pick any extra categories you want in your game. Choose as many as you like — or skip this step.</div><div class="pack-grid">${FUN_PACKS.map(p=>`<button class="pack ${state.packs.includes(p)?"selected":""}" data-pack="${esc(p)}">${esc(p)}</button>`).join("")}</div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Say a category, “Skip,” “Continue,” or “Back”":""}</div>`,footer:`<button id="packsNext" class="btn primary">CONTINUE ▶</button>`});
   bindBack(state.mode==="work"?"industry":"mode");document.querySelectorAll("[data-pack]").forEach(b=>b.onclick=()=>{togglePack(b.dataset.pack);packs()});document.getElementById("packsNext").onclick=()=>go("players");setMusicForScreen();bindVoiceHelp("packs");
 }
 function ensurePlayerRows(){const need=state.mode==="solo"?1:2;while(state.players.length<need)state.players.push({id:uid(),name:""});if(state.mode==="solo")state.selectedPlayerIds=state.players.length?[state.players[0].id]:[]}
-function canContinuePlayers(){const ps=state.mode==="solo"?state.players.slice(0,1):state.players;return ps.length>0&&ps.every(p=>(p.name||"").trim())}
+function namedPlayers(){return state.players.filter(p=>(p.name||"").trim())}
+function canContinuePlayers(){return state.mode==="solo"?!!((state.players[0]?.name||"").trim()):namedPlayers().length>=2}
+function continueFromPlayers(){
+  if(!canContinuePlayers())return;
+  state.players=state.mode==="solo"?state.players.slice(0,1):namedPlayers();
+  state.selectedPlayerIds=state.players.map(p=>p.id);
+  rememberNames();go("time");
+}
 function players(){
   ensurePlayerRows();const names=remembered();
-  app.innerHTML=shell({title:state.mode==="solo"?"Your Player":"Your Players",back:"packs",klass:"players-screen",content:`<div class="players-wrap"><div class="player-card card"><div class="player-card-title">${state.mode==="solo"?"PLAYER NAME":"PLAYER NAMES"}</div><div id="playerRows">${state.players.map((p,i)=>`<div class="player-row"><span class="player-number">${i+1}</span><div class="name-field"><input class="input player-input" data-id="${p.id}" value="${esc(p.name)}" placeholder="Enter name" autocomplete="off" list="rememberedNames"></div>${state.mode!=="solo"&&state.players.length>2?`<button class="icon-btn remove-player" data-rm="${p.id}" aria-label="Remove player">×</button>`:""}</div>`).join("")}</div><datalist id="rememberedNames">${names.map(n=>`<option value="${esc(n)}"></option>`).join("")}</datalist>${state.mode!=="solo"?`<button id="addPlayer" class="btn compact">+ ADD PLAYER</button>`:""}</div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Enter names, then say “Continue”":""}</div></div>`,footer:`<button id="playersNext" class="btn primary">CONTINUE ▶</button>`});
+  app.innerHTML=shell({title:state.mode==="solo"?"Your Player":"Your Players",back:"packs",klass:"players-screen",content:`<div class="players-wrap"><div class="player-card card"><div class="player-card-title">${state.mode==="solo"?"PLAYER NAME":"PLAYER NAMES"}</div><div id="playerRows">${state.players.map((p,i)=>`<div class="player-row"><span class="player-number">${i+1}</span><div class="name-field"><input class="input player-input" data-id="${p.id}" value="${esc(p.name)}" placeholder="Enter name" autocomplete="off" list="rememberedNames"></div>${state.mode!=="solo"&&state.players.length>2?`<button class="icon-btn remove-player" data-rm="${p.id}" aria-label="Remove player">×</button>`:""}</div>`).join("")}</div><datalist id="rememberedNames">${names.map(n=>`<option value="${esc(n)}"></option>`).join("")}</datalist>${state.mode!=="solo"?`<button id="addPlayer" class="btn compact">+ ADD PLAYER</button>`:""}</div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Say “Player 1 Vicente,” “Player 2 Todd,” “Add Player Maria,” “Back,” or “Continue”":""}</div></div>`,footer:`<button id="playersNext" class="btn primary">CONTINUE ▶</button>`});
   bindBack("packs");
   document.querySelectorAll(".player-input").forEach(inp=>inp.oninput=()=>{const p=state.players.find(x=>x.id===inp.dataset.id);if(p)p.name=inp.value;updatePlayerNext()});
   document.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{state.players=state.players.filter(p=>p.id!==b.dataset.rm);players()});
   const ap=document.getElementById("addPlayer");if(ap)ap.onclick=()=>{state.players.push({id:uid(),name:""});players()};
-  document.getElementById("playersNext").onclick=()=>{if(canContinuePlayers()){state.selectedPlayerIds=state.mode==="solo"?[state.players[0].id]:state.players.map(p=>p.id);rememberNames();go("time")}};
+  document.getElementById("playersNext").onclick=continueFromPlayers;
   updatePlayerNext();setMusicForScreen();bindVoiceHelp("players");
 }
 function updatePlayerNext(){const b=document.getElementById("playersNext");if(b)b.disabled=!canContinuePlayers()}
 function choiceBtn(value,selected,attr,label){return `<button class="btn select-btn ${selected?"selected":""}" data-${attr}="${value}">${label}</button>`}
 function time(){
-  app.innerHTML=shell({title:"Game Time",back:"players",klass:"time-screen",content:`<div class="time-grid"><div class="time-card card"><div class="time-label">Game Length</div><div class="duration-grid"><button class="btn select-btn quick ${state.quickGame?"selected":""}" data-quick="1"><strong>QUICK GAME</strong><small>2–3 min • full ending</small></button>${[5,10,15,20].map(v=>choiceBtn(v,!state.quickGame&&state.durationMinutes===v,"dur",`${v} MIN`)).join("")}</div></div><div class="time-card card"><div class="time-label">Time per Question</div><div class="four-grid">${[10,15,20,30].map(v=>choiceBtn(v,state.questionSeconds===v,"sec",`${v} SEC`)).join("")}</div></div><div class="time-card card"><div class="time-label">Voice Recognition</div><div class="two-grid"><button id="voff" class="btn ${!state.voiceOn?"selected":""}">OFF</button><button id="von" class="btn ${state.voiceOn?"selected":""}">ON</button></div><div class="subtle center">${state.voiceOn?(speechSupported()?"Voice-first setup and gameplay enabled.":"Voice recognition is not supported in this browser."):"Silent play: answers will be typed."}</div></div><div class="time-card card"><div class="time-label">Game Volume</div><div class="volume-row"><span>🔈</span><input id="vol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="vp">${Math.round(state.volume*100)}%</strong></div></div></div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Try “Quick Game,” “20 seconds,” or “Continue”":""}</div>`,footer:`<button id="timeNext" class="btn primary">CONTINUE ▶</button>`});
+  app.innerHTML=shell({title:"Game Time",back:"players",klass:"time-screen",content:`<div class="time-grid"><div class="time-card card"><div class="time-label">Game Length</div><div class="duration-grid"><button class="btn select-btn quick ${state.quickGame?"selected":""}" data-quick="1"><strong>QUICK GAME</strong><small>2–3 min • full ending</small></button>${[5,10,15,20].map(v=>choiceBtn(v,!state.quickGame&&state.durationMinutes===v,"dur",`${v} MIN`)).join("")}</div></div><div class="time-card card"><div class="time-label">Time per Question</div><div class="four-grid">${[10,15,20,30].map(v=>choiceBtn(v,state.questionSeconds===v,"sec",`${v} SEC`)).join("")}</div></div><div class="time-card card"><div class="time-label">Voice Recognition</div><div class="two-grid"><button id="voff" class="btn ${!state.voiceOn?"selected":""}">OFF</button><button id="von" class="btn ${state.voiceOn?"selected":""}">ON</button></div><div class="subtle center">${state.voiceOn?(speechSupported()?"Voice-first setup and gameplay enabled.":"Voice recognition is not supported in this browser."):"Silent play: answers will be typed."}</div></div><div class="time-card card"><div class="time-label">Game Volume</div><div class="volume-row"><span>🔈</span><input id="vol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="vp">${Math.round(state.volume*100)}%</strong></div></div></div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Try “Quick Game,” “20 seconds,” “Continue,” or “Back”":""}</div>`,footer:`<button id="timeNext" class="btn primary">CONTINUE ▶</button>`});
   bindBack("players");
   document.querySelector("[data-quick]").onclick=()=>{state.quickGame=true;state.durationMinutes=3;time()};
   document.querySelectorAll("[data-dur]").forEach(b=>b.onclick=()=>{state.quickGame=false;state.durationMinutes=Number(b.dataset.dur);time()});
@@ -315,7 +381,7 @@ function time(){
 }
 function ready(){
   const a=selectedPlayers();
-  app.innerHTML=shell({title:"Ready to Play?",back:"time",content:`<div class="ready-wrap"><div class="ready-card card"><div class="summary"><div class="summary-line"><span>Game</span><strong>${esc((state.mode||"").toUpperCase())}</strong></div><div class="summary-line"><span>Players</span><strong>${a.length}</strong></div><div class="summary-line"><span>Game Length</span><strong>${state.quickGame?"QUICK GAME":`${state.durationMinutes} min`}</strong></div><div class="summary-line"><span>Question Time</span><strong>${state.questionSeconds} sec</strong></div><div class="summary-line"><span>Voice</span><strong>${state.voiceOn?"ON":"OFF"}</strong></div></div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Say “Play” or “Start Game”":""}</div></div></div>`,footer:`<button id="play" class="btn primary large">PLAY ▶</button>`});
+  app.innerHTML=shell({title:"Ready to Play?",back:"time",content:`<div class="ready-wrap"><div class="ready-card card"><div class="summary"><div class="summary-line"><span>Game</span><strong>${esc((state.mode||"").toUpperCase())}</strong></div><div class="summary-line"><span>Players</span><strong>${a.length}</strong></div><div class="summary-line"><span>Game Length</span><strong>${state.quickGame?"QUICK GAME":`${state.durationMinutes} min`}</strong></div><div class="summary-line"><span>Question Time</span><strong>${state.questionSeconds} sec</strong></div><div class="summary-line"><span>Voice</span><strong>${state.voiceOn?"ON":"OFF"}</strong></div></div><div class="setup-voice" id="setupVoiceStatus">${state.voiceOn?"🎤 Say “Play,” “Start Game,” or “Back”":""}</div></div></div>`,footer:`<button id="play" class="btn primary large">PLAY ▶</button>`});
   bindBack("time");document.getElementById("play").onclick=()=>{ensureAudio();startGame()};setMusicForScreen();bindVoiceHelp("ready");
 }
 
@@ -424,7 +490,14 @@ function render(){
   (map[state.screen]||home)();refreshViewport();
 }
 
-window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","industry","packs","players","time","ready"].includes(state.screen))startMusic();if(state.voiceOn&&!recognition&&["home","mode","industry","packs","players","time","ready"].includes(state.screen))startVoice(state.screen)}, {passive:true});
+function unlockPageOneAudio(){
+  ensureAudio();
+  if(["home","mode","industry","packs","players","time","ready"].includes(state.screen))startMusic();
+  if(state.voiceOn&&!recognition&&["home","mode","industry","packs","players","time","ready"].includes(state.screen))startVoice(state.screen);
+}
+window.addEventListener("pointerdown",unlockPageOneAudio,{passive:true});
+window.addEventListener("touchstart",unlockPageOneAudio,{passive:true});
+window.addEventListener("keydown",unlockPageOneAudio,{passive:true});
 window.addEventListener("error",e=>console.error("Build 3 error",e.error||e.message));
 refreshViewport();home();
 })();

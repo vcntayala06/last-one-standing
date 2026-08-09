@@ -1,16 +1,12 @@
-# Last One Standing — Clean Build 3
+# Last One Standing — Clean Build 3.1
 
-Fresh clean build. No patch stacking.
+Fresh clean build for GitHub Pages.
 
-Highlights:
-- Voice-first setup commands and gameplay
-- Original game-show style background music beginning on Page 1 after the browser allows audio
-- Quick Game for a 2–3 minute full experience and ending
-- New question layout: question, voice/listening + answer side by side, timer below
-- Bigger answers and answer reveals
-- Improved Ready Player spacing
-- Working voice commands on Pause
-- Dedicated portrait and landscape layouts
-- Orientation repaint/reflow handling
-- Remembered player names
-- LOS Home Screen app icon
+Highlights in 3.1:
+- Game-show music begins on Page 1 as soon as the browser permits audio. On iPhone/iPad, the first tap may be required by Safari before sound can play.
+- Voice navigation now includes Back / Go Back / Previous on setup screens.
+- Player setup supports hands-free naming: “Player 1 Vicente”, “Player 2 Todd”, “Add Player Maria”, “Select Player 1 Vicente”, and Continue.
+- Continue becomes available once Solo has one named player or multiplayer has at least two named players; unused blank extra rows no longer block progress.
+- Existing Build 3 voice gameplay, pause commands, quick game, orientation handling, larger answer reveal, LOS icon, and responsive layouts remain included.
+
+No build tools or dependencies are required.
