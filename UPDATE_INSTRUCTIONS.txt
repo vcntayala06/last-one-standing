@@ -1,6 +1,8 @@
-CLEAN BUILD 3.5 VOICE NAMES — COMPLETE REPLACEMENT
+LAST ONE STANDING — CLEAN BUILD 3.6
 
-Keep the hidden .git folder. Replace the current app files with everything in this ZIP.
+COMPLETE replacement build — not a patch.
+
+Keep the hidden .git folder, delete the current app files, then copy all files from this ZIP into the repository root.
 
 GitHub Desktop Summary:
-Clean Build 3.5 Voice Names
+Clean Build 3.6 Landscape Style Portrait

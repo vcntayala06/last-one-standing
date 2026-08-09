@@ -1,22 +1,13 @@
-# Clean Build 3.5 — Acceptance Test
+# Clean Build 3.6 Test
 
-## Portrait
-1. Current player name is noticeably larger, gold, and slightly lower.
-2. You're Up content is visually centered.
-3. Ready Player countdown number sits in the same vertical location as the Question timer.
-4. Ready Player countdown and Question timer use the same size.
-5. Final Showdown timed questions use that same timer treatment.
-6. At 5 seconds or less, countdown turns red.
-7. At 5 seconds or less, ticking feels faster.
-8. Portrait Final Showdown visually matches the landscape version's dramatic hierarchy.
-
-## Landscape
-9. Landscape should look the same as 3.4.
-
-## Gameplay retained
-10. Vicente / Todd / Maria still preload for testing.
-11. Wrong or timed out = one strike.
-12. Three strikes = eliminated.
-13. Two survivors advance to Final Showdown.
-14. Final Showdown = first to 3 correct.
-15. Final Showdown timer remains 5 seconds shorter than regular question timer, minimum 5.
+1. Landscape should look unchanged.
+2. Portrait Time's Up should be easy to scan like landscape.
+3. Correct answer should be very large and bold below CORRECT ANSWER.
+4. Player name remains in top control zone.
+5. Portrait Final Showdown should have the same hierarchy as landscape.
+6. Question timer should tick from the moment it starts.
+7. 5, 4, 3, 2, 1 must display bright red.
+8. Ticking should become more urgent at 5 and again at 3.
+9. At zero, a distinct buzzer should sound.
+10. Timeout should still add a strike.
+11. Voice player rename/spelling features should still work.

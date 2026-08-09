@@ -608,3 +608,133 @@
 
 /* 3.5 Voice Names */
 @media (orientation:portrait){.players-screen .sub,.players-screen .helper,.players-screen .hint{max-width:560px;margin-left:auto;margin-right:auto;line-height:1.35}}
+
+
+/* =========================================================
+   CLEAN BUILD 3.6 — LANDSCAPE-STYLE PORTRAIT
+   Landscape rules are intentionally untouched.
+   ========================================================= */
+
+@media (orientation:portrait){
+
+  /* Keep current player on the top control line, as requested. */
+  .game-topbar{
+    min-height:68px;
+    padding-top:0;
+    align-items:center;
+  }
+  .game-player{
+    transform:none;
+    font-size:clamp(1.65rem,7vw,2.35rem);
+    color:var(--gold);
+    font-weight:1000;
+    text-align:center;
+  }
+
+  /* TIME'S UP / RESULT: mirror landscape hierarchy vertically. */
+  .result-body{
+    justify-content:center;
+    gap:7px;
+    padding:8px 4vw 12px;
+  }
+  .result-word{
+    font-size:clamp(2.4rem,10vw,3.6rem);
+    font-weight:1000;
+    line-height:.92;
+    margin:0 0 5px;
+  }
+  .answer-label{
+    font-size:.78rem;
+    font-weight:1000;
+    letter-spacing:.16em;
+    margin-top:3px;
+  }
+  .answer-big{
+    font-size:clamp(3.1rem,13vw,5.2rem);
+    font-weight:1000;
+    line-height:.92;
+    max-width:94vw;
+    margin:0 auto 6px;
+    padding:2px 8px;
+    text-align:center;
+  }
+  .strike-moment{
+    width:min(520px,88vw);
+    margin:3px auto;
+    padding:6px 10px;
+  }
+  .standings-title{
+    margin-top:3px;
+    font-size:.68rem;
+  }
+  .compact-board{
+    width:min(520px,86vw);
+    gap:3px;
+  }
+  .compact-board .score-ribbon{
+    min-height:31px;
+    padding:3px 7px;
+    font-size:.65rem;
+  }
+
+  /* YOU'RE UP: centered communication with timer in canonical timer zone. */
+  .handoff{
+    justify-content:center;
+  }
+  .handoff-hype{
+    font-size:clamp(2.8rem,13vw,4.5rem);
+    font-weight:1000;
+    line-height:.9;
+  }
+  .handoff-sub{
+    margin-top:12px;
+    font-weight:900;
+  }
+
+  /* Hard override: final five numbers MUST be red. */
+  #timer.urgent,
+  .timer.urgent,
+  #handoffCount.urgent,
+  .handoff .countdown.urgent{
+    color:#ff3b4f !important;
+    -webkit-text-fill-color:#ff3b4f !important;
+    text-shadow:0 0 22px rgba(255,59,79,.32) !important;
+  }
+
+  /* Final Showdown portrait follows landscape information hierarchy. */
+  .portrait-showdown{
+    min-height:auto;
+    width:min(92vw,620px);
+    padding:clamp(20px,5vw,30px);
+    gap:14px;
+  }
+  .portrait-showdown .final-kicker{
+    margin:0;
+  }
+  .portrait-showdown .final-title{
+    font-size:clamp(2.7rem,12vw,4.4rem);
+    line-height:.9;
+    margin:0 0 4px;
+  }
+  .portrait-showdown .showdown-vs{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    width:100%;
+  }
+  .portrait-showdown .showdown-player{
+    font-size:clamp(2.5rem,11vw,4rem);
+    font-weight:1000;
+    line-height:.92;
+  }
+  .portrait-showdown .showdown-vs-mark{
+    width:58px;
+    height:58px;
+    font-size:1.1rem;
+  }
+  .portrait-showdown .final-note{
+    margin-top:5px;
+  }
+}

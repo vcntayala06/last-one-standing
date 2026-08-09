@@ -131,6 +131,21 @@ function tone(f=500,d=.05,g=.08,t="sine",delay=0){
     o.connect(a);a.connect(c.destination);o.start(st);o.stop(st+d+.03);
   }catch{}
 }
+
+function timeoutBuzzer(){
+  ensureAudio();
+  if(!audioCtx)return;
+  const now=audioCtx.currentTime;
+  [0,0.16].forEach((delay,i)=>{
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type="square";o.frequency.setValueAtTime(i?150:175,now+delay);
+    g.gain.setValueAtTime(.0001,now+delay);
+    g.gain.exponentialRampToValueAtTime(.12,now+delay+.012);
+    g.gain.exponentialRampToValueAtTime(.0001,now+delay+.22);
+    o.connect(g);g.connect(audioCtx.destination);o.start(now+delay);o.stop(now+delay+.24);
+  });
+}
+
 function tick(n){tone(n<=5?760:520,n<=5?.06:.035,n<=5?.12:.055,n<=5?"square":"sine")}
 function correctSound(){tone(660,.08,.12);tone(880,.1,.11,"sine",.075)}
 function wrongSound(){tone(220,.13,.1,"triangle");tone(170,.16,.08,"triangle",.095)}
@@ -564,17 +579,19 @@ function finishQuestion(outcome){
   g.lastSpeechLog=[...(g.speechLog||[])];
 
   if(g.showdown){
-    if(outcome==="correct"){p.playoff=(p.playoff||0)+1;correctSound()}else{wrongSound()}
+    if(outcome==="correct"){p.playoff=(p.playoff||0)+1;correctSound()}
+    else if(outcome==="timeout"){timeoutBuzzer()}
+    else{wrongSound()}
     result(outcome);return;
   }
 
   if(outcome==="correct"){
     p.correct++;correctSound();
   }else{
-    if(outcome==="wrong")p.wrong++;else p.timeout++;
+    if(outcome==="wrong"){p.wrong++;wrongSound()}
+    else{p.timeout++;timeoutBuzzer()}
     p.strikes=(p.strikes||0)+1;
     if(p.strikes>=3)p.eliminated=true;
-    wrongSound();
   }
   result(outcome);
 }
