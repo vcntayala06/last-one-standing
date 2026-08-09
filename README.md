@@ -1,20 +1,17 @@
-# Last One Standing — Clean Build 3.3
+# Last One Standing — Clean Build 3.4
 
-Full replacement build based on the stable Clean Build 3.2 source.
+Full replacement build based on Clean Build 3.3.
 
-## Build 3.3 changes
-- Temporary test players are preloaded: Vicente, Todd, Maria.
-- Wrong answer = 1 strike.
-- Time out = 1 strike.
-- 3 strikes = eliminated.
-- Eliminations continue until two finalists remain, then Final Showdown begins.
-- If the regular game safety timer ends before only two remain, the best two records advance.
-- Final Showdown is first to 3 correct answers.
-- Final Showdown question time is 5 seconds shorter than the selected regular question time, minimum 5 seconds.
-- Screen pacing is slower:
-  - correct result: short beat
-  - strike: longer consequence beat
-  - third strike/elimination: longest beat
-- Portrait screens use a consistent vertical anchor.
-- Portrait Ready Player countdown matches the question timer size/position.
-- Landscape layout rules were intentionally not changed.
+## Build 3.4 changes
+- Portrait visual hierarchy pass only.
+- Landscape layout intentionally unchanged.
+- Current player name is much larger in the TOP zone during gameplay.
+- Main question/result/strike communication stays in the CENTER zone.
+- Any gameplay countdown uses one shared portrait timer treatment:
+  - same font size
+  - same visual weight
+  - same bottom position
+- Ready Player uses the top-zone player name instead of repeating a huge name in the center.
+- Portrait result screens use smaller, secondary standings so the main message/answer stays dominant.
+- Portrait setup screens use a more consistent vertical center.
+- All Clean Build 3.3 strike-elimination and Final Showdown behavior is retained.

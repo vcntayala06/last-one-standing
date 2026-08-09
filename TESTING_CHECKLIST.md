@@ -1,36 +1,22 @@
-# Clean Build 3.3 — Acceptance Test
+# Clean Build 3.4 — Portrait Hierarchy Test
 
-## Test players
-Your Players should initially show:
-1. Vicente
-2. Todd
-3. Maria
-
-## 3-strike elimination
-1. Start a 3-player game.
-2. Mark/get one player wrong or timed out.
-3. Result should show Strike 1 of 3.
-4. Repeat to Strike 2.
-5. Third wrong/time out should show THIRD STRIKE and player eliminated.
-6. Eliminated player should no longer receive turns.
-7. Once only two players remain, Final Showdown should begin.
-
-## Final Showdown
-8. Final Showdown says first to 3 correct answers.
-9. Showdown timer should be 5 seconds shorter than regular question timer, minimum 5.
-10. First finalist to 3 correct answers becomes champion.
-11. Champion screen should still show the celebration/confetti.
-
-## Pacing
-12. Correct answers move on fairly quickly.
-13. Wrong/time-out strike screens remain visible longer.
-14. Third-strike elimination remains visible longest.
-
-## Portrait
-15. Setup screens should feel consistently vertically centered.
-16. Results should not jump high or low.
-17. Ready Player countdown should match the Question timer's portrait size and bottom position.
-18. Final Showdown question timer should match the regular Question timer's portrait size and position.
+## Portrait gameplay
+1. Player name should be large and easy to find at the top.
+2. Question should be centered in the middle.
+3. Countdown timer should sit at the bottom.
+4. Ready Player countdown should be the same size and bottom position as the regular Question timer.
+5. Final Showdown timer should match the regular Question timer visually.
+6. Result / Time's Up / Strike screens should keep the main message dominant.
+7. Current Standings should look secondary, not overpower the screen.
+8. Moving between portrait screens should not make your eyes hunt around for the main information.
 
 ## Landscape
-19. Verify landscape still looks like 3.2. No landscape layout changes were intentionally made.
+9. Verify landscape still looks like Build 3.3.
+10. No intentional landscape layout changes were made.
+
+## Gameplay retained
+11. Vicente / Todd / Maria remain preloaded for testing.
+12. Wrong or timed out = strike.
+13. 3 strikes = eliminated.
+14. Two survivors advance to Final Showdown.
+15. Final Showdown remains first to 3 correct answers with the shorter timer.

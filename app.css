@@ -164,3 +164,234 @@
   }
   .compact-board .score-name{text-align:left}
 }
+
+
+/* =========================================================
+   CLEAN BUILD 3.4 — PORTRAIT VISUAL HIERARCHY
+   Landscape intentionally untouched.
+   ========================================================= */
+
+@media (orientation:portrait){
+
+  /* Shared portrait gameplay frame:
+     TOP = player name
+     CENTER = main communication
+     BOTTOM = timer when present
+  */
+  .game-shell,
+  .question-layout,
+  .result-shell{
+    min-height:0;
+    height:100%;
+  }
+
+  .game-topbar{
+    position:relative;
+    grid-template-columns:auto minmax(0,1fr) auto;
+    align-items:center;
+    min-height:68px;
+    padding:0 2px;
+  }
+
+  .game-player{
+    font-size:clamp(1.65rem,7vw,2.35rem);
+    line-height:1;
+    font-weight:1000;
+    color:var(--text);
+    text-align:center;
+    letter-spacing:.01em;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  /* Keep gameplay controls visually secondary to player name. */
+  .game-controls .icon-btn{
+    min-height:36px;
+    min-width:40px;
+    font-size:.76rem;
+    padding:5px 8px;
+  }
+  .volume-pill{
+    min-width:86px;
+    justify-content:flex-end;
+    font-size:.72rem;
+  }
+  .volume-pill input{width:56px}
+
+  /* Question screen: question centered, timer anchored bottom. */
+  .question-layout{
+    display:grid;
+    grid-template-rows:auto minmax(0,1fr) auto;
+    gap:8px;
+  }
+
+  .question-main{
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    gap:14px;
+    overflow:visible;
+    padding:0 3vw;
+  }
+
+  .question-copy{
+    order:1;
+    width:100%;
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    gap:10px;
+  }
+
+  .question-text{
+    font-size:clamp(2.05rem,8.4vw,4rem);
+    line-height:1.03;
+    max-width:94vw;
+    margin:0 auto;
+  }
+
+  /* One canonical portrait timer component.
+     Same size and same bottom anchor on all timed gameplay screens. */
+  .timer,
+  .handoff .countdown{
+    order:2;
+    width:100%;
+    min-width:0;
+    margin-top:auto;
+    margin-bottom:clamp(10px,3vh,30px);
+    font-size:clamp(5.5rem,25vw,8rem);
+    line-height:.82;
+    font-weight:1000;
+    text-align:center;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .timer{color:var(--gold)}
+  .timer.urgent{color:var(--red);transform:none}
+
+  /* Ready Player / handoff: same top-current-player treatment and same bottom timer anchor. */
+  .handoff-shell{
+    min-height:0;
+    height:100%;
+    display:grid;
+    grid-template-rows:auto minmax(0,1fr);
+  }
+
+  .handoff{
+    min-height:0;
+    height:100%;
+    display:grid;
+    grid-template-rows:auto minmax(0,1fr) auto auto minmax(0,1fr);
+    align-items:center;
+    justify-items:center;
+    padding:1.5vh 4vw 0;
+  }
+
+  .handoff-label{
+    margin-top:0;
+    font-size:.78rem;
+    letter-spacing:.16em;
+  }
+
+  .handoff-name{
+    display:none; /* Player name is now consistently communicated in the TOP zone */
+  }
+
+  .handoff-gap{display:none}
+
+  .handoff-hype{
+    align-self:end;
+    font-size:clamp(2rem,9vw,3.2rem);
+    line-height:1;
+    margin-bottom:10px;
+  }
+
+  .handoff-sub{
+    font-size:clamp(.95rem,4.2vw,1.2rem);
+    margin:0;
+  }
+
+  .handoff .countdown{
+    align-self:end;
+    margin-top:auto;
+  }
+
+  /* Result / strike / timeout screens:
+     center the main message and keep standings secondary. */
+  .result-body{
+    min-height:0;
+    height:100%;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    gap:8px;
+    padding:0 3vw;
+    overflow:auto;
+  }
+
+  .result-word{
+    font-size:clamp(2rem,8vw,3rem);
+    line-height:1;
+  }
+
+  .answer-big{
+    font-size:clamp(2.7rem,11vw,4.6rem);
+    line-height:.98;
+    max-width:94vw;
+    padding:4px 10px;
+  }
+
+  .strike-moment{
+    margin:6px auto;
+    padding:8px 10px;
+  }
+
+  .strike-count{
+    font-size:clamp(1.5rem,6vw,2rem);
+  }
+
+  .standings-title{
+    margin-top:4px;
+    font-size:.72rem;
+    letter-spacing:.11em;
+  }
+
+  .compact-board{
+    width:min(540px,88vw);
+    gap:4px;
+  }
+
+  .compact-board .score-ribbon{
+    min-height:34px;
+    padding:4px 7px;
+    font-size:.68rem;
+    border-radius:12px;
+  }
+
+  /* Setup screens: one consistent visual center so portrait doesn't jump. */
+  .mode-screen .content,
+  .players-screen .content,
+  .time-screen .content,
+  .packs-screen .content,
+  .ready-screen .content{
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+  }
+
+  .players-screen .player-card,
+  .time-screen .time-grid,
+  .packs-screen .fun-grid,
+  .ready-screen .ready-card{
+    margin-top:auto;
+    margin-bottom:auto;
+  }
+}

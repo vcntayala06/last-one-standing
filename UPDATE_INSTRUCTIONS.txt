@@ -1,18 +1,17 @@
-LAST ONE STANDING — CLEAN BUILD 3.3
+LAST ONE STANDING — CLEAN BUILD 3.4
 
-This ZIP is a COMPLETE replacement build, not a small patch.
+This is a COMPLETE replacement build.
 
-1. In the local last-one-standing repository folder, keep the hidden .git folder.
+1. In your local last-one-standing repository folder, keep the hidden .git folder.
 2. Delete the current app files.
 3. Extract this ZIP.
-4. Copy ALL files from the extracted ZIP into the repository root.
+4. Copy ALL extracted files into the repository root.
 5. GitHub Desktop Summary:
-   Clean Build 3.3 Strike Elimination
+   Clean Build 3.4 Portrait Hierarchy
 6. Commit to main.
 7. Push origin.
 8. Wait for GitHub Pages.
-9. Test in the regular browser first.
+9. Test regular browser first.
 10. Then fully close and reopen the Home Screen app.
 
-Temporary test players in this build:
-Vicente / Todd / Maria
+Landscape was intentionally left unchanged.
