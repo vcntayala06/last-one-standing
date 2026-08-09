@@ -1,7 +1,7 @@
 
 (()=>{
 "use strict";
-const BUILD="Clean Foundation 5.2 Correction";
+const BUILD="Clean Foundation 5.3 Correction";
 const app=document.getElementById("app");
 const STORAGE={names:"los5_names",voice:"los5_voice",volume:"los5_volume"};
 const QUESTIONS=[
@@ -42,15 +42,14 @@ function tone(freq=440,d=.05,gain=.06,type="sine",delay=0){
  o.type=type;o.frequency.setValueAtTime(freq,now);g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(Math.max(.001,gain*state.volume),now+.01);g.gain.exponentialRampToValueAtTime(.0001,now+d);
  o.connect(g);g.connect(audioCtx.destination);o.start(now);o.stop(now+d+.02)
 }
+function handoffTick(){tone(520,.045,.045,"square")}
 function tickSound(rem){
  if(rem<=0)return;
- if(rem>5){tone(500,.045,.05,"square");return}
- tone(790,.045,.08,"square");
- if(rem<=5)setTimeout(()=>tone(880,.035,.065,"square"),330);
- if(rem<=3){
-   setTimeout(()=>tone(940,.03,.06,"square"),170);
-   setTimeout(()=>tone(1010,.028,.055,"square"),500);
- }
+ if(rem>=6){tone(500,.045,.05,"square");return}
+ // Final five: red digits are handled by the timer class; audio accelerates.
+ tone(820,.04,.075,"square");
+ setTimeout(()=>tone(900,.032,.065,"square"),260);
+ if(rem<=3)setTimeout(()=>tone(980,.03,.06,"square"),520);
 }
 function buzzer(){tone(175,.22,.12,"square");tone(150,.24,.11,"square",.17)}
 function good(){tone(620,.08,.07,"triangle");tone(820,.12,.07,"triangle",.08)}
@@ -149,12 +148,16 @@ function handlePlayerVoice(h){
  if(m){const p=state.players.find(x=>norm(x.name)===norm(m[1]));if(p){p.name=m[2].trim();players();return true}}
  m=n.match(/^(?:change|rename)\s+player\s*(\d+)$/);if(m){const p=state.players[Number(m[1])-1];if(p){renamePending={id:p.id,spell:false};return true}}
  m=n.match(/^spell\s+player\s*(\d+)$/);if(m){const p=state.players[Number(m[1])-1];if(p){renamePending={id:p.id,spell:true};return true}}
- m=h.match(/^(?:delete|remove)\s+player\s*(\d+)$/i);
- if(m){const i=Number(m[1])-1;if(i>=0&&i<state.players.length){state.players.splice(i,1);players();return true}}
- m=h.match(/^(?:delete|remove)\s+(.+)$/i);
+ m=h.match(/^(?:please\s+)?(?:delete|remove)\s+(?:player\s+)?(.+?)(?:\s+please)?$/i);
  if(m){
-   const target=norm(m[1]);
-   const i=state.players.findIndex(p=>norm(p.name)===target);
+   const raw=m[1].trim(), n=spokenNumber(raw);
+   if(n){
+     const i=n-1;
+     if(i>=0&&i<state.players.length){state.players.splice(i,1);players();return true}
+   }
+   const target=nameKey(raw);
+   let i=state.players.findIndex(p=>nameKey(p.name)===target);
+   if(i<0)i=state.players.findIndex(p=>nameKey(p.name).startsWith(target)||target.startsWith(nameKey(p.name)));
    if(i>=0){state.players.splice(i,1);players();return true}
  }
  m=h.match(/^add player(?:\s+(.+))?$/i);if(m){state.players.push({id:uid(),name:(m[1]||"").trim()});players();return true}
@@ -164,7 +167,7 @@ function setVolume(v){state.volume=Math.max(0,Math.min(1,v));localStorage.setIte
 function go(s){clearRuntime();state.screen=s;render()}
 function back(){const m={mode:"home",fun:"mode",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
 function home(){
- state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.2</div></div><div class="actions"><button id="start" class="btn primary large">START GAME</button></div>`);
+ state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.3</div></div><div class="actions"><button id="start" class="btn primary large">START GAME</button></div>`);
  document.getElementById("start").onclick=chooseGame;startMusic();startVoice("home")
 }
 function chooseGame(){ensureAudio();go("mode")}
@@ -173,7 +176,7 @@ function mode(){
  document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{const x=b.dataset.mode;if(x==="quick"){state.quick=true;state.duration=3;state.mode="friends"}else{state.quick=false;state.mode=x}go("fun")});startVoice("mode")
 }
 function fun(){
- app.innerHTML=shell("ADD SOME FUN",`<div class="card center"><div style="font-size:1.5rem;font-weight:1000">Optional extras can live here.</div><div class="subtle" style="margin-top:8px">Choose anything you want — or just say “Skip.”</div></div>`,`<button id="skip" class="btn">SKIP</button><button id="cont" class="btn primary">CONTINUE</button>`);
+ app.innerHTML=shell("ADD MORE CATEGORIES",`<div class="card center"><div style="font-size:1.5rem;font-weight:1000">Optional extras can live here.</div><div class="subtle" style="margin-top:8px">Choose anything you want — or just say “Skip.”</div></div>`,`<button id="skip" class="btn">SKIP</button><button id="cont" class="btn primary">CONTINUE</button>`);
  document.getElementById("skip").onclick=()=>go("players");document.getElementById("cont").onclick=()=>go("players");startVoice("fun")
 }
 function players(){
@@ -206,7 +209,7 @@ function bindGamebar(){document.getElementById("pause").onclick=pauseGame}
 function handoff(){
  clearRuntime();state.screen="handoff";const g=state.game;if(g.players[g.idx].eliminated)g.idx=nextActive(g.idx);const p=g.players[g.idx];
  app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(false)}<div class="handoff"><div class="handoff-player-name">${esc(p.name)}</div><div class="handoff-hype">YOU’RE UP!</div><div class="handoff-sub">${g.showdown?"FINAL SHOWDOWN":""}</div><div id="handoffCount" class="handoff-count urgent">3</div></div></div></section>`;
- bindGamebar();startVoice("handoff");let n=3;tickSound(n);questionTimer=setInterval(()=>{n--;if(n>0){const e=document.getElementById("handoffCount");if(e)e.textContent=n;tickSound(n)}else{clearInterval(questionTimer);questionTimer=null;transition("question",()=>question())}},700)
+ bindGamebar();startVoice("handoff");let n=3;handoffTick();questionTimer=setInterval(()=>{n--;if(n>0){const e=document.getElementById("handoffCount");if(e)e.textContent=n;handoffTick()}else{clearInterval(questionTimer);questionTimer=null;transition("question",()=>question())}},700)
 }
 function transition(kind,done){
  clearRuntime();state.screen="transition";const map={question:["LOCK IN","QUESTION INCOMING"],next:["NEXT TURN","GET READY"],elimination:["PLAYER ELIMINATED","THE GAME CONTINUES"],showdown:["FINAL SHOWDOWN","PLAYOFF MODE"]};const [a,b]=map[kind]||map.next;
@@ -296,24 +299,27 @@ function showdownIntro(){
 function applause(){
  ensureAudio();if(!audioCtx)return;
  const now=audioCtx.currentTime;
- for(let burst=0;burst<7;burst++){
-   const when=now+burst*.42;
-   for(let i=0;i<18;i++){
+ // Dense short noise-like claps.
+ for(let burst=0;burst<12;burst++){
+   const when=now+burst*.28;
+   for(let i=0;i<24;i++){
      const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-     o.type=i%3===0?"sawtooth":"triangle";
-     o.frequency.setValueAtTime(900+Math.random()*1900,when+Math.random()*.18);
+     o.type=(i%2)?"square":"sawtooth";
+     o.frequency.setValueAtTime(700+Math.random()*2500,when+Math.random()*.18);
      g.gain.setValueAtTime(.0001,when);
-     g.gain.exponentialRampToValueAtTime((.007+Math.random()*.012)*state.volume,when+.008);
-     g.gain.exponentialRampToValueAtTime(.0001,when+.055+Math.random()*.08);
+     g.gain.exponentialRampToValueAtTime((.004+Math.random()*.010)*state.volume,when+.006);
+     g.gain.exponentialRampToValueAtTime(.0001,when+.045+Math.random()*.08);
      o.connect(g);g.connect(audioCtx.destination);o.start(when);o.stop(when+.16);
    }
  }
- tone(520,.18,.055,"triangle",.2);tone(660,.2,.06,"triangle",.38);tone(820,.3,.065,"triangle",.58)
+ // Cheer / victory rise layered over applause.
+ [330,392,494,587,659,784].forEach((f,i)=>tone(f,.34,.045,"triangle",.10+i*.09));
+ setTimeout(()=>{[523,659,784,1047].forEach((f,i)=>tone(f,.42,.04,"triangle",i*.07))},900);
 }
 function champion(p){
  clearRuntime();stopMusic();state.screen="complete";
  app.innerHTML=`<section class="screen complete-screen"><div class="confetti" id="confetti"></div><div class="complete-stage">
-   <div class="complete-kicker">LAST ONE STANDING</div>
+   <div class="complete-kicker champion-los">LAST ONE<br>STANDING</div>
    <div class="champion-box">
      <div class="champion-name">${esc(p.name)}</div>
      <div class="champion-label">CHAMPION</div>
@@ -345,5 +351,5 @@ function render(){clearRuntime();({home,mode,fun,players,time,ready,handoff,ques
 function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
-document.documentElement.dataset.build="5.2";viewport();home();
+document.documentElement.dataset.build="5.3";viewport();home();
 })();

@@ -1,7 +1,7 @@
 {
-  "name": "Last One Standing \u2014 Clean Foundation 5.2",
+  "name": "Last One Standing \u2014 Clean Foundation 5.3",
   "short_name": "LOS",
-  "start_url": "./?build=5.2",
+  "start_url": "./?build=5.3",
   "display": "standalone",
   "background_color": "#070b16",
   "theme_color": "#080b16",
@@ -17,5 +17,5 @@
       "type": "image/png"
     }
   ],
-  "id": "./?app=last-one-standing-5-2"
+  "id": "./?app=last-one-standing-5-3"
 }

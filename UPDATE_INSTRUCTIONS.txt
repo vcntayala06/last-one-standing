@@ -1,11 +1,9 @@
-LAST ONE STANDING — CLEAN FOUNDATION 5.2 CORRECTION
+LAST ONE STANDING — BUILD 5.3
 
-1. KEEP your repository's hidden .git folder.
+1. Keep the repository's hidden .git folder.
 2. Replace the app files with ALL files from this ZIP.
-3. GitHub Desktop must show BUILD_5_2.txt as a new file.
-4. Summary: Clean Foundation 5.2 Correction
-5. Commit to main.
-6. Push origin.
-7. Wait for GitHub Pages.
-8. Open Safari directly.
-9. Verify BUILD 5.2 on the home screen before testing gameplay.
+3. GitHub Desktop should show BUILD_5_3.txt as a new file.
+4. Commit summary: Clean Foundation 5.3 Correction
+5. Push origin.
+6. Wait for GitHub Pages.
+7. Open Safari and verify BUILD 5.3 before testing.
