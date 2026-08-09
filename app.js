@@ -246,7 +246,61 @@ function addPlayerByVoice(name=""){
   if(e)e.textContent="🎤 Say ‘Player 1 Vicente’ or ‘Add Player Maria’";
   return true;
 }
+
+let pendingPlayerRename=null;
+function spokenLettersToName(text){
+  const map={"a":"A","ay":"A","b":"B","bee":"B","c":"C","see":"C","sea":"C","d":"D","dee":"D","e":"E","f":"F","eff":"F","g":"G","gee":"G","h":"H","aitch":"H","i":"I","eye":"I","j":"J","jay":"J","k":"K","kay":"K","l":"L","el":"L","m":"M","em":"M","n":"N","en":"N","o":"O","oh":"O","p":"P","pee":"P","q":"Q","cue":"Q","r":"R","are":"R","s":"S","ess":"S","t":"T","tee":"T","u":"U","you":"U","v":"V","vee":"V","w":"W","doubleyou":"W","x":"X","ex":"X","y":"Y","why":"Y","z":"Z","zee":"Z","zed":"Z"};
+  const parts=(text||"").toLowerCase().replace(/[^a-z\s-]/g," ").replace(/\s+/g," ").trim().split(/[\s-]+/).filter(Boolean);
+  if(!parts.length)return "";
+  const out=[];
+  for(const p of parts){if(p.length===1)out.push(p.toUpperCase());else if(map[p])out.push(map[p]);else return ""}
+  return out.join("");
+}
+function voicePlayerRef(ref){
+  const n=Number(ref);
+  if(Number.isFinite(n)&&n>=1&&n<=state.players.length)return state.players[n-1];
+  const r=normalize(ref);
+  return state.players.find(p=>normalize(p.name)===r)||null;
+}
+function commitVoiceName(p,name){
+  name=(name||"").trim(); if(!p||!name)return false;
+  p.name=name.charAt(0).toUpperCase()+name.slice(1);
+  state.selectedPlayerIds=state.players.filter(x=>(x.name||"").trim()).map(x=>x.id);
+  rememberNames(); render(); setTimeout(()=>startVoice("players"),150); return true;
+}
+function advancedPlayerNameVoice(raw){
+  const text=(raw||"").trim(), norm=normalize(text); if(!text)return false;
+  if(pendingPlayerRename){
+    const p=state.players.find(x=>x.id===pendingPlayerRename.playerId);
+    if(!p){pendingPlayerRename=null;return false}
+    if(/\b(cancel|never mind|nevermind)\b/.test(norm)){pendingPlayerRename=null;return true}
+    if(/\b(spell|spell it|spell the name|spelling)\b/.test(norm)&&!pendingPlayerRename.spelling){pendingPlayerRename.spelling=true;return true}
+    if(pendingPlayerRename.spelling){
+      const spelled=spokenLettersToName(text.replace(/^(spell|spelling)\s+/i,""));
+      if(spelled){pendingPlayerRename=null;return commitVoiceName(p,spelled.charAt(0)+spelled.slice(1).toLowerCase())}
+      return true;
+    }
+    const candidate=text.replace(/^(the name is|name is|make it|change it to|to)\s+/i,"").trim();
+    if(candidate&&candidate.split(/\s+/).length<=3){pendingPlayerRename=null;return commitVoiceName(p,candidate)}
+    return true;
+  }
+  let x=text.match(/^\s*(?:change|rename|make)\s+player\s+(\d+)\s+(?:to|as)\s+(.+?)\s*$/i);
+  if(x){const p=voicePlayerRef(x[1]);if(p)return commitVoiceName(p,x[2])}
+  x=text.match(/^\s*(?:change|rename)\s+(.+?)\s+to\s+(.+?)\s*$/i);
+  if(x){const p=voicePlayerRef(x[1]);if(p)return commitVoiceName(p,x[2])}
+  x=text.match(/^\s*player\s+(\d+)\s+(?:is|should be|can be|will be)\s+(.+?)\s*$/i);
+  if(x){const p=voicePlayerRef(x[1]);if(p)return commitVoiceName(p,x[2])}
+  x=norm.match(/^(?:change|rename|make)\s+player\s+(\d+)$/);
+  if(x){const p=voicePlayerRef(x[1]);if(p){pendingPlayerRename={playerId:p.id,spelling:false};return true}}
+  x=norm.match(/^(?:spell|spell the name for|change the spelling for)\s+player\s+(\d+)$/);
+  if(x){const p=voicePlayerRef(x[1]);if(p){pendingPlayerRename={playerId:p.id,spelling:true};return true}}
+  x=norm.match(/^(?:spell|change the spelling for)\s+(.+)$/);
+  if(x){const p=voicePlayerRef(x[1]);if(p){pendingPlayerRename={playerId:p.id,spelling:true};return true}}
+  return false;
+}
+
 function handlePlayerVoice(h){
+  if(advancedPlayerNameVoice(h))return;
   const raw=String(h||"").trim();
   // Pull every "player N [is/can be/make ...] Name" phrase from casual speech.
   const re=/player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:is\s+|can\s+be\s+|will\s+be\s+|named\s+|name\s+is\s+|(?:should\s+be\s+)?|)([a-z][a-z'’-]*(?:\s+[a-z][a-z'’-]*)?)(?=\s*(?:,|and\s+player|player\s+(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+)|$))/ig;
@@ -459,7 +513,23 @@ function handoff(){
   const p=g.players[g.playerIndex];
   app.innerHTML=`<section class="screen gameplay-screen"><div class="game-shell">${gamebar()}<div class="handoff"><div class="handoff-label">${g.showdown?"FINAL SHOWDOWN":"NEXT PLAYER"}</div><div class="handoff-name">${esc(p.name)}</div><div class="handoff-gap"></div><div class="handoff-hype">YOU'RE UP!</div><div class="handoff-sub">${g.showdown?"PLAYOFF PRESSURE":"GET READY"}</div><div class="countdown" id="handoffCount">3</div></div></div></section>`;
   bindGamebar();setMusicForScreen();if(state.voiceOn)startVoice("handoff");
-  let n=3;countdownTimer=setInterval(()=>{n--;if(n>0){const c=document.getElementById("handoffCount");if(c)c.textContent=n;tone(420+n*60,.04,.045)}else{clearInterval(countdownTimer);countdownTimer=null;renderQuestion(false)}},850);
+  let n=3;
+  const handoffEl=document.getElementById("handoffCount");
+  if(handoffEl){handoffEl.classList.add("urgent");}
+  tick(n);
+  countdownTimer=setInterval(()=>{
+    n--;
+    if(n>0){
+      const c=document.getElementById("handoffCount");
+      if(c){
+        c.textContent=n;
+        c.classList.toggle("urgent",n<=5);
+      }
+      tick(n);
+    }else{
+      clearInterval(countdownTimer);countdownTimer=null;renderQuestion(false);
+    }
+  },650);
 }
 function chooseQ(){const g=state.game;let pool=QUESTIONS.map((_,i)=>i).filter(i=>!g.used.includes(i));if(!pool.length){g.used=[];pool=QUESTIONS.map((_,i)=>i)}const i=pool[Math.floor(Math.random()*pool.length)];g.used.push(i);g.current=QUESTIONS[i];return g.current}
 function renderQuestion(resume=false){
@@ -474,7 +544,20 @@ function renderQuestion(resume=false){
     const doit=()=>{const v=i.value.trim();if(!v)return;if(accepted(v,q))finishQuestion("correct");else{i.value="";i.focus()}};
     s.onclick=doit;i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();doit()}};
   }
-  questionTimer=setInterval(()=>{rem--;g.questionRemaining=rem;const t=document.getElementById("timer");if(t){t.textContent=Math.max(rem,0);t.classList.toggle("urgent",rem<=5)}tick(rem);if(rem<=0)finishQuestion("timeout")},1000);
+  questionTimer=setInterval(()=>{
+    rem--;
+    g.questionRemaining=rem;
+    const t=document.getElementById("timer");
+    if(t){
+      t.textContent=Math.max(rem,0);
+      t.classList.toggle("urgent",rem<=5);
+    }
+    tick(rem);
+    if(rem<=5 && rem>0){
+      setTimeout(()=>{ if(state.screen==="question" && !g.answered) tone(860,.035,.08,"square"); },420);
+    }
+    if(rem<=0)finishQuestion("timeout");
+  },1000);
 }
 function finishQuestion(outcome){
   const g=state.game;if(!g||g.answered)return;g.answered=true;clearRuntime();const p=g.players[g.playerIndex];
@@ -581,7 +664,7 @@ function startFinalShowdown(){
   state.game.playerIndex=0;state.game.showdown=true;state.game.questionNumber=0;state.game.maxQuestions=99;state.game.used=[];
   clearRuntime();stopMusic();state.screen="showdownIntro";
   const finalSeconds=Math.max(5,state.questionSeconds-5);
-  app.innerHTML=shell({title:"Final Showdown",klass:"final-screen",content:`<div class="final-card card showdown-intro"><div class="final-kicker">THE PLAYOFF BEGINS</div><div class="final-title">FINAL SHOWDOWN</div><div class="showdown-vs"><strong>${esc(state.game.players[0].name)}</strong><span>VS</span><strong>${esc(state.game.players[1].name)}</strong></div><div class="final-note">First to 3 correct answers becomes the champion.<br>Playoff questions: ${finalSeconds} seconds each.</div></div>`});
+  app.innerHTML=shell({title:"Final Showdown",klass:"final-screen",content:`<div class="final-card card showdown-intro portrait-showdown"><div class="final-kicker">THE PLAYOFF BEGINS</div><div class="final-title">FINAL SHOWDOWN</div><div class="showdown-vs"><strong class="showdown-player showdown-player-a">${esc(state.game.players[0].name)}</strong><span class="showdown-vs-mark">VS</span><strong class="showdown-player showdown-player-b">${esc(state.game.players[1].name)}</strong></div><div class="final-note">First to 3 correct answers becomes the champion.<br>Playoff questions: ${finalSeconds} seconds each.</div></div>`});
   tone(220,.25,.09,"sawtooth");tone(330,.25,.08,"sawtooth",.2);tone(440,.35,.08,"sawtooth",.4);setTimeout(handoff,2400);
 }
 function championCelebration(winner){

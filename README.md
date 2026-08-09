@@ -1,17 +1,12 @@
-# Last One Standing — Clean Build 3.4
+# Last One Standing — Clean Build 3.5 Voice Names
 
-Full replacement build based on Clean Build 3.3.
+Full replacement build including the 3.5 portrait/showdown work plus natural voice name editing.
 
-## Build 3.4 changes
-- Portrait visual hierarchy pass only.
-- Landscape layout intentionally unchanged.
-- Current player name is much larger in the TOP zone during gameplay.
-- Main question/result/strike communication stays in the CENTER zone.
-- Any gameplay countdown uses one shared portrait timer treatment:
-  - same font size
-  - same visual weight
-  - same bottom position
-- Ready Player uses the top-zone player name instead of repeating a huge name in the center.
-- Portrait result screens use smaller, secondary standings so the main message/answer stays dominant.
-- Portrait setup screens use a more consistent vertical center.
-- All Clean Build 3.3 strike-elimination and Final Showdown behavior is retained.
+Voice examples:
+- Change player 2 to Kaitlyn
+- Change Todd to Caitlin
+- Player 3 should be Maria
+- Change player 2 ... then say the new name
+- Spell player 2 ... then say K A I T L Y N
+- While waiting for a new name: Spell the name
+- Cancel / Never mind

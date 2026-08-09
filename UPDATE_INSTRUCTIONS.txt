@@ -1,17 +1,6 @@
-LAST ONE STANDING — CLEAN BUILD 3.4
+CLEAN BUILD 3.5 VOICE NAMES — COMPLETE REPLACEMENT
 
-This is a COMPLETE replacement build.
+Keep the hidden .git folder. Replace the current app files with everything in this ZIP.
 
-1. In your local last-one-standing repository folder, keep the hidden .git folder.
-2. Delete the current app files.
-3. Extract this ZIP.
-4. Copy ALL extracted files into the repository root.
-5. GitHub Desktop Summary:
-   Clean Build 3.4 Portrait Hierarchy
-6. Commit to main.
-7. Push origin.
-8. Wait for GitHub Pages.
-9. Test regular browser first.
-10. Then fully close and reopen the Home Screen app.
-
-Landscape was intentionally left unchanged.
+GitHub Desktop Summary:
+Clean Build 3.5 Voice Names
