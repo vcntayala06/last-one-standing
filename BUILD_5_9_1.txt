@@ -1,0 +1,8 @@
+LAST ONE STANDING — BUILD 5.9.1 CATEGORY CONTINUE FIX
+
+Surgical patch only:
+- On ADD MORE CATEGORIES, Continue/Next/Done/Go Ahead/Let's Go/I'm Done/That's It/Start/Begin/I'm Ready
+  now bypass category parsing and advance directly.
+- Current category selections are preserved exactly.
+- SELECT ALL and CLEAR ALL remain unchanged.
+- No gameplay, timer, scoring, Showdown, player, or layout changes.

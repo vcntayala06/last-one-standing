@@ -1,7 +1,7 @@
 
 (()=>{
 "use strict";
-const BUILD="Clean Foundation 5.9 Voice Latency + Reliability";
+const BUILD="Clean Foundation 5.9.1 Category Continue Fix";
 const app=document.getElementById("app");
 const STORAGE={names:"los5_names",voice:"los5_voice",volume:"los5_volume",activeGame:"los5_active_game"};
 const DIFFICULTIES=[
@@ -193,6 +193,7 @@ function startVoice(ctx){
          if(ctx==="fun"){
            if(n==="select all"){state.categories=[...EXTRA_CATEGORIES];voiceFeedback("✓ ALL CATEGORIES","action");fun();return}
            if(n==="clear all"){state.categories=[];voiceFeedback("✓ CLEAR ALL","action");fun();return}
+           if(/^(continue|next|done|go ahead|lets go|let s go|start|begin|im ready|i m ready)$/.test(n)){funContinue();return}
          }
          if(ctx==="difficulty"){
            const d=DIFFICULTIES.find(x=>norm(x.label)===n);
@@ -223,6 +224,7 @@ function startVoice(ctx){
      // Screen-specific language first when it contains data such as player names.
      if(ctx==="players"&&handlePlayerVoice(h))return;
      if(ctx==="fun"){
+       if(/^(continue|next|done|go ahead|lets go|let s go|im done|i m done|thats it|that s it|start|begin|im ready|i m ready)$/.test(n)){funContinue();return}
        let m=h.match(/^(?:add|include|select|choose)\s+(.+)$/i);
        if(m){
          const target=norm(m[1]),cat=EXTRA_CATEGORIES.find(x=>norm(x)===target||norm(x).includes(target)||target.includes(norm(x)));
@@ -334,6 +336,7 @@ function heard(ctx,h){
    if(c==="continue"){go("fun");return}
  }
  if(ctx==="fun"){
+   if(/^(continue|next|done|go ahead|lets go|let s go|im done|i m done|thats it|that s it|start|begin|im ready|i m ready)$/.test(n)){funContinue();return}
    if(/^(select all|all categories|choose all|give me everything)$/.test(n)){state.categories=[...EXTRA_CATEGORIES];voiceFeedback("✓ ALL CATEGORIES","action");fun();return}
    if(/^(clear all|clear categories|remove all categories)$/.test(n)){state.categories=[];voiceFeedback("✓ CLEAR ALL","action");fun();return}
 
@@ -536,7 +539,7 @@ function primaryAction(){
   case "mode": return false;
   case "industry": if(state.industry){go("difficulty");return true} return false;
   case "difficulty": go("fun"); return true;
-  case "fun": go("players"); return true;
+  case "fun": funContinue(); return true;
   case "players":
    state.players=state.players.filter(p=>(p.name||"").trim());
    if(state.players.length<(state.mode==="solo"?1:2)){players();return true}
@@ -555,7 +558,7 @@ function go(s){
 }
 function back(){const m={mode:"home",industry:"mode",difficulty:state.mode==="work"?"industry":"mode",fun:"difficulty",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
 function home(){
- state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.9</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
+ state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.9.1</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
  document.getElementById("start").onclick=chooseGame;const rs=document.getElementById("resumeSaved");if(rs)rs.onclick=resumeSavedGame;startMusic();startVoice("home")
 }
 function chooseGame(){ensureAudio();go("mode")}
@@ -588,6 +591,10 @@ function difficulty(){
  document.getElementById("cont").onclick=()=>go("fun");
  startVoice("difficulty")
 }
+function funContinue(){
+ voiceFeedback("✓ CONTINUE","action");
+ go("players");
+}
 function fun(){
  const selected=new Set(state.categories||[]);
  const cards=EXTRA_CATEGORIES.map(name=>`<button class="btn category-choice ${selected.has(name)?"selected":""}" data-cat="${esc(name)}">${esc(name)}</button>`).join("");
@@ -596,7 +603,7 @@ function fun(){
     <div class="category-master"><button id="selectAllCats" class="btn primary" data-voice="${selected.size===EXTRA_CATEGORIES.length?"CLEAR ALL":"SELECT ALL"}" data-voice-aliases="${selected.size===EXTRA_CATEGORIES.length?"clear categories|remove all categories":"all categories|choose all|give me everything"}">${selected.size===EXTRA_CATEGORIES.length?"CLEAR ALL":"SELECT ALL"}</button></div>
     <div class="category-grid">${cards}</div>
     <div class="subtle center">Pick as many as you want, or say “Skip.” You can also say “Add Music,” “Add Sports,” or “Remove Geography.”</div>`,
-   `<button id="skip" class="btn">SKIP</button><button id="cont" class="btn primary">CONTINUE</button>`);
+   `<button id="skip" class="btn">SKIP</button><button id="cont" class="btn primary" data-voice="CONTINUE" data-voice-aliases="next|done|go ahead|lets go|im done|thats it|start|begin|im ready">CONTINUE</button>`);
  document.querySelectorAll("[data-cat]").forEach(b=>b.onclick=()=>{
    const name=b.dataset.cat, set=new Set(state.categories||[]);
    if(set.has(name))set.delete(name);else set.add(name);
@@ -606,7 +613,7 @@ function fun(){
  allBtn.onclick=()=>{state.categories=state.categories.length===EXTRA_CATEGORIES.length?[]:[...EXTRA_CATEGORIES];fun()};
 
  document.getElementById("skip").onclick=()=>{state.categories=[];go("players")};
- document.getElementById("cont").onclick=()=>go("players");
+ document.getElementById("cont").onclick=funContinue;
  startVoice("fun")
 }
 function players(){
@@ -813,5 +820,5 @@ function render(){clearRuntime();({home,mode,industry,difficulty,fun,players,tim
 function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
-document.documentElement.dataset.build="5.9";viewport();home();
+document.documentElement.dataset.build="5.9.1";viewport();home();
 })();
