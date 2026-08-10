@@ -1,7 +1,7 @@
 
 (()=>{
 "use strict";
-const BUILD="Clean Foundation 5.8 Core Completion";
+const BUILD="Clean Foundation 5.9 Voice Latency + Reliability";
 const app=document.getElementById("app");
 const STORAGE={names:"los5_names",voice:"los5_voice",volume:"los5_volume",activeGame:"los5_active_game"};
 const DIFFICULTIES=[
@@ -101,10 +101,12 @@ function commandKey(s){return norm(s).replace(/\b(the|button|option|please)\b/g,
 function phraseMatch(a,b){
  a=commandKey(a);b=commandKey(b);if(!a||!b)return false;
  if(a===b)return true;
- if(a.length>=4&&(a.includes(b)||b.includes(a)))return true;
+ const shortControls=new Set(["continue","start","next","back","skip","pass","select all","clear all","add player"]);
+ if(shortControls.has(a)||shortControls.has(b))return false;
+ if(a.length>=6&&b.length>=6&&(a.includes(b)||b.includes(a)))return true;
  const aa=a.split(" "),bb=b.split(" ");
  const common=aa.filter(x=>bb.includes(x)).length;
- return common>=Math.min(2,Math.min(aa.length,bb.length))
+ return common>=2&&common>=Math.ceil(Math.min(aa.length,bb.length)*.75)
 }
 function visibleVoiceTargets(){
  return [...document.querySelectorAll('button:not([disabled]),[role="button"]:not([aria-disabled="true"]),input[type="button"]:not([disabled]),input[type="submit"]:not([disabled])')]
@@ -133,7 +135,9 @@ function clickVoiceTarget(h){
      let score=0;
      if(n===k)score=100;
      else if(n===`click ${k}`||n===`choose ${k}`||n===`select ${k}`||n===`pick ${k}`||n===`press ${k}`)score=95;
-     else if(phraseMatch(n,k))score=70+Math.min(k.length,20);
+     else if(k==="add player"){
+       if(/^(add player|add a player|add another player)$/.test(n))score=100;
+     } else if(phraseMatch(n,k))score=70+Math.min(k.length,20);
      if(score>bestScore){best=t;bestScore=score}
    }
  }
@@ -176,9 +180,42 @@ function startVoice(ctx){
      const h=alts[0];if(!h)continue;
      if(!res.isFinal){
        const n=norm(h);
-       // Only execute highly obvious short clickable/navigation commands on interim speech.
-       if(n!==interimHandled && n.split(" ").length<=4){
-         if(clickVoiceTarget(h)){interimHandled=n;return}
+       if(n===interimHandled)continue;
+
+       const fastCommand=/^(continue|start|begin|next|go ahead|lets go|let s go|im ready|i m ready|back|go back|pause|resume|pass|skip|select all|clear all|kids|easy|medium|hard|savage)$/;
+       if(fastCommand.test(n)){
+         interimHandled=n;
+         if(ctx==="question"){
+           if(n==="skip"){state.game.lastOutcomeDetail="skip";voiceFeedback("✓ SKIP","action");finish("pass");return}
+           if(n==="pass"){state.game.lastOutcomeDetail="pass";voiceFeedback("✓ PASS","action");finish("pass");return}
+           if(n==="pause"){voiceFeedback("✓ PAUSE","action");pauseGame();return}
+         }
+         if(ctx==="fun"){
+           if(n==="select all"){state.categories=[...EXTRA_CATEGORIES];voiceFeedback("✓ ALL CATEGORIES","action");fun();return}
+           if(n==="clear all"){state.categories=[];voiceFeedback("✓ CLEAR ALL","action");fun();return}
+         }
+         if(ctx==="difficulty"){
+           const d=DIFFICULTIES.find(x=>norm(x.label)===n);
+           if(d){state.difficulty=d.id;voiceFeedback("✓ "+d.label,"action");difficulty();return}
+         }
+         if(universalVoiceCommand(h))return;
+       }
+
+       const exactTarget=visibleVoiceTargets().find(t=>t.phrases.some(p=>commandKey(p)===commandKey(h)));
+       if(exactTarget){
+         const key=commandKey(exactTarget.label),now=Date.now();
+         if(!(lastVoiceAction.key===key&&now-lastVoiceAction.at<700)){
+           lastVoiceAction={key,at:now};interimHandled=n;
+           voiceFeedback("✓ "+exactTarget.label,"action");exactTarget.el.click();return
+         }
+       }
+
+       if(ctx==="question" && h.length>=3 && accepted(h,state.game.current)){
+         const canonical=norm(state.game.current?.a||"");
+         const sim=Math.max(editSimilarity(norm(h),canonical),editSimilarity(phoneticKey(h),phoneticKey(canonical)));
+         if(norm(h)===canonical||sim>=.92){
+           interimHandled=n;voiceFeedback("✓ ANSWER","action");finish("correct");return
+         }
        }
        continue
      }
@@ -200,7 +237,8 @@ function startVoice(ctx){
      if(ctx==="question"){
        state.game.speechLog.push(h);
        const n=norm(h);
-       if(/^(pass|i pass|ill pass|i ll pass|skip|skip it|skip this one|skip question|next question|im passing|i m passing)$/.test(n)){voiceFeedback("✓ PASS","action");finish("pass");return}
+       if(/^(skip|skip it|skip this one|skip question|next question)$/.test(n)){state.game.lastOutcomeDetail="skip";voiceFeedback("✓ SKIP","action");finish("pass");return}
+       if(/^(pass|i pass|ill pass|i ll pass|im passing|i m passing)$/.test(n)){state.game.lastOutcomeDetail="pass";voiceFeedback("✓ PASS","action");finish("pass");return}
        if(accepted(h,state.game.current)){voiceFeedback("✓ ANSWER","action");finish("correct");return}
      }
      // Universal click/command layer: if it is clickable, saying its label works.
@@ -216,14 +254,14 @@ function startVoice(ctx){
    r.onend=()=>{
      recognition=null;
      if(state.voiceOn&&voiceContext===ctx&&generation===voiceGeneration){
-       clearTimeout(voiceRestartTimer);voiceRestartTimer=setTimeout(launch,80)
+       clearTimeout(voiceRestartTimer);voiceRestartTimer=setTimeout(launch,35)
      }
    };
    r.start()
   }catch{
    recognition=null;
    if(state.voiceOn&&voiceContext===ctx&&generation===voiceGeneration){
-     clearTimeout(voiceRestartTimer);voiceRestartTimer=setTimeout(launch,180)
+     clearTimeout(voiceRestartTimer);voiceRestartTimer=setTimeout(launch,90)
    }
   }
  };
@@ -259,7 +297,8 @@ function heard(ctx,h){
  if(ctx==="question"){
    state.game.speechLog.push(h);
    if(c==="pause"){pauseGame();return}
-   if(/^(pass|i pass|ill pass|i ll pass|skip|skip it|skip this one|skip question|next question|im passing|i m passing)$/.test(n)){finish("pass");return}
+   if(/^(skip|skip it|skip this one|skip question|next question)$/.test(n)){state.game.lastOutcomeDetail="skip";finish("pass");return}
+   if(/^(pass|i pass|ill pass|i ll pass|im passing|i m passing)$/.test(n)){state.game.lastOutcomeDetail="pass";finish("pass");return}
    if(accepted(h,state.game.current)){finish("correct");return}
    return
  }
@@ -363,42 +402,85 @@ function spokenLetters(s){
 }
 function handlePlayerVoice(h){
  const n=norm(h);if(!n)return false;
+ if(/^(player|players|player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+))$/.test(n))return false;
+
  if(renamePending){
   const p=state.players.find(x=>x.id===renamePending.id);if(!p){renamePending=null;return false}
   if(/^(cancel|never mind|nevermind)$/.test(n)){renamePending=null;return true}
   if(/^(spell|spell it|spell the name|change the spelling)$/.test(n)){renamePending.spell=true;return true}
-  if(renamePending.spell){const s=spokenLetters(h);if(s){p.name=s[0].toUpperCase()+s.slice(1);renamePending=null;players();return true}return true}
+  if(renamePending.spell){
+   const s=spokenLetters(h);
+   if(s){p.name=s[0].toUpperCase()+s.slice(1);renamePending=null;players();return true}
+   return true
+  }
   const candidate=h.replace(/^(the name is|name is|make it|change it to|to)\s+/i,"").trim();
   if(candidate){p.name=candidate;renamePending=null;players();return true}
   return true
  }
- const chunks=h.split(/\s*(?:,| and )\s*/i);let changed=false;
- for(const chunk of chunks){
-  const bm=chunk.match(/player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:is|to|should be|can be|will be)?\s*(.+)$/i);
-  if(bm){const i=spokenNumber(bm[1])-1;if(i>=0){while(state.players.length<=i)state.players.push({id:uid(),name:""});state.players[i].name=bm[2].trim();changed=true}}
- }
- if(changed){players();return true}
- let m=h.match(/^(?:please\s+)?add\s+(?:a\s+)?player(?:\s+(?:named|called))?\s+(.+)$/i);
- if(m){const name=m[1].trim();if(name){state.players.push({id:uid(),name});players();return true}}
- if(/^(?:please\s+)?add\s+(?:a\s+)?player$/i.test(h)){state.players.push({id:uid(),name:""});players();return true}
+
+ let m;
+ // Delete / Remove
  m=h.match(/^(?:please\s+)?(?:delete|remove|get rid of|take out)\s+(?:player\s+)?(.+?)(?:\s+please)?$/i);
  if(m){
   const raw=m[1].trim(), num=spokenNumber(raw);
-  if(num){const i=num-1;if(i>=0&&i<state.players.length){state.players.splice(i,1);players();return true}}
-  const target=nameKey(raw);let i=state.players.findIndex(p=>nameKey(p.name)===target);
+  if(num){
+   const i=num-1;
+   if(i>=0&&i<state.players.length){state.players.splice(i,1);players();return true}
+  }
+  const target=nameKey(raw);
+  let i=state.players.findIndex(p=>nameKey(p.name)===target);
   if(i<0)i=state.players.findIndex(p=>nameKey(p.name).startsWith(target)||target.startsWith(nameKey(p.name)));
   if(i>=0){state.players.splice(i,1);players();return true}
+  return false
  }
+
+ // Rename / Change
  m=h.match(/^(?:change|rename|make|set)\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:to|as|is)\s+(.+)$/i);
- if(m){const i=spokenNumber(m[1])-1;if(i>=0){while(state.players.length<=i)state.players.push({id:uid(),name:""});state.players[i].name=m[2].trim();players();return true}}
+ if(m){
+  const i=spokenNumber(m[1])-1;
+  if(i>=0){while(state.players.length<=i)state.players.push({id:uid(),name:""});state.players[i].name=m[2].trim();players();return true}
+ }
  m=h.match(/^(?:i want|put|make)\s+(.+?)\s+(?:as|for)\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)$/i);
- if(m){const i=spokenNumber(m[2])-1;if(i>=0){while(state.players.length<=i)state.players.push({id:uid(),name:""});state.players[i].name=m[1].trim();players();return true}}
+ if(m){
+  const i=spokenNumber(m[2])-1;
+  if(i>=0){while(state.players.length<=i)state.players.push({id:uid(),name:""});state.players[i].name=m[1].trim();players();return true}
+ }
  m=h.match(/^(?:change|rename)\s+(.+?)\s+to\s+(.+)$/i);
- if(m){const p=state.players.find(x=>nameKey(x.name)===nameKey(m[1]));if(p){p.name=m[2].trim();players();return true}}
- m=n.match(/^(?:change|rename)\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)$/);
- if(m){const p=state.players[spokenNumber(m[1])-1];if(p){renamePending={id:p.id,spell:false};return true}}
+ if(m){
+  const p=state.players.find(x=>nameKey(x.name)===nameKey(m[1]));
+  if(p){p.name=m[2].trim();players();return true}
+ }
+
+ // Spell
  m=n.match(/^spell\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)$/);
- if(m){const p=state.players[spokenNumber(m[1])-1];if(p){renamePending={id:p.id,spell:true};return true}}
+ if(m){
+  const p=state.players[spokenNumber(m[1])-1];
+  if(p){renamePending={id:p.id,spell:true};return true}
+ }
+ m=n.match(/^(?:change|rename)\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)$/);
+ if(m){
+  const p=state.players[spokenNumber(m[1])-1];
+  if(p){renamePending={id:p.id,spell:false};return true}
+ }
+
+ // Multi-assign
+ const chunks=h.split(/\s*(?:,| and )\s*/i);let changed=false;
+ for(const chunk of chunks){
+  const bm=chunk.match(/^player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:is|to|should be|can be|will be)\s+(.+)$/i);
+  if(bm){
+   const i=spokenNumber(bm[1])-1;
+   if(i>=0){while(state.players.length<=i)state.players.push({id:uid(),name:""});state.players[i].name=bm[2].trim();changed=true}
+  }
+ }
+ if(changed){players();return true}
+
+ // Add only on explicit add intent.
+ m=h.match(/^(?:please\s+)?add\s+(?:a\s+|another\s+)?player(?:\s+(?:named|called))?(?:\s+(.+))?$/i);
+ if(m){
+  const name=(m[1]||"").trim();
+  state.players.push({id:uid(),name});
+  players();return true
+ }
  return false
 }
 function setVolume(v){state.volume=Math.max(0,Math.min(1,v));localStorage.setItem(STORAGE.volume,String(state.volume));const e=document.getElementById("vol");if(e)e.value=state.volume;const p=document.getElementById("volPct");if(p)p.textContent=Math.round(state.volume*100)+"%"}
@@ -473,7 +555,7 @@ function go(s){
 }
 function back(){const m={mode:"home",industry:"mode",difficulty:state.mode==="work"?"industry":"mode",fun:"difficulty",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
 function home(){
- state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.8</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
+ state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.9</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
  document.getElementById("start").onclick=chooseGame;const rs=document.getElementById("resumeSaved");if(rs)rs.onclick=resumeSavedGame;startMusic();startVoice("home")
 }
 function chooseGame(){ensureAudio();go("mode")}
@@ -511,7 +593,7 @@ function fun(){
  const cards=EXTRA_CATEGORIES.map(name=>`<button class="btn category-choice ${selected.has(name)?"selected":""}" data-cat="${esc(name)}">${esc(name)}</button>`).join("");
  app.innerHTML=shell("ADD MORE CATEGORIES",
    `<div class="category-intro">MIX IN EXTRA TRIVIA</div>
-    <div class="category-master"><button id="selectAllCats" class="btn primary">${selected.size===EXTRA_CATEGORIES.length?"CLEAR ALL":"SELECT ALL"}</button></div>
+    <div class="category-master"><button id="selectAllCats" class="btn primary" data-voice="${selected.size===EXTRA_CATEGORIES.length?"CLEAR ALL":"SELECT ALL"}" data-voice-aliases="${selected.size===EXTRA_CATEGORIES.length?"clear categories|remove all categories":"all categories|choose all|give me everything"}">${selected.size===EXTRA_CATEGORIES.length?"CLEAR ALL":"SELECT ALL"}</button></div>
     <div class="category-grid">${cards}</div>
     <div class="subtle center">Pick as many as you want, or say “Skip.” You can also say “Add Music,” “Add Sports,” or “Remove Geography.”</div>`,
    `<button id="skip" class="btn">SKIP</button><button id="cont" class="btn primary">CONTINUE</button>`);
@@ -546,7 +628,7 @@ function ready(){
 }
 function selectedPlayers(){return state.mode==="solo"?state.players.slice(0,1):state.players}
 function startGame(){
- rememberNames();stopMusic();const ps=selectedPlayers();state.game={players:ps.map(p=>({...p,correct:0,wrong:0,timeout:0,strikes:0,eliminated:false})),startingCount:ps.length,idx:0,qnum:0,used:[],current:null,answered:false,started:Date.now(),speechLog:[],lastSpeechLog:[],showdown:false};saveActiveGame();handoff()
+ rememberNames();stopMusic();const ps=selectedPlayers();state.game={players:ps.map(p=>({...p,correct:0,wrong:0,timeout:0,strikes:0,eliminated:false})),startingCount:ps.length,idx:0,qnum:0,used:[],current:null,answered:false,started:Date.now(),speechLog:[],lastSpeechLog:[],showdown:false,lastOutcomeDetail:""};saveActiveGame();handoff()
 }
 function activePlayers(){return state.game.players.filter(p=>!p.eliminated)}
 function nextActive(from){const g=state.game;for(let i=1;i<=g.players.length;i++){const x=(from+i)%g.players.length;if(!g.players[x].eliminated)return x}return from}
@@ -612,7 +694,7 @@ function marks(p){return "✕".repeat(Math.min(3,p.strikes))+"○".repeat(Math.m
 function standings(){return `<div class="standings">${[...state.game.players].sort((a,b)=>(a.eliminated-b.eliminated)||(a.strikes-b.strikes)||(b.correct-a.correct)).map(p=>`<div class="standing-row ${p.eliminated?"out":""}"><strong>${esc(p.name)}</strong><span>✓ ${p.correct}</span><span style="color:var(--red)">${marks(p)}</span><span>${p.eliminated?"OUT":"IN"}</span></div>`).join("")}</div>`}
 function result(outcome){
  state.screen="result";saveActiveGame();const g=state.game,p=g.players[g.idx],q=g.current;
- const label=outcome==="correct"?"CORRECT!":outcome==="pass"?"PASSED":outcome==="timeout"?"TIME’S UP!":"NOT QUITE";
+ const label=outcome==="correct"?"CORRECT!":outcome==="pass"?(g.lastOutcomeDetail==="skip"?"SKIP":"PASS"):outcome==="timeout"?"TIME’S UP!":"NOT QUITE";
  const strike=outcome!=="correct", eliminated=strike&&p.eliminated;
  const phase=g.showdown?"FINAL SHOWDOWN":"CURRENT STANDINGS";
  app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(true)}
@@ -631,7 +713,7 @@ function result(outcome){
  flowTimer=setTimeout(advance,delay)
 }
 function advance(){
- clearRuntime();const g=state.game;g.qnum++;
+ clearRuntime();const g=state.game;g.lastOutcomeDetail="";g.qnum++;
  if(g.showdown){
   const out=g.players.find(p=>p.eliminated);
   if(out){const champ=g.players.find(p=>p.id!==out.id);champion(champ);return}
@@ -731,5 +813,5 @@ function render(){clearRuntime();({home,mode,industry,difficulty,fun,players,tim
 function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
-document.documentElement.dataset.build="5.8";viewport();home();
+document.documentElement.dataset.build="5.9";viewport();home();
 })();

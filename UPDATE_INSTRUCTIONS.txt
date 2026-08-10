@@ -1,9 +1,6 @@
-LAST ONE STANDING — BUILD 5.8 CORE COMPLETION
+LAST ONE STANDING — BUILD 5.9
 
-1. Keep the hidden .git folder.
-2. Replace current app files with ALL files from this ZIP.
-3. GitHub Desktop should show BUILD_5_8.txt.
-4. Commit summary: Clean Foundation 5.8 Core Completion
-5. Push origin.
-6. Wait for GitHub Pages.
-7. Open Safari and verify BUILD 5.8 before testing.
+Keep the hidden .git folder.
+Replace current app files with ALL files from this ZIP.
+GitHub Desktop summary: Clean Foundation 5.9 Voice Latency + Reliability
+Push origin, then verify BUILD 5.9 in Safari.

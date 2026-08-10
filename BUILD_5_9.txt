@@ -1,0 +1,15 @@
+LAST ONE STANDING — CLEAN FOUNDATION 5.9 VOICE LATENCY + RELIABILITY
+
+Stabilization only:
+- PASS displays PASS in orange, shows correct answer, and counts as one wrong/strike.
+- SKIP displays SKIP in orange, shows correct answer, and counts as one wrong/strike.
+- Add More Categories: Continue preserves all selected categories and advances.
+- Select All / Clear All are isolated from Continue.
+- WHO'S IN: saying “player” or “player two” alone does nothing.
+- Player parser priority: Delete/Remove -> Rename/Change -> Spell -> Multi-assign -> Add.
+- Add only fires for explicit add intent.
+- Faster interim command response.
+- Exact visible button labels can fire immediately.
+- Very high-confidence answers can lock in from interim speech.
+- Faster recognition restart.
+- All 5.8 core gameplay retained.

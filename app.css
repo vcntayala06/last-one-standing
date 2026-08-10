@@ -312,3 +312,6 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
  .keyboard-answer{flex-direction:column}
  .keyboard-answer input,.keyboard-answer .btn{width:100%}
 }
+
+/* 5.9 stabilization */
+.result-word.result-pass{color:#ff9f32!important}
