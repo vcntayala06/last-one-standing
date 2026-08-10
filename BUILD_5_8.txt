@@ -1,0 +1,18 @@
+LAST ONE STANDING — CLEAN FOUNDATION 5.8 CORE COMPLETION
+
+- New difficulty screen: KIDS / EASY / MEDIUM / HARD / SAVAGE.
+- Medium is default.
+- Add More Categories gets SELECT ALL / CLEAR ALL.
+- Voice-off question mode shows and focuses a keyboard answer field automatically.
+- Enter/Return or LOCK IN submits typed answers.
+- EXIT/Leave + Resume foundation from 5.7 retained, now also saves difficulty/language.
+- Smarter answer matching adds aliases, fuzzy spelling, and forgiving phonetic matching.
+- Question data can carry accepted aliases and Spanish equivalents for future bank expansion.
+- Universal clickable voice control from 5.6 retained.
+- Work industry screen retained.
+- Regular questions use selected question duration.
+- At 6+ seconds: normal steady tick.
+- At 5–1: rapid same-character pressure ticking.
+- Final Showdown is ALWAYS exactly 5 seconds per question, regardless of regular question setting.
+- Final Showdown rapid pressure ticking begins immediately at 5.
+- YOU'RE UP remains normal/steady.
