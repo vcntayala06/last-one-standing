@@ -1,0 +1,1 @@
+Build 6.0.5: fixes Work industry Continue by tap and voice; moves setup EXIT to bottom zone next to BACK.

@@ -447,3 +447,6 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
  .game-time-card .btn{min-height:46px!important;padding:11px 10px!important;font-size:.9rem!important}
  .footer{min-height:52px!important}
 }
+
+.setup-exit{display:none!important}
+.setup-exit-bottom{min-width:92px;border-color:rgba(255,255,255,.24)!important;background:rgba(255,255,255,.06)!important}

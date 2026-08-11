@@ -1,0 +1,1 @@
+1. Work > choose industry > tap Continue. 2. Repeat with voice Continue. 3. Confirm EXIT is beside BACK in the bottom zone. 4. Tap/say Exit to return Home.

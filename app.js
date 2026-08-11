@@ -1,7 +1,7 @@
 
 (()=>{
 "use strict";
-const BUILD="Clean Foundation 6.0.4 Tap-Speed Voice + Setup Exit";
+const BUILD="Clean Foundation 6.0.5 Work Continue + Bottom Exit";
 const app=document.getElementById("app");
 const STORAGE={names:"los5_names",voice:"los5_voice",volume:"los5_volume",activeGame:"los5_active_game"};
 const DIFFICULTIES=[
@@ -80,8 +80,10 @@ function stopMusic(){clearInterval(musicTimer);musicTimer=null}
 function clearRuntime(){clearInterval(questionTimer);questionTimer=null;clearTimeout(flowTimer);flowTimer=null;stopVoice()}
 function isSetupScreen(){return ["mode","industry","difficulty","fun","players","time","ready"].includes(state.screen)}
 function exitSetup(){if(state.game)return;stopVoice();state.game=null;state.screen="home";home()}
-function bindSetupExit(){const b=document.getElementById("setupExit");if(b)b.onclick=exitSetup}
-function shell(title,content,footer=""){return `<section class="screen"><div class="shell"><header class="topbar"><div></div><div class="topbar-title">${title||""}</div><div></div></header><div class="content">${content}</div><footer class="footer">${footer}</footer></div></section>${isSetupScreen()?`<button id="setupExit" class="setup-exit" data-voice="EXIT" data-voice-aliases="exit game|leave game|cancel game|quit setup|go home|back to home">EXIT</button>`:""}${state.voiceOn?`<div id="voiceDiagnostic" class="voice-diagnostic">MIC LISTENING</div>`:""}`}
+function bindSetupExit(){
+ document.querySelectorAll("[data-setup-exit]").forEach(b=>b.onclick=exitSetup)
+}
+function shell(title,content,footer=""){return `<section class="screen"><div class="shell"><header class="topbar"><div></div><div class="topbar-title">${title||""}</div><div></div></header><div class="content">${content}</div><footer class="footer">${footer}</footer></div></section>${state.voiceOn?`<div id="voiceDiagnostic" class="voice-diagnostic">MIC LISTENING</div>`:""}`}
 function remembered(){try{return JSON.parse(localStorage.getItem(STORAGE.names)||"[]")}catch{return[]}}
 function rememberNames(){const ns=state.players.map(p=>p.name.trim()).filter(Boolean);localStorage.setItem(STORAGE.names,JSON.stringify([...new Set([...remembered(),...ns])].slice(-50)))}
 function ensurePlayers(){
@@ -226,6 +228,7 @@ function exactVisibleTarget(h){
 function centralNavIntent(h){
  const n=norm(h);
  if(/^(continue|next|done|go ahead|go on|move on|lets go|let s go|im ready|i m ready|ready|start|begin|lets begin|let s begin)$/.test(n)){
+  if(state.screen==="industry")return voiceOnce("continue:industry",()=>industryContinue());
   return voiceOnce("continue:"+state.screen,()=>{
    if(state.screen==="fun"&&typeof funContinue==="function"){funContinue();return}
    if(state.screen==="players"){
@@ -696,7 +699,7 @@ function primaryAction(){
  switch(state.screen){
   case "home": chooseGame(); return true;
   case "mode": return false;
-  case "industry": if(state.industry){go("difficulty");return true} return false;
+  case "industry": industryContinue(); return true;
   case "difficulty": go("fun"); return true;
   case "fun": funContinue(); return true;
   case "players":
@@ -717,13 +720,17 @@ function go(s){
 }
 function back(){const m={mode:"home",industry:"mode",difficulty:state.mode==="work"?"industry":"mode",fun:"difficulty",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
 function home(){
- state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.0.4</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
+ state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.0.5</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
  document.getElementById("start").onclick=chooseGame;const rs=document.getElementById("resumeSaved");if(rs)rs.onclick=resumeSavedGame;startMusic();startVoice("home")
 }
 function chooseGame(){ensureAudio();go("mode")}
 function mode(){
  app.innerHTML=shell("CHOOSE YOUR GAME",`<div class="grid"><button class="btn option" data-mode="work">WORK</button><button class="btn option" data-mode="family">FAMILY</button><button class="btn option" data-mode="friends">FRIENDS</button><button class="btn option" data-mode="solo">SOLO</button><button class="btn option primary" data-mode="quick">QUICK GAME</button></div><div class="subtle center">Say “Work,” “Family,” “Friends,” “Solo,” or “Quick Game.” If speech recognition hears “Quit Game” on this screen, it will be treated as Quick Game.</div>`);
  document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{const x=b.dataset.mode;if(x==="quick"){state.quick=true;state.duration=3;state.mode="friends";go("fun")}else{state.quick=false;state.mode=x;go(x==="work"?"industry":"difficulty")}});startVoice("mode")
+}
+function industryContinue(){
+ if(!state.industry){voiceFeedback("CHOOSE AN INDUSTRY","error");return}
+ voiceFeedback("✓ CONTINUE","action");go("difficulty")
 }
 function industry(){
  const selected=state.industry||"";
@@ -732,10 +739,10 @@ function industry(){
    `<div class="category-intro">WORK MODE</div>
     <div class="industry-grid">${cards}</div>
     <div class="subtle center">Tap an industry or just say its name.</div>`,
-   `<button id="back" class="btn">BACK</button><button id="cont" class="btn primary">CONTINUE</button>`);
+   `<button id="back" class="btn">BACK</button><button class="btn setup-exit-bottom" data-setup-exit data-voice="EXIT" data-voice-aliases="exit game|leave game|cancel game|quit setup|go home|back to home">EXIT</button><button id="cont" class="btn primary" data-voice="CONTINUE" data-voice-aliases="next|done|go ahead|go on|move on|lets go|im ready|start|begin">CONTINUE</button>`);
  document.querySelectorAll("[data-industry]").forEach(b=>b.onclick=()=>{state.industry=b.dataset.industry;industry()});
  document.getElementById("back").onclick=()=>go("mode");
- document.getElementById("cont").onclick=()=>{if(!state.industry)return;go("difficulty")};
+ document.getElementById("cont").onclick=industryContinue;
  startVoice("industry");
 }
 function difficulty(){
@@ -744,7 +751,7 @@ function difficulty(){
   `<div class="category-intro">HOW HARD DO YOU WANT IT?</div>
    <div class="difficulty-grid">${cards}</div>
    <div class="subtle center">Medium is the default. Say Kids, Easy, Medium, Hard, or Savage.</div>`,
-  `<button id="back" class="btn">BACK</button><button id="cont" class="btn primary">CONTINUE</button>`);
+  `<button id="back" class="btn">BACK</button><button class="btn setup-exit-bottom" data-setup-exit data-voice="EXIT" data-voice-aliases="exit game|leave game|cancel game|quit setup|go home|back to home">EXIT</button><button id="cont" class="btn primary">CONTINUE</button>`);
  document.querySelectorAll("[data-difficulty]").forEach(b=>b.onclick=()=>{state.difficulty=b.dataset.difficulty;difficulty()});
  document.getElementById("back").onclick=()=>go(state.mode==="work"?"industry":"mode");
  document.getElementById("cont").onclick=()=>go("fun");
@@ -777,19 +784,19 @@ function fun(){
 }
 function players(){
  ensurePlayers();const list=state.players.map((p,i)=>`<div class="player-row"><div class="player-num">PLAYER ${i+1}</div><input data-p="${p.id}" value="${esc(p.name)}" placeholder="Name"><button class="btn" data-remove="${p.id}">×</button></div>`).join("");
- app.innerHTML=shell("WHO’S IN?",`<div class="roster-sub">ENTER THE CONTENDERS</div><div class="players-list">${list}</div><div id="rosterError" class="roster-error"></div><button id="add" class="btn">ADD PLAYER</button><div class="subtle center">Try: “Player 1 Joe,” “Change player 2 to Tom,” “Spell player 2,” or “Add player Maria.”</div>`,`<button id="back" class="btn">BACK</button><button id="continue" class="btn primary">CONTINUE</button>`);
+ app.innerHTML=shell("WHO’S IN?",`<div class="roster-sub">ENTER THE CONTENDERS</div><div class="players-list">${list}</div><div id="rosterError" class="roster-error"></div><button id="add" class="btn">ADD PLAYER</button><div class="subtle center">Try: “Player 1 Joe,” “Change player 2 to Tom,” “Spell player 2,” or “Add player Maria.”</div>`,`<button id="back" class="btn">BACK</button><button class="btn setup-exit-bottom" data-setup-exit data-voice="EXIT" data-voice-aliases="exit game|leave game|cancel game|quit setup|go home|back to home">EXIT</button><button id="continue" class="btn primary">CONTINUE</button>`);
  document.querySelectorAll("[data-p]").forEach(e=>e.oninput=()=>{const p=state.players.find(x=>x.id===e.dataset.p);p.name=e.value});
  document.querySelectorAll("[data-remove]").forEach(b=>b.onclick=()=>{state.players=state.players.filter(p=>p.id!==b.dataset.remove);players()});
  document.getElementById("add").onclick=()=>{state.players.push({id:uid(),name:""});players()};document.getElementById("back").onclick=back;
  document.getElementById("continue").onclick=()=>{state.players=state.players.filter(p=>(p.name||"").trim());if(state.players.length<(state.mode==="solo"?1:2)){const msg=document.getElementById("rosterError");if(msg)msg.textContent=state.mode==="solo"?"ADD A PLAYER NAME TO CONTINUE":"ADD AT LEAST TWO NAMED PLAYERS TO CONTINUE";return}rememberNames();go("time")};startVoice("players")
 }
 function time(){
- app.innerHTML=shell("GAME SETTINGS",`<div class="grid game-time-grid"><div class="card center game-time-card"><div class="game-time-label">QUESTION TIMER</div><div class="actions" style="margin-top:10px">${[10,15,20,30].map(s=>`<button class="btn ${state.questionSeconds===s?"selected":""}" data-sec="${s}">${s} SEC</button>`).join("")}</div></div><div class="card center game-time-card"><div class="game-time-label">GAME LENGTH</div><div class="actions" style="margin-top:10px">${[5,10,15,20].map(m=>`<button class="btn ${!state.quick&&state.duration===m?"selected":""}" data-min="${m}">${m} MIN</button>`).join("")}<button class="btn ${state.quick?"selected":""}" id="quick">QUICK GAME</button></div></div><div class="card center game-time-card"><div class="game-time-label">VOLUME</div><div class="volume-wrap" style="justify-content:center;margin-top:12px"><input id="vol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="volPct">${Math.round(state.volume*100)}%</strong></div></div><div class="card center game-time-card"><div class="game-time-label">VOICE RECOGNITION</div><div class="actions" style="margin-top:10px"><button id="voiceOn" class="btn ${state.voiceOn?"selected":""}">ON</button><button id="voiceOff" class="btn ${!state.voiceOn?"selected":""}">OFF</button></div></div></div>`,`<button id="back" class="btn">BACK</button><button id="continue" class="btn primary">CONTINUE</button>`);
+ app.innerHTML=shell("GAME SETTINGS",`<div class="grid game-time-grid"><div class="card center game-time-card"><div class="game-time-label">QUESTION TIMER</div><div class="actions" style="margin-top:10px">${[10,15,20,30].map(s=>`<button class="btn ${state.questionSeconds===s?"selected":""}" data-sec="${s}">${s} SEC</button>`).join("")}</div></div><div class="card center game-time-card"><div class="game-time-label">GAME LENGTH</div><div class="actions" style="margin-top:10px">${[5,10,15,20].map(m=>`<button class="btn ${!state.quick&&state.duration===m?"selected":""}" data-min="${m}">${m} MIN</button>`).join("")}<button class="btn ${state.quick?"selected":""}" id="quick">QUICK GAME</button></div></div><div class="card center game-time-card"><div class="game-time-label">VOLUME</div><div class="volume-wrap" style="justify-content:center;margin-top:12px"><input id="vol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="volPct">${Math.round(state.volume*100)}%</strong></div></div><div class="card center game-time-card"><div class="game-time-label">VOICE RECOGNITION</div><div class="actions" style="margin-top:10px"><button id="voiceOn" class="btn ${state.voiceOn?"selected":""}">ON</button><button id="voiceOff" class="btn ${!state.voiceOn?"selected":""}">OFF</button></div></div></div>`,`<button id="back" class="btn">BACK</button><button class="btn setup-exit-bottom" data-setup-exit data-voice="EXIT" data-voice-aliases="exit game|leave game|cancel game|quit setup|go home|back to home">EXIT</button><button id="continue" class="btn primary">CONTINUE</button>`);
  document.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{state.questionSeconds=Number(b.dataset.sec);time()});document.querySelectorAll("[data-min]").forEach(b=>b.onclick=()=>{state.quick=false;state.duration=Number(b.dataset.min);time()});
  document.getElementById("quick").onclick=()=>{state.quick=true;state.duration=3;time()};document.getElementById("vol").oninput=e=>setVolume(Number(e.target.value));document.getElementById("voiceOn").onclick=()=>{state.voiceOn=true;save();time()};document.getElementById("voiceOff").onclick=()=>{state.voiceOn=false;save();time()};document.getElementById("back").onclick=back;document.getElementById("continue").onclick=()=>go("ready");startVoice("time")
 }
 function ready(){
- app.innerHTML=shell("READY TO PLAY?",`<div class="card center"><div style="font-size:1.5rem;font-weight:1000">${state.players.map(p=>esc(p.name)).join(" · ")}</div><div class="subtle" style="margin-top:10px">${state.quick?"QUICK GAME":state.duration+" MIN"} · ${state.questionSeconds} SEC QUESTIONS · ${state.voiceOn?"VOICE ON":"VOICE OFF"}${state.mode==="work"&&state.industry?` · ${esc(state.industry)}`:""}${state.difficulty?` · ${state.difficulty.toUpperCase()}`:""}${state.categories?.length?` · EXTRAS: ${state.categories.map(esc).join(", ")}`:""}</div><div style="margin-top:14px;font-weight:1000;color:var(--gold)">3 STRIKES AND YOU’RE OUT.</div></div>`,`<button id="back" class="btn">BACK</button><button id="play" class="btn primary large">START GAME</button>`);
+ app.innerHTML=shell("READY TO PLAY?",`<div class="card center"><div style="font-size:1.5rem;font-weight:1000">${state.players.map(p=>esc(p.name)).join(" · ")}</div><div class="subtle" style="margin-top:10px">${state.quick?"QUICK GAME":state.duration+" MIN"} · ${state.questionSeconds} SEC QUESTIONS · ${state.voiceOn?"VOICE ON":"VOICE OFF"}${state.mode==="work"&&state.industry?` · ${esc(state.industry)}`:""}${state.difficulty?` · ${state.difficulty.toUpperCase()}`:""}${state.categories?.length?` · EXTRAS: ${state.categories.map(esc).join(", ")}`:""}</div><div style="margin-top:14px;font-weight:1000;color:var(--gold)">3 STRIKES AND YOU’RE OUT.</div></div>`,`<button id="back" class="btn">BACK</button><button class="btn setup-exit-bottom" data-setup-exit data-voice="EXIT" data-voice-aliases="exit game|leave game|cancel game|quit setup|go home|back to home">EXIT</button><button id="play" class="btn primary large">START GAME</button>`);
  document.getElementById("back").onclick=back;document.getElementById("play").onclick=startGame;startVoice("ready")
 }
 function selectedPlayers(){return state.mode==="solo"?state.players.slice(0,1):state.players}
@@ -983,7 +990,7 @@ function render(){clearRuntime();({home,mode,industry,difficulty,fun,players,tim
 function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
-document.documentElement.dataset.build="6.0.4";
+document.documentElement.dataset.build="6.0.5";
 try{viewport();home()}
 catch(err){
  console.error("LOS startup error",err);

@@ -1,4 +1,1 @@
-LAST ONE STANDING — BUILD 6.0.4
-Keep .git. Replace app files with everything in this ZIP.
-GitHub Desktop summary: 6.0.4 Tap-Speed Voice + Setup Exit
-Push origin and verify BUILD 6.0.4 in Safari.
+GitHub Desktop summary: 6.0.5 Work Continue + Bottom Exit
