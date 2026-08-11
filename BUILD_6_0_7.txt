@@ -1,0 +1,11 @@
+6.0.7 Core Setup Reliability
+- FIXED: playersVoiceController was referenced but missing in 6.0.6.
+- WHO'S IN supports Add Player Joe, Add Joe, Add Another Player, Player Named Joe, Put Joe In, delete/remove, rename/change, player-number assignment, and spelling mode.
+- Voice category selection is additive and explicit; plain category names never toggle earlier selections off.
+- Food & Drink aliases: Food, Food and Drink, Food Drink.
+- Transportation aliases: Transportation, Transport.
+- Removed white category-screen title; large yellow MIX IN EXTRA CATEGORIES is the only main heading.
+- READY TO PLAY simplified to player names + difficulty + seconds + voice status + 3 strikes rule.
+- Pause Quit gets a direct high-priority overlay command.
+- Stacked full-screen Game Settings retained.
+- Question-answer voice path unchanged.

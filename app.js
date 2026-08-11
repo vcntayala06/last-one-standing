@@ -1,7 +1,7 @@
 
 (()=>{
 "use strict";
-const BUILD="Clean Foundation 6.0.6 Persistent Voice + Setup Repairs";
+const BUILD="Clean Foundation 6.0.7 Core Setup Reliability";
 const app=document.getElementById("app");
 const STORAGE={names:"los5_names",voice:"los5_voice",volume:"los5_volume",activeGame:"los5_active_game"};
 const DIFFICULTIES=[
@@ -246,19 +246,18 @@ function centralNavIntent(h){
  }
  return false
 }
+function resolveExtraCategory(h){
+ const n=norm(h);
+ const aliases={
+  "food":"Food & Drink","food and drink":"Food & Drink","food drink":"Food & Drink",
+  "transport":"Transportation","transportation":"Transportation"
+ };
+ if(aliases[n]&&EXTRA_CATEGORIES.includes(aliases[n]))return aliases[n];
+ return EXTRA_CATEGORIES.find(x=>norm(x)===n||phraseMatch(h,x))||null
+}
 function centralSetupIntent(h){
  const n=norm(h);
  if(state.screen==="fun"){
-  let rm=h.match(/^(?:remove|unselect|deselect)\s+(.+)$/i);
-  if(rm){
-   const wanted=rm[1].trim();
-   const target=EXTRA_CATEGORIES.find(x=>norm(x)===norm(wanted)||phraseMatch(wanted,x));
-   if(target){
-    if(state.funCats instanceof Set)state.funCats.delete(target);
-    else if(Array.isArray(state.funCats))state.funCats=state.funCats.filter(x=>x!==target);
-    return voiceOnce("remove-category:"+target,()=>fun())
-   }
-  }
   if(/^(select all|all categories|choose all|give me everything)$/.test(n)){
    return voiceOnce("select-all",()=>{state.categories=[...EXTRA_CATEGORIES];voiceFeedback("✓ ALL CATEGORIES","action");fun()})
   }
@@ -267,6 +266,22 @@ function centralSetupIntent(h){
   }
   if(/^(continue|next|done|go ahead|go on|move on|lets go|let s go|im done|i m done|thats it|that s it|start|begin|im ready|i m ready)$/.test(n)){
    return voiceOnce("fun-continue",()=>funContinue())
+  }
+
+  let rm=h.match(/^(?:remove|unselect|deselect)\s+(.+)$/i);
+  if(rm){
+   const target=resolveExtraCategory(rm[1]);
+   if(target){
+    state.categories=(state.categories||[]).filter(x=>x!==target);
+    return voiceOnce("remove-category:"+target,()=>{voiceFeedback("✓ REMOVE "+target,"action");fun()})
+   }
+  }
+
+  const stripped=h.replace(/^(?:add|select|choose)\s+/i,"").trim();
+  const target=resolveExtraCategory(stripped);
+  if(target){
+   if(!(state.categories||[]).includes(target))state.categories=[...(state.categories||[]),target];
+   return voiceOnce("add-category:"+target,()=>{voiceFeedback("✓ "+target,"action");fun()})
   }
  }
  if(state.screen==="difficulty"){
@@ -292,8 +307,83 @@ function centralExitIntent(h){
  }
  return false
 }
+function playersVoiceController(h){
+ const raw=(h||"").trim(),n=norm(raw);
+ if(!n)return false;
+ if(/^(continue|next|done|go ahead|go on|move on|lets go|let s go|im ready|i m ready|ready|start|begin|back|go back|exit|exit game|go home)$/.test(n))return false;
+ if(/^(player|players|player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+))$/.test(n))return false;
+
+ let m;
+
+ // Delete/remove
+ m=raw.match(/^(?:please\s+)?(?:delete|remove|get rid of|take out)\s+(?:player\s+)?(.+?)(?:\s+please)?$/i);
+ if(m){
+  const token=m[1].trim(),num=spokenNumber(token);
+  if(num){
+   const i=num-1;
+   if(i>=0&&i<state.players.length){state.players.splice(i,1);voiceFeedback("✓ PLAYER REMOVED","action");players();return true}
+  }
+  const key=nameKey(token);
+  let i=state.players.findIndex(p=>nameKey(p.name)===key);
+  if(i<0)i=state.players.findIndex(p=>{const pk=nameKey(p.name);return pk&&key&&(pk.startsWith(key)||key.startsWith(pk))});
+  if(i>=0){state.players.splice(i,1);voiceFeedback("✓ PLAYER REMOVED","action");players();return true}
+  return false
+ }
+
+ // Rename/change by player number
+ m=raw.match(/^(?:change|rename|make|set)\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:(?:to|as|is)\s+)?(.+)$/i);
+ if(m){
+  const i=spokenNumber(m[1])-1,name=m[2].trim();
+  if(i>=0&&name){
+   while(state.players.length<=i)state.players.push({id:uid(),name:""});
+   state.players[i].name=name;voiceFeedback("✓ "+name.toUpperCase(),"action");players();return true
+  }
+ }
+
+ // Rename by current name
+ m=raw.match(/^(?:change|rename)\s+(.+?)\s+to\s+(.+)$/i);
+ if(m){
+  const from=nameKey(m[1]),to=m[2].trim();
+  const p=state.players.find(x=>nameKey(x.name)===from);
+  if(p&&to){p.name=to;voiceFeedback("✓ "+to.toUpperCase(),"action");players();return true}
+ }
+
+ // Assign by number
+ m=raw.match(/^player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:(?:is|to|should be|can be|will be)\s+)?(.+)$/i);
+ if(m){
+  const i=spokenNumber(m[1])-1,name=m[2].trim();
+  if(i>=0&&name){
+   while(state.players.length<=i)state.players.push({id:uid(),name:""});
+   state.players[i].name=name;voiceFeedback("✓ "+name.toUpperCase(),"action");players();return true
+  }
+ }
+
+ // Spell
+ m=n.match(/^spell\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)$/);
+ if(m){
+  const p=state.players[spokenNumber(m[1])-1];
+  if(p){renamePending={id:p.id,spell:true};voiceFeedback("SPELL THE NAME","heard");return true}
+ }
+
+ // Add. Accept several natural variants.
+ m=raw.match(/^(?:please\s+)?add\s+(?:a\s+|another\s+)?player(?:\s+(?:named|called))?(?:\s+(.+))?$/i);
+ if(!m)m=raw.match(/^add\s+(.+)$/i);
+ if(!m)m=raw.match(/^player\s+(?:named|called)\s+(.+)$/i);
+ if(!m)m=raw.match(/^put\s+(.+?)\s+in$/i);
+ if(m){
+  let name=(m[1]||"").trim();
+  if(/^player$/i.test(name))name="";
+  state.players.push({id:uid(),name});
+  voiceFeedback(name?`✓ ${name.toUpperCase()}`:"✓ PLAYER ADDED","action");
+  players();return true
+ }
+ return false
+}
 function centralGameIntent(h){
  const n=norm(h);if(!state.game)return false;
+ if((state.screen==="paused"||document.getElementById("pauseOverlay"))&&/^(quit|quit game|quit the game|end game|end the game|stop game|stop the game)$/.test(n)){
+  return voiceOnce("pause-quit",()=>{voiceFeedback("✓ QUIT","action");confirmEnd()})
+ }
 
  if(/^(exit game|exit the game|leave game|leave the game|save and leave|save game and leave|go home and save)$/.test(n)){
   return voiceOnce("exit-game",()=>{voiceFeedback("✓ EXIT GAME","action");leaveGame()})
@@ -728,7 +818,7 @@ function go(s){
 }
 function back(){const m={mode:"home",industry:"mode",difficulty:state.mode==="work"?"industry":"mode",fun:"difficulty",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
 function home(){
- state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.0.6</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
+ state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.0.7</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
  document.getElementById("start").onclick=chooseGame;const rs=document.getElementById("resumeSaved");if(rs)rs.onclick=resumeSavedGame;startMusic();startVoice("home")
 }
 function chooseGame(){ensureAudio();go("mode")}
@@ -771,9 +861,9 @@ function funContinue(){
 }
 function fun(){
  const selected=new Set(state.categories||[]);
- const cards=EXTRA_CATEGORIES.map(name=>`<button class="btn category-choice ${selected.has(name)?"selected":""}" data-cat="${esc(name)}">${esc(name)}</button>`).join("");
- app.innerHTML=shell("MIX IN EXTRA CATEGORIES",
-   `<div class="category-intro">MIX IN EXTRA CATEGORIES</div>
+ const cards=EXTRA_CATEGORIES.map(name=>`<button class="btn category-choice ${selected.has(name)?"selected":""}" data-cat="${esc(name)}" data-voice="${esc(name)}">${esc(name)}</button>`).join("");
+ app.innerHTML=shell("",
+   `<div class="extra-category-title">MIX IN EXTRA CATEGORIES</div>
     <div class="category-master"><button id="selectAllCats" class="btn primary" data-voice="${selected.size===EXTRA_CATEGORIES.length?"CLEAR ALL":"SELECT ALL"}" data-voice-aliases="${selected.size===EXTRA_CATEGORIES.length?"clear categories|remove all categories":"all categories|choose all|give me everything"}">${selected.size===EXTRA_CATEGORIES.length?"CLEAR ALL":"SELECT ALL"}</button></div>
     <div class="category-grid">${cards}</div>
     <div class="subtle center">Pick as many as you want, or say “Skip.” You can also say “Add Music,” “Add Sports,” or “Remove Geography.”</div>`,
@@ -804,7 +894,7 @@ function time(){
  document.getElementById("quick").onclick=()=>{state.quick=true;state.duration=3;time()};document.getElementById("vol").oninput=e=>setVolume(Number(e.target.value));document.getElementById("voiceOn").onclick=()=>{state.voiceOn=true;save();time()};document.getElementById("voiceOff").onclick=()=>{state.voiceOn=false;save();time()};document.getElementById("back").onclick=back;document.getElementById("continue").onclick=()=>go("ready");startVoice("time")
 }
 function ready(){
- app.innerHTML=shell("READY TO PLAY?",`<div class="card center"><div style="font-size:1.5rem;font-weight:1000">${state.players.map(p=>esc(p.name)).join(" · ")}</div><div class="subtle" style="margin-top:10px">${state.quick?"QUICK GAME":state.duration+" MIN"} · ${state.questionSeconds} SEC QUESTIONS · ${state.voiceOn?"VOICE ON":"VOICE OFF"}${state.mode==="work"&&state.industry?` · ${esc(state.industry)}`:""}${state.difficulty?` · ${state.difficulty.toUpperCase()}`:""}${state.categories?.length?` · EXTRAS: ${state.categories.map(esc).join(", ")}`:""}</div><div style="margin-top:14px;font-weight:1000;color:var(--gold)">3 STRIKES AND YOU’RE OUT.</div></div>`,`<button id="back" class="btn">BACK</button><button class="btn setup-exit-bottom" data-setup-exit data-voice="EXIT" data-voice-aliases="exit game|leave game|cancel game|quit setup|go home|back to home">EXIT</button><button id="play" class="btn primary large">START GAME</button>`);
+ app.innerHTML=shell("READY TO PLAY?",`<div class="card center ready-card"><div class="ready-player-names">${state.players.map(p=>esc(p.name)).join(" · ")}</div><div class="compact-ready">${state.difficulty.toUpperCase()} · ${state.questionSeconds} SEC · ${state.voiceOn?"VOICE ON":"VOICE OFF"}</div><div class="ready-rule">3 STRIKES AND YOU’RE OUT.</div></div>`,`<button id="back" class="btn">BACK</button><button class="btn setup-exit-bottom" data-setup-exit data-voice="EXIT" data-voice-aliases="exit game|leave game|cancel game|quit setup|go home|back to home">EXIT</button><button id="play" class="btn primary large">START GAME</button>`);
  document.getElementById("back").onclick=back;document.getElementById("play").onclick=startGame;startVoice("ready")
 }
 function selectedPlayers(){return state.mode==="solo"?state.players.slice(0,1):state.players}
@@ -998,7 +1088,7 @@ function render(){clearRuntime();({home,mode,industry,difficulty,fun,players,tim
 function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
-document.documentElement.dataset.build="6.0.6";
+document.documentElement.dataset.build="6.0.7";
 try{viewport();home()}
 catch(err){
  console.error("LOS startup error",err);
