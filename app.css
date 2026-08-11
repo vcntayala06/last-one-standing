@@ -367,3 +367,63 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
  .game-time-card .btn{padding:8px 7px!important;font-size:.72rem!important}
  .footer{min-height:44px!important}
 }
+
+/* =========================================================
+   6.0.3 FOCUSED SETUP RELIABILITY
+   ========================================================= */
+
+/* Game Time: undo the over-compression from 6.0.2.
+   Keep a 2x2 portrait grid but restore comfortable control sizing. */
+.game-time-grid{
+  width:min(820px,100%)!important;
+  gap:12px!important;
+}
+.game-time-card{
+  padding:16px 14px!important;
+  border-radius:20px!important;
+}
+.game-time-label{
+  font-size:.9rem!important;
+  letter-spacing:.055em!important;
+}
+.game-time-card .actions{
+  gap:8px!important;
+  margin-top:10px!important;
+}
+.game-time-card .btn{
+  padding:12px 13px!important;
+  border-radius:13px!important;
+  font-size:.9rem!important;
+  min-height:44px!important;
+}
+.game-time-card .volume-wrap{
+  margin-top:10px!important;
+  gap:8px!important;
+}
+.game-time-card .volume-wrap input{
+  width:min(150px,72%)!important;
+}
+
+@media (orientation:portrait){
+  .content:has(.game-time-grid){
+    justify-content:flex-start!important;
+    gap:8px!important;
+    overflow:hidden!important;
+  }
+  .game-time-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:10px!important;
+    align-content:start!important;
+  }
+  .game-time-card{
+    padding:14px 11px!important;
+  }
+  .game-time-card .btn{
+    padding:10px 9px!important;
+    font-size:.84rem!important;
+    min-height:42px!important;
+  }
+  .footer{min-height:48px!important}
+}
+
+/* Transportation category uses normal category-choice styling automatically. */

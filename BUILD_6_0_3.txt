@@ -1,0 +1,36 @@
+LAST ONE STANDING — 6.0.3 FOCUSED SETUP RELIABILITY
+
+Focused changes only:
+
+WHO'S IN
+- Dedicated player voice controller.
+- Final transcripts only for player mutations.
+- Supported:
+  Add Player Joe
+  Add Another Player
+  Delete Player Three
+  Remove Maria
+  Change Player Two to Todd
+  Make Player Two Todd
+  Rename Maria to Marie
+  Player One Is Joe
+  Player One Joe
+  Spell Player Two
+- Saying Player / Player Two alone does nothing.
+- Continue and Back remain on the fast global navigation path.
+
+SETUP EXIT
+- Highest-priority setup command.
+- Exit Game / Leave Game / Quit Setup / Quit Game / Cancel Game / Cancel Setup / Go Home / Back to Home / Return Home
+  immediately return to Home before gameplay begins.
+
+GAME TIME
+- Restored comfortable sizing.
+- Still uses portrait 2x2 layout so Voice Recognition, Back, and Continue remain visible.
+
+CATEGORIES
+- Added TRANSPORTATION to Add More Categories.
+- Transportation is selectable by tap and voice through the existing category voice system.
+
+No question-answer voice changes.
+No scoring, timer, Showdown, or champion changes.

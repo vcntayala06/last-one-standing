@@ -1,8 +1,8 @@
-LAST ONE STANDING — BUILD 6.0.2
+LAST ONE STANDING — BUILD 6.0.3
 
 1. Keep the repository's hidden .git folder.
 2. Replace current app files with ALL files from this ZIP.
-3. GitHub Desktop summary: 6.0.2 Setup Voice Speed + Player Reliability
+3. GitHub Desktop summary: 6.0.3 Focused Setup Reliability
 4. Commit and Push origin.
 5. Wait for GitHub Pages.
-6. Open Safari and verify BUILD 6.0.2 before testing.
+6. Open Safari and verify BUILD 6.0.3 before testing.

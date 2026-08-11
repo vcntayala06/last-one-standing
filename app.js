@@ -1,7 +1,7 @@
 
 (()=>{
 "use strict";
-const BUILD="Clean Foundation 6.0.2 Setup Voice Speed + Player Reliability";
+const BUILD="Clean Foundation 6.0.3 Focused Setup Reliability";
 const app=document.getElementById("app");
 const STORAGE={names:"los5_names",voice:"los5_voice",volume:"los5_volume",activeGame:"los5_active_game"};
 const DIFFICULTIES=[
@@ -18,7 +18,7 @@ const WORK_INDUSTRIES=[
 ];
 const EXTRA_CATEGORIES=[
  "Music","Movies & TV","Sports","Food & Drink","History",
- "Science & Nature","Geography","Pop Culture","90s & 2000s","Word Play"
+ "Science & Nature","Geography","Pop Culture","90s & 2000s","Transportation","Word Play"
 ];
 const QUESTIONS=[
  {q:"What gas do humans need to breathe to survive?",cat:"Science & Nature",a:"oxygen",alts:["oxygen"]},
@@ -269,13 +269,88 @@ function centralExitIntent(h){
  // Setup: no active game exists yet, so exit simply returns Home.
  const setupScreens=new Set(["mode","industry","difficulty","fun","players","time","ready"]);
  if(setupScreens.has(state.screen) &&
-    /^(exit game|exit the game|leave game|leave the game|quit setup|cancel game|cancel setup|go home|back to home)$/.test(n)){
+    /^(exit game|exit the game|leave game|leave the game|quit setup|quit game|cancel game|cancel setup|go home|back to home|return home)$/.test(n)){
   return voiceOnce("exit-setup",()=>{
    voiceFeedback("✓ EXIT","action");
    state.game=null;
    home()
   })
  }
+ return false
+}
+function playersVoiceController(h){
+ const n=norm(h);if(!n)return false;
+
+ // Navigation is NOT handled here. Continue/Back remain on the fast global path.
+ if(/^(continue|next|done|go ahead|go on|move on|lets go|let s go|im ready|i m ready|ready|start|begin|back|go back)$/.test(n))return false;
+
+ // Bare "player" / "player two" should never mutate the roster.
+ if(/^(player|players|player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+))$/.test(n))return false;
+
+ // DELETE / REMOVE
+ let m=h.match(/^(?:please\s+)?(?:delete|remove|get rid of|take out)\s+(?:player\s+)?(.+?)(?:\s+please)?$/i);
+ if(m){
+   const raw=m[1].trim(), num=spokenNumber(raw);
+   if(num){
+     const i=num-1;
+     if(i>=0&&i<state.players.length){
+       state.players.splice(i,1);players();return true
+     }
+   }
+   const target=nameKey(raw);
+   let i=state.players.findIndex(p=>nameKey(p.name)===target);
+   if(i<0)i=state.players.findIndex(p=>{
+     const k=nameKey(p.name);
+     return k&&target&&(k.startsWith(target)||target.startsWith(k))
+   });
+   if(i>=0){state.players.splice(i,1);players();return true}
+   return false
+ }
+
+ // CHANGE / RENAME with player number
+ m=h.match(/^(?:change|rename|make|set)\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:to|as|is)?\s*(.+)$/i);
+ if(m){
+   const i=spokenNumber(m[1])-1;
+   const name=(m[2]||"").trim();
+   if(i>=0&&name){
+     while(state.players.length<=i)state.players.push({id:uid(),name:""});
+     state.players[i].name=name;players();return true
+   }
+ }
+
+ // CHANGE / RENAME by current name
+ m=h.match(/^(?:change|rename)\s+(.+?)\s+to\s+(.+)$/i);
+ if(m){
+   const from=nameKey(m[1]), to=m[2].trim();
+   const p=state.players.find(x=>nameKey(x.name)===from);
+   if(p&&to){p.name=to;players();return true}
+ }
+
+ // ASSIGN: "Player one is Joe" / "Player one Joe"
+ m=h.match(/^player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:(?:is|to|should be|can be|will be)\s+)?(.+)$/i);
+ if(m){
+   const i=spokenNumber(m[1])-1, name=m[2].trim();
+   if(i>=0&&name){
+     while(state.players.length<=i)state.players.push({id:uid(),name:""});
+     state.players[i].name=name;players();return true
+   }
+ }
+
+ // SPELL mode
+ m=n.match(/^spell\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)$/);
+ if(m){
+   const p=state.players[spokenNumber(m[1])-1];
+   if(p){renamePending={id:p.id,spell:true};return true}
+ }
+
+ // ADD is deliberately last and must start with Add.
+ m=h.match(/^(?:please\s+)?add\s+(?:a\s+|another\s+)?player(?:\s+(?:named|called))?(?:\s+(.+))?$/i);
+ if(m){
+   const name=(m[1]||"").trim();
+   state.players.push({id:uid(),name});
+   players();return true
+ }
+
  return false
 }
 function centralGameIntent(h){
@@ -327,7 +402,7 @@ function routeVoiceCentral(h,{isFinal=false,confidence=0}={}){
  if(centralNavIntent(h))return true;
 
  // Player edits contain names/data: wait for the complete final phrase.
- if(state.screen==="players" && isFinal && handlePlayerVoice(h))return true;
+ if(state.screen==="players" && isFinal && playersVoiceController(h))return true;
 
  // Keep the working question answer path unchanged in behavior.
  if(centralQuestionIntent(h,isFinal,confidence))return true;
@@ -714,7 +789,7 @@ function go(s){
 }
 function back(){const m={mode:"home",industry:"mode",difficulty:state.mode==="work"?"industry":"mode",fun:"difficulty",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
 function home(){
- state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.0.2</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
+ state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.0.3</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
  document.getElementById("start").onclick=chooseGame;const rs=document.getElementById("resumeSaved");if(rs)rs.onclick=resumeSavedGame;startMusic();startVoice("home")
 }
 function chooseGame(){ensureAudio();go("mode")}
@@ -980,7 +1055,7 @@ function render(){clearRuntime();({home,mode,industry,difficulty,fun,players,tim
 function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
-document.documentElement.dataset.build="6.0.2";
+document.documentElement.dataset.build="6.0.3";
 try{viewport();home()}
 catch(err){
  console.error("LOS startup error",err);
