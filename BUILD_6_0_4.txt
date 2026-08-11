@@ -1,0 +1,12 @@
+LAST ONE STANDING — BUILD 6.0.4 TAP-SPEED VOICE + SETUP EXIT
+
+- Setup voice exact targets are cached for faster matching.
+- Safe setup commands can act on interim speech immediately.
+- Continue/Next/Go Ahead/Let's Go/I'm Ready/Start/Begin are fast intents.
+- Every setup screen has a visible EXIT button.
+- Exit/Exit Game/Leave Game/Cancel Game/Quit Setup/Go Home/Back to Home work during setup.
+- Pause END GAME renamed QUIT.
+- Quit/Quit Game/End Game/Stop Game open confirmation.
+- GAME TIME renamed GAME SETTINGS.
+- GAME SETTINGS uses more portrait screen space with larger controls.
+- Question-answer voice path remains unchanged.

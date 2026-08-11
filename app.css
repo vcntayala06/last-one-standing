@@ -427,3 +427,23 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
 }
 
 /* Transportation category uses normal category-choice styling automatically. */
+
+.setup-exit{
+ position:fixed;top:max(10px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));z-index:1100;
+ min-width:78px;min-height:40px;padding:8px 13px;border-radius:999px;border:1px solid rgba(255,255,255,.24);
+ background:rgba(0,0,0,.58);color:#fff;font-size:.78rem;font-weight:1000;letter-spacing:.08em;backdrop-filter:blur(8px)
+}
+.game-time-grid{width:min(900px,98%)!important;gap:14px!important}
+.game-time-card{padding:20px 16px!important;min-height:150px!important;border-radius:22px!important;display:flex!important;flex-direction:column!important;justify-content:center!important}
+.game-time-label{font-size:1rem!important;letter-spacing:.06em!important;margin-bottom:3px!important}
+.game-time-card .actions{gap:9px!important;margin-top:12px!important}
+.game-time-card .btn{padding:13px 14px!important;min-height:48px!important;font-size:.96rem!important;border-radius:14px!important}
+.game-time-card .volume-wrap{margin-top:12px!important}
+.game-time-card .volume-wrap input{width:min(180px,78%)!important}
+@media (orientation:portrait){
+ .content:has(.game-time-grid){justify-content:center!important;overflow:hidden!important;padding-top:4px!important;padding-bottom:4px!important}
+ .game-time-grid{width:98%!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}
+ .game-time-card{min-height:144px!important;padding:17px 12px!important}
+ .game-time-card .btn{min-height:46px!important;padding:11px 10px!important;font-size:.9rem!important}
+ .footer{min-height:52px!important}
+}

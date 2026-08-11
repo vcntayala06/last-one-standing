@@ -1,7 +1,7 @@
 
 (()=>{
 "use strict";
-const BUILD="Clean Foundation 6.0.3 Focused Setup Reliability";
+const BUILD="Clean Foundation 6.0.4 Tap-Speed Voice + Setup Exit";
 const app=document.getElementById("app");
 const STORAGE={names:"los5_names",voice:"los5_voice",volume:"los5_volume",activeGame:"los5_active_game"};
 const DIFFICULTIES=[
@@ -78,7 +78,10 @@ function sting(){tone(360,.09,.06,"triangle");tone(520,.12,.07,"triangle",.1);to
 function startMusic(){stopMusic();ensureAudio();let step=0;musicTimer=setInterval(()=>{if(["question","handoff","result","paused","transition"].includes(state.screen))return;const seq=[220,277,330,440];tone(seq[step++%seq.length],.12,.018,"triangle")},700)}
 function stopMusic(){clearInterval(musicTimer);musicTimer=null}
 function clearRuntime(){clearInterval(questionTimer);questionTimer=null;clearTimeout(flowTimer);flowTimer=null;stopVoice()}
-function shell(title,content,footer=""){return `<section class="screen"><div class="shell"><header class="topbar"><div></div><div class="topbar-title">${title||""}</div><div></div></header><div class="content">${content}</div><footer class="footer">${footer}</footer></div></section>${state.voiceOn?`<div id="voiceDiagnostic" class="voice-diagnostic">MIC LISTENING</div>`:""}`}
+function isSetupScreen(){return ["mode","industry","difficulty","fun","players","time","ready"].includes(state.screen)}
+function exitSetup(){if(state.game)return;stopVoice();state.game=null;state.screen="home";home()}
+function bindSetupExit(){const b=document.getElementById("setupExit");if(b)b.onclick=exitSetup}
+function shell(title,content,footer=""){return `<section class="screen"><div class="shell"><header class="topbar"><div></div><div class="topbar-title">${title||""}</div><div></div></header><div class="content">${content}</div><footer class="footer">${footer}</footer></div></section>${isSetupScreen()?`<button id="setupExit" class="setup-exit" data-voice="EXIT" data-voice-aliases="exit game|leave game|cancel game|quit setup|go home|back to home">EXIT</button>`:""}${state.voiceOn?`<div id="voiceDiagnostic" class="voice-diagnostic">MIC LISTENING</div>`:""}`}
 function remembered(){try{return JSON.parse(localStorage.getItem(STORAGE.names)||"[]")}catch{return[]}}
 function rememberNames(){const ns=state.players.map(p=>p.name.trim()).filter(Boolean);localStorage.setItem(STORAGE.names,JSON.stringify([...new Set([...remembered(),...ns])].slice(-50)))}
 function ensurePlayers(){
@@ -199,6 +202,16 @@ function voiceOnce(key,fn,windowMs=600){
  if(voiceCore.lastKey===k&&now-voiceCore.lastAt<windowMs)return true;
  voiceCore.lastKey=k;voiceCore.lastAt=now;fn();return true
 }
+let voiceTargetCache={screen:"",items:[]};
+function refreshVoiceTargetCache(){
+ voiceTargetCache={screen:state.screen,items:visibleVoiceTargets().map(t=>({el:t.el,label:t.label,phrases:t.phrases.map(commandKey).filter(Boolean)}))}
+}
+function cachedExactVoiceTarget(h){
+ const n=commandKey(h);if(!n)return false;
+ if(voiceTargetCache.screen!==state.screen||!voiceTargetCache.items.length)refreshVoiceTargetCache();
+ const t=voiceTargetCache.items.find(x=>x.phrases.includes(n));if(!t)return false;
+ return voiceOnce("cached:"+t.label,()=>{voiceFeedback("✓ "+t.label,"action");t.el.click()})
+}
 function exactVisibleTarget(h){
  const n=commandKey(h);if(!n)return false;
  for(const t of visibleVoiceTargets()){
@@ -255,102 +268,15 @@ function centralSetupIntent(h){
 }
 function centralExitIntent(h){
  const n=norm(h);
-
- // Active game: preserve Resume for Exit/Leave; confirm destructive End/Quit/Stop.
- if(state.game){
-  if(/^(exit game|exit the game|leave game|leave the game|save and leave|save game and leave|go home and save)$/.test(n)){
-   return voiceOnce("exit-active",()=>{voiceFeedback("✓ EXIT GAME","action");leaveGame()})
-  }
-  if(/^(end game|end the game|quit game|quit the game|stop game|stop the game)$/.test(n)){
-   return voiceOnce("end-active",()=>{voiceFeedback("✓ END GAME","action");confirmEnd()})
-  }
+ if(isSetupScreen()&&/^(exit|exit game|exit the game|leave|leave game|leave the game|cancel|cancel game|cancel setup|quit setup|go home|back to home|return home)$/.test(n)){
+  return voiceOnce("exit-setup",()=>exitSetup())
  }
-
- // Setup: no active game exists yet, so exit simply returns Home.
- const setupScreens=new Set(["mode","industry","difficulty","fun","players","time","ready"]);
- if(setupScreens.has(state.screen) &&
-    /^(exit game|exit the game|leave game|leave the game|quit setup|quit game|cancel game|cancel setup|go home|back to home|return home)$/.test(n)){
-  return voiceOnce("exit-setup",()=>{
-   voiceFeedback("✓ EXIT","action");
-   state.game=null;
-   home()
-  })
+ if(state.game&&/^(exit game|exit the game|leave game|leave the game|save and leave|save game and leave|go home and save)$/.test(n)){
+  return voiceOnce("exit-active",()=>{voiceFeedback("✓ EXIT GAME","action");leaveGame()})
  }
- return false
-}
-function playersVoiceController(h){
- const n=norm(h);if(!n)return false;
-
- // Navigation is NOT handled here. Continue/Back remain on the fast global path.
- if(/^(continue|next|done|go ahead|go on|move on|lets go|let s go|im ready|i m ready|ready|start|begin|back|go back)$/.test(n))return false;
-
- // Bare "player" / "player two" should never mutate the roster.
- if(/^(player|players|player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+))$/.test(n))return false;
-
- // DELETE / REMOVE
- let m=h.match(/^(?:please\s+)?(?:delete|remove|get rid of|take out)\s+(?:player\s+)?(.+?)(?:\s+please)?$/i);
- if(m){
-   const raw=m[1].trim(), num=spokenNumber(raw);
-   if(num){
-     const i=num-1;
-     if(i>=0&&i<state.players.length){
-       state.players.splice(i,1);players();return true
-     }
-   }
-   const target=nameKey(raw);
-   let i=state.players.findIndex(p=>nameKey(p.name)===target);
-   if(i<0)i=state.players.findIndex(p=>{
-     const k=nameKey(p.name);
-     return k&&target&&(k.startsWith(target)||target.startsWith(k))
-   });
-   if(i>=0){state.players.splice(i,1);players();return true}
-   return false
+ if(state.game&&/^(quit|quit game|quit the game|end game|end the game|stop game|stop the game)$/.test(n)){
+  return voiceOnce("quit-active",()=>{voiceFeedback("✓ QUIT","action");confirmEnd()})
  }
-
- // CHANGE / RENAME with player number
- m=h.match(/^(?:change|rename|make|set)\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:to|as|is)?\s*(.+)$/i);
- if(m){
-   const i=spokenNumber(m[1])-1;
-   const name=(m[2]||"").trim();
-   if(i>=0&&name){
-     while(state.players.length<=i)state.players.push({id:uid(),name:""});
-     state.players[i].name=name;players();return true
-   }
- }
-
- // CHANGE / RENAME by current name
- m=h.match(/^(?:change|rename)\s+(.+?)\s+to\s+(.+)$/i);
- if(m){
-   const from=nameKey(m[1]), to=m[2].trim();
-   const p=state.players.find(x=>nameKey(x.name)===from);
-   if(p&&to){p.name=to;players();return true}
- }
-
- // ASSIGN: "Player one is Joe" / "Player one Joe"
- m=h.match(/^player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:(?:is|to|should be|can be|will be)\s+)?(.+)$/i);
- if(m){
-   const i=spokenNumber(m[1])-1, name=m[2].trim();
-   if(i>=0&&name){
-     while(state.players.length<=i)state.players.push({id:uid(),name:""});
-     state.players[i].name=name;players();return true
-   }
- }
-
- // SPELL mode
- m=n.match(/^spell\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)$/);
- if(m){
-   const p=state.players[spokenNumber(m[1])-1];
-   if(p){renamePending={id:p.id,spell:true};return true}
- }
-
- // ADD is deliberately last and must start with Add.
- m=h.match(/^(?:please\s+)?add\s+(?:a\s+|another\s+)?player(?:\s+(?:named|called))?(?:\s+(.+))?$/i);
- if(m){
-   const name=(m[1]||"").trim();
-   state.players.push({id:uid(),name});
-   players();return true
- }
-
  return false
 }
 function centralGameIntent(h){
@@ -408,6 +334,7 @@ function routeVoiceCentral(h,{isFinal=false,confidence=0}={}){
  if(centralQuestionIntent(h,isFinal,confidence))return true;
 
  // Exact visible controls can fire quickly everywhere except player Add/Edit controls on interim speech.
+ if((state.screen!=="players" || isFinal) && cachedExactVoiceTarget(h))return true;
  if((state.screen!=="players" || isFinal) && exactVisibleTarget(h))return true;
 
  // Fuzzy control matching remains final-only.
@@ -452,10 +379,11 @@ function startVoice(ctx){
      const confidence=Number.isFinite(alt.confidence)?alt.confidence:0;
 
      if(!res.isFinal){
-      // Setup choices/navigation should respond from interim speech at normal speaking volume.
-      // Player name edits still wait for final recognition inside routeVoiceCentral().
+      const n=norm(text);
+      const fastControl=/^(continue|next|done|go ahead|go on|move on|lets go|let s go|im ready|i m ready|start|begin|back|go back|exit|exit game|leave game|cancel game|quit setup|go home|pause|resume|quit|quit game|end game|stop game|pass|skip|select all|clear all|kids|easy|medium|hard|savage)$/;
       const setupFast=["home","mode","industry","difficulty","fun","players","time","ready","paused"].includes(state.screen);
-      if(setupFast || state.screen==="question"){
+      if(state.screen!=="players"&&cachedExactVoiceTarget(text)){handled=true;break}
+      if(fastControl.test(n)||setupFast||state.screen==="question"){
        if(routeVoiceCentral(text,{isFinal:false,confidence})){handled=true;break}
       }
      }else{
@@ -477,7 +405,7 @@ function startVoice(ctx){
    if(!state.voiceOn)return;
    clearTimeout(voiceCore.restart);
    const nextCtx=voiceContext||state.screen;
-   voiceCore.restart=setTimeout(()=>startVoice(nextCtx),35)
+   voiceCore.restart=setTimeout(()=>startVoice(nextCtx),20)
   };
 
   r.start()
@@ -486,7 +414,7 @@ function startVoice(ctx){
   clearTimeout(voiceCore.restart);
   voiceCore.restart=setTimeout(()=>{
    if(state.voiceOn)startVoice(voiceContext||state.screen)
-  },80)
+  },55)
  }
 }
 function ensureQuestionVoice(){
@@ -789,7 +717,7 @@ function go(s){
 }
 function back(){const m={mode:"home",industry:"mode",difficulty:state.mode==="work"?"industry":"mode",fun:"difficulty",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
 function home(){
- state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.0.3</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
+ state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.0.4</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
  document.getElementById("start").onclick=chooseGame;const rs=document.getElementById("resumeSaved");if(rs)rs.onclick=resumeSavedGame;startMusic();startVoice("home")
 }
 function chooseGame(){ensureAudio();go("mode")}
@@ -856,7 +784,7 @@ function players(){
  document.getElementById("continue").onclick=()=>{state.players=state.players.filter(p=>(p.name||"").trim());if(state.players.length<(state.mode==="solo"?1:2)){const msg=document.getElementById("rosterError");if(msg)msg.textContent=state.mode==="solo"?"ADD A PLAYER NAME TO CONTINUE":"ADD AT LEAST TWO NAMED PLAYERS TO CONTINUE";return}rememberNames();go("time")};startVoice("players")
 }
 function time(){
- app.innerHTML=shell("GAME TIME",`<div class="grid game-time-grid"><div class="card center game-time-card"><div class="game-time-label">QUESTION TIMER</div><div class="actions" style="margin-top:10px">${[10,15,20,30].map(s=>`<button class="btn ${state.questionSeconds===s?"selected":""}" data-sec="${s}">${s} SEC</button>`).join("")}</div></div><div class="card center game-time-card"><div class="game-time-label">GAME LENGTH</div><div class="actions" style="margin-top:10px">${[5,10,15,20].map(m=>`<button class="btn ${!state.quick&&state.duration===m?"selected":""}" data-min="${m}">${m} MIN</button>`).join("")}<button class="btn ${state.quick?"selected":""}" id="quick">QUICK GAME</button></div></div><div class="card center game-time-card"><div class="game-time-label">VOLUME</div><div class="volume-wrap" style="justify-content:center;margin-top:12px"><input id="vol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="volPct">${Math.round(state.volume*100)}%</strong></div></div><div class="card center game-time-card"><div class="game-time-label">VOICE RECOGNITION</div><div class="actions" style="margin-top:10px"><button id="voiceOn" class="btn ${state.voiceOn?"selected":""}">ON</button><button id="voiceOff" class="btn ${!state.voiceOn?"selected":""}">OFF</button></div></div></div>`,`<button id="back" class="btn">BACK</button><button id="continue" class="btn primary">CONTINUE</button>`);
+ app.innerHTML=shell("GAME SETTINGS",`<div class="grid game-time-grid"><div class="card center game-time-card"><div class="game-time-label">QUESTION TIMER</div><div class="actions" style="margin-top:10px">${[10,15,20,30].map(s=>`<button class="btn ${state.questionSeconds===s?"selected":""}" data-sec="${s}">${s} SEC</button>`).join("")}</div></div><div class="card center game-time-card"><div class="game-time-label">GAME LENGTH</div><div class="actions" style="margin-top:10px">${[5,10,15,20].map(m=>`<button class="btn ${!state.quick&&state.duration===m?"selected":""}" data-min="${m}">${m} MIN</button>`).join("")}<button class="btn ${state.quick?"selected":""}" id="quick">QUICK GAME</button></div></div><div class="card center game-time-card"><div class="game-time-label">VOLUME</div><div class="volume-wrap" style="justify-content:center;margin-top:12px"><input id="vol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="volPct">${Math.round(state.volume*100)}%</strong></div></div><div class="card center game-time-card"><div class="game-time-label">VOICE RECOGNITION</div><div class="actions" style="margin-top:10px"><button id="voiceOn" class="btn ${state.voiceOn?"selected":""}">ON</button><button id="voiceOff" class="btn ${!state.voiceOn?"selected":""}">OFF</button></div></div></div>`,`<button id="back" class="btn">BACK</button><button id="continue" class="btn primary">CONTINUE</button>`);
  document.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{state.questionSeconds=Number(b.dataset.sec);time()});document.querySelectorAll("[data-min]").forEach(b=>b.onclick=()=>{state.quick=false;state.duration=Number(b.dataset.min);time()});
  document.getElementById("quick").onclick=()=>{state.quick=true;state.duration=3;time()};document.getElementById("vol").oninput=e=>setVolume(Number(e.target.value));document.getElementById("voiceOn").onclick=()=>{state.voiceOn=true;save();time()};document.getElementById("voiceOff").onclick=()=>{state.voiceOn=false;save();time()};document.getElementById("back").onclick=back;document.getElementById("continue").onclick=()=>go("ready");startVoice("time")
 }
@@ -1046,7 +974,7 @@ function confetti(){
  spawn();const id=setInterval(()=>{if(state.screen!=="complete"){clearInterval(id);return}spawn()},700)
 }
 function pauseGame(){
- if(!state.game)return;pausedFrom=state.screen;clearRuntime();state.screen="paused";const o=document.createElement("div");o.className="overlay";o.id="pauseOverlay";o.innerHTML=`<div class="pause-card card"><div class="pause-title">GAME PAUSED</div><div class="pause-volume"><span>VOLUME</span><input id="pauseVol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="pauseVolPct">${Math.round(state.volume*100)}%</strong></div><button id="resume" class="btn primary large">RESUME</button><button id="leave" class="btn">LEAVE GAME</button><button id="end" class="btn danger">END GAME</button></div>`;document.body.appendChild(o);document.getElementById("resume").onclick=resumeGame;document.getElementById("leave").onclick=leaveGame;document.getElementById("end").onclick=confirmEnd;document.getElementById("pauseVol").oninput=e=>{setVolume(Number(e.target.value));document.getElementById("pauseVolPct").textContent=Math.round(state.volume*100)+"%"};startVoice("paused")
+ if(!state.game)return;pausedFrom=state.screen;clearRuntime();state.screen="paused";const o=document.createElement("div");o.className="overlay";o.id="pauseOverlay";o.innerHTML=`<div class="pause-card card"><div class="pause-title">GAME PAUSED</div><div class="pause-volume"><span>VOLUME</span><input id="pauseVol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="pauseVolPct">${Math.round(state.volume*100)}%</strong></div><button id="resume" class="btn primary large">RESUME</button><button id="leave" class="btn">LEAVE GAME</button><button id="end" class="btn danger">QUIT</button></div>`;document.body.appendChild(o);document.getElementById("resume").onclick=resumeGame;document.getElementById("leave").onclick=leaveGame;document.getElementById("end").onclick=confirmEnd;document.getElementById("pauseVol").oninput=e=>{setVolume(Number(e.target.value));document.getElementById("pauseVolPct").textContent=Math.round(state.volume*100)+"%"};startVoice("paused")
 }
 function resumeGame(){document.getElementById("pauseOverlay")?.remove();if(pausedFrom==="question")question();else handoff()}
 function leaveGame(){document.getElementById("pauseOverlay")?.remove();saveActiveGame();state.game=null;home()}
@@ -1055,7 +983,7 @@ function render(){clearRuntime();({home,mode,industry,difficulty,fun,players,tim
 function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
-document.documentElement.dataset.build="6.0.3";
+document.documentElement.dataset.build="6.0.4";
 try{viewport();home()}
 catch(err){
  console.error("LOS startup error",err);
