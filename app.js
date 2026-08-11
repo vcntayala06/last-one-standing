@@ -1,7 +1,7 @@
 
 (()=>{
 "use strict";
-const BUILD="Clean Foundation 5.9.1 Category Continue Fix";
+const BUILD="Clean Foundation 5.9.2 Game Exit Voice Fix";
 const app=document.getElementById("app");
 const STORAGE={names:"los5_names",voice:"los5_voice",volume:"los5_volume",activeGame:"los5_active_game"};
 const DIFFICULTIES=[
@@ -149,8 +149,28 @@ function clickVoiceTarget(h){
  }
  return false
 }
+function activeGameVoiceCommand(h){
+ const n=norm(h);
+ if(!state.game)return false;
+
+ // Save-and-leave commands: game remains resumable.
+ if(/^(exit game|exit the game|leave game|leave the game|save and leave|save game and leave)$/.test(n)){
+   voiceFeedback("✓ EXIT GAME","action");
+   leaveGame();
+   return true
+ }
+
+ // Destructive commands: always require confirmation.
+ if(/^(end game|end the game|quit game|quit the game|stop game|stop the game)$/.test(n)){
+   voiceFeedback("✓ END GAME","action");
+   confirmEnd();
+   return true
+ }
+ return false
+}
 function universalVoiceCommand(h){
  const n=norm(h);
+ if(activeGameVoiceCommand(h))return true;
  if(/^(back|go back|previous|previous screen|take me back)$/.test(n)){voiceFeedback("✓ BACK","action");back();return true}
  if(/^(volume up|turn it up|louder)$/.test(n)){setVolume(state.volume+.1);voiceFeedback("✓ VOLUME UP","action");return true}
  if(/^(volume down|turn it down|quieter)$/.test(n)){setVolume(state.volume-.1);voiceFeedback("✓ VOLUME DOWN","action");return true}
@@ -182,9 +202,10 @@ function startVoice(ctx){
        const n=norm(h);
        if(n===interimHandled)continue;
 
-       const fastCommand=/^(continue|start|begin|next|go ahead|lets go|let s go|im ready|i m ready|back|go back|pause|resume|pass|skip|select all|clear all|kids|easy|medium|hard|savage)$/;
+       const fastCommand=/^(continue|start|begin|next|go ahead|lets go|let s go|im ready|i m ready|back|go back|pause|resume|pass|skip|select all|clear all|kids|easy|medium|hard|savage|end game|end the game|quit game|quit the game|stop game|stop the game|exit game|exit the game|leave game|leave the game|save and leave)$/;
        if(fastCommand.test(n)){
          interimHandled=n;
+         if(activeGameVoiceCommand(h))return;
          if(ctx==="question"){
            if(n==="skip"){state.game.lastOutcomeDetail="skip";voiceFeedback("✓ SKIP","action");finish("pass");return}
            if(n==="pass"){state.game.lastOutcomeDetail="pass";voiceFeedback("✓ PASS","action");finish("pass");return}
@@ -221,6 +242,7 @@ function startVoice(ctx){
        continue
      }
      voiceFeedback('HEARD: "'+h+'"',"heard");
+     if(activeGameVoiceCommand(h))return;
      // Screen-specific language first when it contains data such as player names.
      if(ctx==="players"&&handlePlayerVoice(h))return;
      if(ctx==="fun"){
@@ -305,6 +327,7 @@ function heard(ctx,h){
    return
  }
  if(ctx==="paused"){
+   if(activeGameVoiceCommand(h))return;
    if(c==="resume"||c==="continue"){resumeGame();return}
    if(c==="leave"){leaveGame();return}
    if(c==="end"){confirmEnd();return}
@@ -558,7 +581,7 @@ function go(s){
 }
 function back(){const m={mode:"home",industry:"mode",difficulty:state.mode==="work"?"industry":"mode",fun:"difficulty",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
 function home(){
- state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.9.1</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
+ state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 5.9.2</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
  document.getElementById("start").onclick=chooseGame;const rs=document.getElementById("resumeSaved");if(rs)rs.onclick=resumeSavedGame;startMusic();startVoice("home")
 }
 function chooseGame(){ensureAudio();go("mode")}
@@ -820,5 +843,5 @@ function render(){clearRuntime();({home,mode,industry,difficulty,fun,players,tim
 function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
-document.documentElement.dataset.build="5.9.1";viewport();home();
+document.documentElement.dataset.build="5.9.2";viewport();home();
 })();
