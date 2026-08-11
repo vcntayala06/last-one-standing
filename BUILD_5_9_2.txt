@@ -1,0 +1,31 @@
+LAST ONE STANDING — BUILD 5.9.2 GAME EXIT VOICE FIX
+
+Surgical patch only.
+
+Active-game voice commands now work from:
+- YOU'RE UP
+- Question
+- Result
+- Final Showdown
+- Pause
+
+SAVE + LEAVE (Resume stays available):
+- Exit Game
+- Exit the Game
+- Leave Game
+- Leave the Game
+- Save and Leave
+- Save Game and Leave
+
+END + CONFIRM (destructive):
+- End Game
+- End the Game
+- Quit Game
+- Quit the Game
+- Stop Game
+- Stop the Game
+
+End/Quit/Stop always opens the End Game confirmation instead of silently deleting the game.
+Exit/Leave saves the current game and returns home with RESUME GAME available.
+
+No gameplay, scoring, timer, category, player, Showdown, or layout changes.

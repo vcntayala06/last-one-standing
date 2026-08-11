@@ -1,0 +1,16 @@
+LAST ONE STANDING — 6.0.1 LOAD-SAFE VOICE-FIRST
+
+Rebuilt from the last known-loading 5.9.2 foundation.
+
+- Centralized voice intent routing.
+- Safari-friendly short recognition sessions with 75 ms restart.
+- Interim processing for safe fast commands.
+- Final transcript for player editing and uncertain answers.
+- Up to five browser recognition alternatives used when available.
+- Exact visible clickable labels are voice commands.
+- Global game commands have highest priority.
+- Add More Categories Continue is isolated from Select All / Clear All.
+- WHO'S IN player editing remains isolated from Add Player.
+- Small MIC diagnostic during testing.
+- Startup guard prevents a silent blank page.
+- No forced permanent continuous speech session.
