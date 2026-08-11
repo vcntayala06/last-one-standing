@@ -1,6 +1,0 @@
-LAST ONE STANDING — BUILD 5.9.2
-
-Keep the hidden .git folder.
-Replace current app files with ALL files from this ZIP.
-GitHub Desktop summary: Build 5.9.2 Game Exit Voice Fix
-Push origin, then verify BUILD 5.9.2 in Safari.
