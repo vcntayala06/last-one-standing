@@ -1,7 +1,7 @@
 
 (()=>{
 "use strict";
-const BUILD="Clean Foundation 6.0.1 Load-Safe Voice-First";
+const BUILD="Clean Foundation 6.0.2 Setup Voice Speed + Player Reliability";
 const app=document.getElementById("app");
 const STORAGE={names:"los5_names",voice:"los5_voice",volume:"los5_volume",activeGame:"los5_active_game"};
 const DIFFICULTIES=[
@@ -213,12 +213,21 @@ function exactVisibleTarget(h){
 function centralNavIntent(h){
  const n=norm(h);
  if(/^(continue|next|done|go ahead|go on|move on|lets go|let s go|im ready|i m ready|ready|start|begin|lets begin|let s begin)$/.test(n)){
-  return voiceOnce("continue",()=>{
-   if(state.screen==="fun"&&typeof funContinue==="function")funContinue();
-   else primaryAction()
+  return voiceOnce("continue:"+state.screen,()=>{
+   if(state.screen==="fun"&&typeof funContinue==="function"){funContinue();return}
+   if(state.screen==="players"){
+    state.players=state.players.filter(p=>(p.name||"").trim());
+    if(state.players.length<(state.mode==="solo"?1:2)){
+     players();return
+    }
+    rememberNames();go("time");return
+   }
+   primaryAction()
   })
  }
- if(/^(back|go back|previous|previous screen)$/.test(n))return voiceOnce("back",()=>back());
+ if(/^(back|go back|previous|previous screen)$/.test(n)){
+  return voiceOnce("back:"+state.screen,()=>back())
+ }
  return false
 }
 function centralSetupIntent(h){
@@ -244,19 +253,47 @@ function centralSetupIntent(h){
  }
  return false
 }
+function centralExitIntent(h){
+ const n=norm(h);
+
+ // Active game: preserve Resume for Exit/Leave; confirm destructive End/Quit/Stop.
+ if(state.game){
+  if(/^(exit game|exit the game|leave game|leave the game|save and leave|save game and leave|go home and save)$/.test(n)){
+   return voiceOnce("exit-active",()=>{voiceFeedback("✓ EXIT GAME","action");leaveGame()})
+  }
+  if(/^(end game|end the game|quit game|quit the game|stop game|stop the game)$/.test(n)){
+   return voiceOnce("end-active",()=>{voiceFeedback("✓ END GAME","action");confirmEnd()})
+  }
+ }
+
+ // Setup: no active game exists yet, so exit simply returns Home.
+ const setupScreens=new Set(["mode","industry","difficulty","fun","players","time","ready"]);
+ if(setupScreens.has(state.screen) &&
+    /^(exit game|exit the game|leave game|leave the game|quit setup|cancel game|cancel setup|go home|back to home)$/.test(n)){
+  return voiceOnce("exit-setup",()=>{
+   voiceFeedback("✓ EXIT","action");
+   state.game=null;
+   home()
+  })
+ }
+ return false
+}
 function centralGameIntent(h){
  const n=norm(h);if(!state.game)return false;
- if(/^(exit game|exit the game|leave game|leave the game|save and leave|save game and leave)$/.test(n)){
+
+ if(/^(exit game|exit the game|leave game|leave the game|save and leave|save game and leave|go home and save)$/.test(n)){
   return voiceOnce("exit-game",()=>{voiceFeedback("✓ EXIT GAME","action");leaveGame()})
  }
  if(/^(end game|end the game|quit game|quit the game|stop game|stop the game)$/.test(n)){
   return voiceOnce("end-game",()=>{voiceFeedback("✓ END GAME","action");confirmEnd()})
  }
- if(/^(pause|pause game|pause the game|hold on)$/.test(n)){
+ if(/^(pause|pause game|pause the game|hold on)$/.test(n) && state.screen!=="paused"){
   return voiceOnce("pause",()=>{voiceFeedback("✓ PAUSE","action");pauseGame()})
  }
- if(/^(resume|resume game|continue game|keep playing)$/.test(n)&&document.getElementById("pauseOverlay")){
-  return voiceOnce("resume",()=>resumeGame())
+ if(state.screen==="paused" || document.getElementById("pauseOverlay")){
+  if(/^(resume|resume game|continue game|keep playing|continue)$/.test(n)){
+   return voiceOnce("resume",()=>{voiceFeedback("✓ RESUME","action");resumeGame()})
+  }
  }
  return false
 }
@@ -281,41 +318,69 @@ function routeVoiceCentral(h,{isFinal=false,confidence=0}={}){
  h=(h||"").trim();if(!h)return false;
  voiceStatus(isFinal?`HEARD: ${h}`:`… ${h}`,isFinal?"heard":"listening");
 
+ // Highest priority commands first.
+ if(centralExitIntent(h))return true;
  if(centralGameIntent(h))return true;
- if(state.screen==="players"&&handlePlayerVoice(h))return true;
+
+ // Setup navigation and fixed setup choices should feel immediate.
  if(centralSetupIntent(h))return true;
- if(centralQuestionIntent(h,isFinal,confidence))return true;
  if(centralNavIntent(h))return true;
- if(exactVisibleTarget(h))return true;
+
+ // Player edits contain names/data: wait for the complete final phrase.
+ if(state.screen==="players" && isFinal && handlePlayerVoice(h))return true;
+
+ // Keep the working question answer path unchanged in behavior.
+ if(centralQuestionIntent(h,isFinal,confidence))return true;
+
+ // Exact visible controls can fire quickly everywhere except player Add/Edit controls on interim speech.
+ if((state.screen!=="players" || isFinal) && exactVisibleTarget(h))return true;
+
+ // Fuzzy control matching remains final-only.
  if(isFinal&&clickVoiceTarget(h))return true;
  return false
 }
 function startVoice(ctx){
+ const previousCtx=voiceCore.ctx;
  voiceContext=ctx;voiceCore.ctx=ctx;
  if(!state.voiceOn||!speechSupported()){stopVoice();return}
- if(recognition)return;
+
+ // If the screen changed, do not keep an old recognizer session alive.
+ // Restart immediately with the new screen's command context.
+ if(recognition){
+  if(previousCtx!==ctx){
+   try{recognition.onend=null;recognition.abort()}catch{}
+   recognition=null;
+   clearTimeout(voiceCore.restart);
+   voiceCore.restart=setTimeout(()=>startVoice(ctx),30)
+  }
+  return
+ }
 
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  try{
   const r=new SR();recognition=r;
-  r.lang="en-US";r.interimResults=true;
+  r.lang="en-US";
+  r.interimResults=true;
   try{r.continuous=false}catch{}
   try{r.maxAlternatives=5}catch{}
 
   r.onstart=()=>voiceStatus("MIC LISTENING","listening");
+
   r.onresult=e=>{
    for(let i=e.resultIndex;i<e.results.length;i++){
     const res=e.results[i];
     let handled=false;
+
     for(let a=0;a<Math.min(res.length,5);a++){
      const alt=res[a],text=(alt?.transcript||"").trim();
      if(!text)continue;
      const confidence=Number.isFinite(alt.confidence)?alt.confidence:0;
 
      if(!res.isFinal){
-      const n=norm(text);
-      const fast=/^(continue|next|done|go ahead|go on|move on|lets go|let s go|im ready|i m ready|back|go back|pause|resume|pass|skip|select all|clear all|kids|easy|medium|hard|savage|exit game|leave game|end game|quit game|stop game)$/;
-      if(fast.test(n)||state.screen==="question"){
+      // Setup choices/navigation should respond from interim speech at normal speaking volume.
+      // Player name edits still wait for final recognition inside routeVoiceCentral().
+      const setupFast=["home","mode","industry","difficulty","fun","players","time","ready","paused"].includes(state.screen);
+      if(setupFast || state.screen==="question"){
        if(routeVoiceCentral(text,{isFinal:false,confidence})){handled=true;break}
       }
      }else{
@@ -325,22 +390,28 @@ function startVoice(ctx){
     if(handled)break
    }
   };
+
   r.onerror=e=>{
    const err=e?.error||"";
    if(err==="not-allowed"||err==="service-not-allowed")voiceStatus("MIC PERMISSION NEEDED","error");
    else if(err!=="aborted"&&err!=="no-speech")voiceStatus("MIC LISTENING","listening")
   };
+
   r.onend=()=>{
    if(recognition===r)recognition=null;
-   if(!state.voiceOn||voiceContext!==ctx)return;
+   if(!state.voiceOn)return;
    clearTimeout(voiceCore.restart);
-   voiceCore.restart=setTimeout(()=>startVoice(ctx),75)
+   const nextCtx=voiceContext||state.screen;
+   voiceCore.restart=setTimeout(()=>startVoice(nextCtx),35)
   };
+
   r.start()
  }catch{
   recognition=null;
   clearTimeout(voiceCore.restart);
-  voiceCore.restart=setTimeout(()=>{if(state.voiceOn&&voiceContext===ctx)startVoice(ctx)},150)
+  voiceCore.restart=setTimeout(()=>{
+   if(state.voiceOn)startVoice(voiceContext||state.screen)
+  },80)
  }
 }
 function ensureQuestionVoice(){
@@ -544,13 +615,23 @@ function handlePlayerVoice(h){
  // Multi-assign
  const chunks=h.split(/\s*(?:,| and )\s*/i);let changed=false;
  for(const chunk of chunks){
-  const bm=chunk.match(/^player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:is|to|should be|can be|will be)\s+(.+)$/i);
+  const bm=chunk.match(/^player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:(?:is|to|should be|can be|will be)\s+)?(.+)$/i);
   if(bm){
    const i=spokenNumber(bm[1])-1;
    if(i>=0){while(state.players.length<=i)state.players.push({id:uid(),name:""});state.players[i].name=bm[2].trim();changed=true}
   }
  }
  if(changed){players();return true}
+
+ // Natural rename shorthand: "make player two Todd" / "set player two Todd"
+ m=h.match(/^(?:make|set)\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(.+)$/i);
+ if(m){
+  const i=spokenNumber(m[1])-1;
+  if(i>=0){
+   while(state.players.length<=i)state.players.push({id:uid(),name:""});
+   state.players[i].name=m[2].trim();players();return true
+  }
+ }
 
  // Add only on explicit add intent.
  m=h.match(/^(?:please\s+)?add\s+(?:a\s+|another\s+)?player(?:\s+(?:named|called))?(?:\s+(.+))?$/i);
@@ -633,7 +714,7 @@ function go(s){
 }
 function back(){const m={mode:"home",industry:"mode",difficulty:state.mode==="work"?"industry":"mode",fun:"difficulty",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
 function home(){
- state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.0.1</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
+ state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.0.2</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
  document.getElementById("start").onclick=chooseGame;const rs=document.getElementById("resumeSaved");if(rs)rs.onclick=resumeSavedGame;startMusic();startVoice("home")
 }
 function chooseGame(){ensureAudio();go("mode")}
@@ -700,7 +781,7 @@ function players(){
  document.getElementById("continue").onclick=()=>{state.players=state.players.filter(p=>(p.name||"").trim());if(state.players.length<(state.mode==="solo"?1:2)){const msg=document.getElementById("rosterError");if(msg)msg.textContent=state.mode==="solo"?"ADD A PLAYER NAME TO CONTINUE":"ADD AT LEAST TWO NAMED PLAYERS TO CONTINUE";return}rememberNames();go("time")};startVoice("players")
 }
 function time(){
- app.innerHTML=shell("GAME TIME",`<div class="grid"><div class="card center"><div style="font-weight:1000">QUESTION TIMER</div><div class="actions" style="margin-top:10px">${[10,15,20,30].map(s=>`<button class="btn ${state.questionSeconds===s?"selected":""}" data-sec="${s}">${s} SEC</button>`).join("")}</div></div><div class="card center"><div style="font-weight:1000">GAME LENGTH</div><div class="actions" style="margin-top:10px">${[5,10,15,20].map(m=>`<button class="btn ${!state.quick&&state.duration===m?"selected":""}" data-min="${m}">${m} MIN</button>`).join("")}<button class="btn ${state.quick?"selected":""}" id="quick">QUICK GAME</button></div></div><div class="card center"><div style="font-weight:1000">VOLUME</div><div class="volume-wrap" style="justify-content:center;margin-top:12px"><input id="vol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="volPct">${Math.round(state.volume*100)}%</strong></div></div><div class="card center"><div style="font-weight:1000">VOICE RECOGNITION</div><div class="actions" style="margin-top:10px"><button id="voiceOn" class="btn ${state.voiceOn?"selected":""}">ON</button><button id="voiceOff" class="btn ${!state.voiceOn?"selected":""}">OFF</button></div></div></div>`,`<button id="back" class="btn">BACK</button><button id="continue" class="btn primary">CONTINUE</button>`);
+ app.innerHTML=shell("GAME TIME",`<div class="grid game-time-grid"><div class="card center game-time-card"><div class="game-time-label">QUESTION TIMER</div><div class="actions" style="margin-top:10px">${[10,15,20,30].map(s=>`<button class="btn ${state.questionSeconds===s?"selected":""}" data-sec="${s}">${s} SEC</button>`).join("")}</div></div><div class="card center game-time-card"><div class="game-time-label">GAME LENGTH</div><div class="actions" style="margin-top:10px">${[5,10,15,20].map(m=>`<button class="btn ${!state.quick&&state.duration===m?"selected":""}" data-min="${m}">${m} MIN</button>`).join("")}<button class="btn ${state.quick?"selected":""}" id="quick">QUICK GAME</button></div></div><div class="card center game-time-card"><div class="game-time-label">VOLUME</div><div class="volume-wrap" style="justify-content:center;margin-top:12px"><input id="vol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="volPct">${Math.round(state.volume*100)}%</strong></div></div><div class="card center game-time-card"><div class="game-time-label">VOICE RECOGNITION</div><div class="actions" style="margin-top:10px"><button id="voiceOn" class="btn ${state.voiceOn?"selected":""}">ON</button><button id="voiceOff" class="btn ${!state.voiceOn?"selected":""}">OFF</button></div></div></div>`,`<button id="back" class="btn">BACK</button><button id="continue" class="btn primary">CONTINUE</button>`);
  document.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{state.questionSeconds=Number(b.dataset.sec);time()});document.querySelectorAll("[data-min]").forEach(b=>b.onclick=()=>{state.quick=false;state.duration=Number(b.dataset.min);time()});
  document.getElementById("quick").onclick=()=>{state.quick=true;state.duration=3;time()};document.getElementById("vol").oninput=e=>setVolume(Number(e.target.value));document.getElementById("voiceOn").onclick=()=>{state.voiceOn=true;save();time()};document.getElementById("voiceOff").onclick=()=>{state.voiceOn=false;save();time()};document.getElementById("back").onclick=back;document.getElementById("continue").onclick=()=>go("ready");startVoice("time")
 }
@@ -772,8 +853,12 @@ function finish(outcome){
  if(outcome==="correct"){p.correct++;good()}else{if(outcome==="timeout"){p.timeout++;buzzer()}else{p.wrong++;bad()}p.strikes++;if(p.strikes>=3)p.eliminated=true}
  result(outcome)
 }
-function marks(p){return "✕".repeat(Math.min(3,p.strikes))+"○".repeat(Math.max(0,3-p.strikes))}
-function standings(){return `<div class="standings">${[...state.game.players].sort((a,b)=>(a.eliminated-b.eliminated)||(a.strikes-b.strikes)||(b.correct-a.correct)).map(p=>`<div class="standing-row ${p.eliminated?"out":""}"><strong>${esc(p.name)}</strong><span>✓ ${p.correct}</span><span style="color:var(--red)">${marks(p)}</span><span>${p.eliminated?"OUT":"IN"}</span></div>`).join("")}</div>`}
+function marks(p){
+ return [0,1,2].map(i=>i<Math.min(3,p.strikes)
+  ?`<span class="strike-hit">✕</span>`
+  :`<span class="strike-empty">—</span>`).join(" ")
+}
+function standings(){return `<div class="standings">${[...state.game.players].sort((a,b)=>(a.eliminated-b.eliminated)||(a.strikes-b.strikes)||(b.correct-a.correct)).map(p=>`<div class="standing-row ${p.eliminated?"out":""}"><strong>${esc(p.name)}</strong><span>✓ ${p.correct}</span><span class="standing-strikes">${marks(p)}</span><span>${p.eliminated?"OUT":"IN"}</span></div>`).join("")}</div>`}
 function result(outcome){
  state.screen="result";saveActiveGame();const g=state.game,p=g.players[g.idx],q=g.current;
  const label=outcome==="correct"?"CORRECT!":outcome==="pass"?(g.lastOutcomeDetail==="skip"?"SKIP":"PASS"):outcome==="timeout"?"TIME’S UP!":"NOT QUITE";
@@ -831,9 +916,9 @@ function showdownIntro(){
    <div class="showdown-kicker">ONLY TWO REMAIN</div>
    <div class="showdown-title">FINAL<br>SHOWDOWN</div>
    <div class="showdown-vs">
-     <div class="finalist-card"><div class="showdown-name">${esc(g.players[0].name)}</div><div class="showdown-strikes">○ ○ ○</div></div>
+     <div class="finalist-card"><div class="showdown-name">${esc(g.players[0].name)}</div><div class="showdown-strikes"><span class="strike-empty">—</span> <span class="strike-empty">—</span> <span class="strike-empty">—</span></div></div>
      <div class="vs">VS</div>
-     <div class="finalist-card"><div class="showdown-name">${esc(g.players[1].name)}</div><div class="showdown-strikes">○ ○ ○</div></div>
+     <div class="finalist-card"><div class="showdown-name">${esc(g.players[1].name)}</div><div class="showdown-strikes"><span class="strike-empty">—</span> <span class="strike-empty">—</span> <span class="strike-empty">—</span></div></div>
    </div>
    <div class="showdown-rule">3 STRIKES AND YOU’RE OUT.</div>
    <div class="showdown-time">${secs} SECOND QUESTIONS</div>
@@ -895,7 +980,7 @@ function render(){clearRuntime();({home,mode,industry,difficulty,fun,players,tim
 function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
-document.documentElement.dataset.build="6.0.1";
+document.documentElement.dataset.build="6.0.2";
 try{viewport();home()}
 catch(err){
  console.error("LOS startup error",err);

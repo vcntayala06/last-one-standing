@@ -1,0 +1,37 @@
+LAST ONE STANDING — 6.0.2 SETUP VOICE SPEED + PLAYER RELIABILITY
+
+Focused stabilization pass.
+
+VOICE
+- Question-answer recognition path intentionally preserved.
+- Setup screens now process safe interim speech immediately.
+- Recognition restarts in ~35 ms after Safari ends a session.
+- Screen changes explicitly restart recognition with the NEW screen context.
+- Exact visible setup choices can respond before final transcript.
+- Normal navigation intents respond from interim speech.
+- WHO'S IN player add/edit/delete waits for final transcript for name accuracy.
+- WHO'S IN Continue is a separate high-priority navigation intent.
+- Setup Exit Game / Leave Game / Quit Setup / Cancel Game / Go Home works before gameplay starts.
+- Paused End Game / Quit Game / Stop Game directly opens confirmation.
+- Paused Exit/Leave preserves Resume Game.
+
+WHO'S IN
+- Add Player Joe
+- Add Another Player
+- Delete Player Three
+- Remove Maria
+- Change Player Two to Todd
+- Make Player Two Todd
+- Rename Maria to Marie
+- Player One Joe
+- Player One Is Joe
+- Spell Player Two
+- Saying only Player / Player Two does nothing.
+
+VISUAL
+- Correct answers are significantly larger.
+- Empty strike indicators are gray dashes instead of red circles.
+- Actual strikes remain red.
+- Game Time is compressed into a portrait-safe 2x2 layout so Voice Recognition and footer controls remain visible.
+
+No question-bank changes and no scoring-rule changes.

@@ -326,3 +326,44 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
 }
 .voice-diagnostic[data-kind="heard"]{border-color:rgba(89,220,130,.55)}
 .voice-diagnostic[data-kind="error"]{border-color:rgba(255,160,70,.68);color:#ffd39b}
+
+/* =========================================================
+   6.0.2 SETUP VOICE SPEED + PLAYER RELIABILITY
+   ========================================================= */
+
+/* Larger result answers */
+.answer-big.answer-short{font-size:clamp(4.2rem,14vw,8.4rem)!important;line-height:.86}
+.answer-big.answer-medium{font-size:clamp(3.5rem,11.5vw,7rem)!important;line-height:.88}
+.answer-big.answer-long{font-size:clamp(2.7rem,8.7vw,5.4rem)!important;line-height:.9}
+.answer-panel{padding-top:16px!important;padding-bottom:22px!important}
+
+/* Empty strikes are neutral gray dashes; actual strikes stay red */
+.strike-hit{color:var(--red);font-weight:1000}
+.strike-empty{color:#7d8493;font-weight:1000}
+.strike-marks{color:inherit!important}
+.standing-strikes{display:inline-flex;gap:5px;align-items:center;white-space:nowrap}
+.showdown-strikes{color:inherit!important}
+
+/* Game Time must fit on a normal portrait phone without hiding Voice Recognition */
+.game-time-grid{width:min(760px,100%);gap:8px!important}
+.game-time-card{padding:12px!important;border-radius:18px!important;min-height:0}
+.game-time-label{font-weight:1000;font-size:.78rem;letter-spacing:.05em}
+.game-time-card .actions{gap:6px!important;margin-top:7px!important}
+.game-time-card .btn{padding:9px 10px!important;border-radius:11px!important;font-size:.78rem}
+.game-time-card .volume-wrap{margin-top:7px!important;gap:6px!important}
+.game-time-card .volume-wrap input{width:min(105px,60%)!important}
+
+@media (orientation:portrait){
+ .shell{gap:7px!important}
+ .topbar{min-height:38px!important}
+ .content:has(.game-time-grid){justify-content:flex-start!important;gap:6px!important;overflow:hidden!important}
+ .game-time-grid{
+   grid-template-columns:repeat(2,minmax(0,1fr))!important;
+   gap:7px!important;
+   align-content:start;
+ }
+ .game-time-card{padding:10px 8px!important}
+ .game-time-card .actions{gap:5px!important}
+ .game-time-card .btn{padding:8px 7px!important;font-size:.72rem!important}
+ .footer{min-height:44px!important}
+}

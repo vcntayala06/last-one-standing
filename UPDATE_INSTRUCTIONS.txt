@@ -1,5 +1,8 @@
-LAST ONE STANDING — BUILD 6.0.1
-Replace the broken 6.0 files with everything in this ZIP.
-Keep the hidden .git folder.
-GitHub Desktop summary: 6.0.1 Load-Safe Voice-First
-Push origin and verify BUILD 6.0.1 in Safari.
+LAST ONE STANDING — BUILD 6.0.2
+
+1. Keep the repository's hidden .git folder.
+2. Replace current app files with ALL files from this ZIP.
+3. GitHub Desktop summary: 6.0.2 Setup Voice Speed + Player Reliability
+4. Commit and Push origin.
+5. Wait for GitHub Pages.
+6. Open Safari and verify BUILD 6.0.2 before testing.
