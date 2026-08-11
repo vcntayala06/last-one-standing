@@ -1,7 +1,7 @@
 
 (()=>{
 "use strict";
-const BUILD="Clean Foundation 6.0.5 Continuous Voice Fix";
+const BUILD="Clean Foundation 6.0.4 Tap-Speed Voice + Setup Exit";
 const app=document.getElementById("app");
 const STORAGE={names:"los5_names",voice:"los5_voice",volume:"los5_volume",activeGame:"los5_active_game"};
 const DIFFICULTIES=[
@@ -48,16 +48,6 @@ let state={
  volume:Number(localStorage.getItem(STORAGE.volume)||.65),categories:[],industry:"",difficulty:"medium",answerLanguage:"en",game:null
 };
 let recognition=null,voiceContext="",questionTimer=null,flowTimer=null,audioCtx=null,musicTimer=null,pausedRemaining=null,pausedFrom=null;
-let voiceWatchdogTimer=null;
-function armVoiceWatchdog(r){
- clearTimeout(voiceWatchdogTimer);
- voiceWatchdogTimer=setTimeout(()=>{
-  if(recognition!==r)return;
-  try{r.onend=null;r.abort()}catch{}
-  recognition=null;
-  if(state.voiceOn)startVoice(voiceContext||state.screen)
- },12000)
-}
 const uid=()=>Math.random().toString(36).slice(2,10);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
 const norm=s=>String(s||"").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu," ").replace(/\s+/g," ").trim();
@@ -102,7 +92,6 @@ function ensurePlayers(){
 function speechSupported(){return !!(window.SpeechRecognition||window.webkitSpeechRecognition)}
 function stopVoice(){
  clearTimeout(voiceCore?.restart);
- clearTimeout(voiceWatchdogTimer);
  voiceContext="";
  try{if(recognition){recognition.onend=null;recognition.abort()}}catch{}
  recognition=null
@@ -374,13 +363,12 @@ function startVoice(ctx){
   const r=new SR();recognition=r;
   r.lang="en-US";
   r.interimResults=true;
-  try{r.continuous=true}catch{}
+  try{r.continuous=false}catch{}
   try{r.maxAlternatives=5}catch{}
 
-  r.onstart=()=>{voiceStatus("MIC LISTENING","listening");armVoiceWatchdog(r)};
+  r.onstart=()=>voiceStatus("MIC LISTENING","listening");
 
   r.onresult=e=>{
-   armVoiceWatchdog(r);
    for(let i=e.resultIndex;i<e.results.length;i++){
     const res=e.results[i];
     let handled=false;
@@ -729,7 +717,7 @@ function go(s){
 }
 function back(){const m={mode:"home",industry:"mode",difficulty:state.mode==="work"?"industry":"mode",fun:"difficulty",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
 function home(){
- state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.0.5</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
+ state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.0.4</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
  document.getElementById("start").onclick=chooseGame;const rs=document.getElementById("resumeSaved");if(rs)rs.onclick=resumeSavedGame;startMusic();startVoice("home")
 }
 function chooseGame(){ensureAudio();go("mode")}
@@ -995,10 +983,10 @@ function render(){clearRuntime();({home,mode,industry,difficulty,fun,players,tim
 function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
-document.documentElement.dataset.build="6.0.5";
+document.documentElement.dataset.build="6.0.4";
 try{viewport();home()}
 catch(err){
  console.error("LOS startup error",err);
- app.innerHTML=`<section class="screen"><div class="shell"><div class="content"><div class="card"><h1>LAST ONE STANDING</h1><p>Build 6.0.5 could not start.</p><p class="subtle">${esc(err?.message||"Unknown startup error")}</p></div></div></div></section>`
+ app.innerHTML=`<section class="screen"><div class="shell"><div class="content"><div class="card"><h1>LAST ONE STANDING</h1><p>Build 6.0.1 could not start.</p><p class="subtle">${esc(err?.message||"Unknown startup error")}</p></div></div></div></section>`
 }
 })();
