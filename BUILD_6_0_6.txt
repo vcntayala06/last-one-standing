@@ -1,0 +1,8 @@
+6.0.6 Persistent Voice + Setup Repairs
+- One persistent voice controller across screen changes; screen changes update context without aborting healthy recognition.
+- continuous=true requested where browser supports it; onend still self-heals because browsers may terminate sessions.
+- Add More Categories renamed MIX IN EXTRA CATEGORIES with larger heading.
+- Voice category selection is additive; remove/unselect/deselect explicitly removes.
+- WHO'S IN final player commands are routed to its dedicated controller before generic setup parsing.
+- Pause recognizes Quit directly.
+- Game Settings uses full-width stacked portrait cards.

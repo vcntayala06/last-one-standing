@@ -1,7 +1,7 @@
 
 (()=>{
 "use strict";
-const BUILD="Clean Foundation 6.0.5 Work Continue + Bottom Exit";
+const BUILD="Clean Foundation 6.0.6 Persistent Voice + Setup Repairs";
 const app=document.getElementById("app");
 const STORAGE={names:"los5_names",voice:"los5_voice",volume:"los5_volume",activeGame:"los5_active_game"};
 const DIFFICULTIES=[
@@ -249,6 +249,16 @@ function centralNavIntent(h){
 function centralSetupIntent(h){
  const n=norm(h);
  if(state.screen==="fun"){
+  let rm=h.match(/^(?:remove|unselect|deselect)\s+(.+)$/i);
+  if(rm){
+   const wanted=rm[1].trim();
+   const target=EXTRA_CATEGORIES.find(x=>norm(x)===norm(wanted)||phraseMatch(wanted,x));
+   if(target){
+    if(state.funCats instanceof Set)state.funCats.delete(target);
+    else if(Array.isArray(state.funCats))state.funCats=state.funCats.filter(x=>x!==target);
+    return voiceOnce("remove-category:"+target,()=>fun())
+   }
+  }
   if(/^(select all|all categories|choose all|give me everything)$/.test(n)){
    return voiceOnce("select-all",()=>{state.categories=[...EXTRA_CATEGORIES];voiceFeedback("✓ ALL CATEGORIES","action");fun()})
   }
@@ -288,7 +298,7 @@ function centralGameIntent(h){
  if(/^(exit game|exit the game|leave game|leave the game|save and leave|save game and leave|go home and save)$/.test(n)){
   return voiceOnce("exit-game",()=>{voiceFeedback("✓ EXIT GAME","action");leaveGame()})
  }
- if(/^(end game|end the game|quit game|quit the game|stop game|stop the game)$/.test(n)){
+ if(/^(quit|quit game|quit the game|end game|end the game|stop game|stop the game)$/.test(n)){
   return voiceOnce("end-game",()=>{voiceFeedback("✓ END GAME","action");confirmEnd()})
  }
  if(/^(pause|pause game|pause the game|hold on)$/.test(n) && state.screen!=="paused"){
@@ -326,12 +336,12 @@ function routeVoiceCentral(h,{isFinal=false,confidence=0}={}){
  if(centralExitIntent(h))return true;
  if(centralGameIntent(h))return true;
 
- // Setup navigation and fixed setup choices should feel immediate.
- if(centralSetupIntent(h))return true;
- if(centralNavIntent(h))return true;
-
- // Player edits contain names/data: wait for the complete final phrase.
+ // WHO'S IN owns complete player-data phrases before generic setup parsing.
  if(state.screen==="players" && isFinal && playersVoiceController(h))return true;
+
+ // Setup navigation and fixed setup choices should feel immediate.
+ if(centralNavIntent(h))return true;
+ if(centralSetupIntent(h))return true;
 
  // Keep the working question answer path unchanged in behavior.
  if(centralQuestionIntent(h,isFinal,confidence))return true;
@@ -352,12 +362,10 @@ function startVoice(ctx){
  // If the screen changed, do not keep an old recognizer session alive.
  // Restart immediately with the new screen's command context.
  if(recognition){
-  if(previousCtx!==ctx){
-   try{recognition.onend=null;recognition.abort()}catch{}
-   recognition=null;
-   clearTimeout(voiceCore.restart);
-   voiceCore.restart=setTimeout(()=>startVoice(ctx),30)
-  }
+  // Persistent controller: screen changes only update command context.
+  // Do not abort a healthy recognizer just because the UI changed.
+  voiceContext=ctx;voiceCore.ctx=ctx;
+  refreshVoiceTargetCache();
   return
  }
 
@@ -366,7 +374,7 @@ function startVoice(ctx){
   const r=new SR();recognition=r;
   r.lang="en-US";
   r.interimResults=true;
-  try{r.continuous=false}catch{}
+  try{r.continuous=true}catch{}
   try{r.maxAlternatives=5}catch{}
 
   r.onstart=()=>voiceStatus("MIC LISTENING","listening");
@@ -408,7 +416,7 @@ function startVoice(ctx){
    if(!state.voiceOn)return;
    clearTimeout(voiceCore.restart);
    const nextCtx=voiceContext||state.screen;
-   voiceCore.restart=setTimeout(()=>startVoice(nextCtx),20)
+   voiceCore.restart=setTimeout(()=>startVoice(nextCtx),25)
   };
 
   r.start()
@@ -720,7 +728,7 @@ function go(s){
 }
 function back(){const m={mode:"home",industry:"mode",difficulty:state.mode==="work"?"industry":"mode",fun:"difficulty",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
 function home(){
- state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.0.5</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
+ state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.0.6</div></div><div class="actions">${hasActiveGame()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasActiveGame()?"":"primary"} large">START GAME</button></div>`);
  document.getElementById("start").onclick=chooseGame;const rs=document.getElementById("resumeSaved");if(rs)rs.onclick=resumeSavedGame;startMusic();startVoice("home")
 }
 function chooseGame(){ensureAudio();go("mode")}
@@ -764,8 +772,8 @@ function funContinue(){
 function fun(){
  const selected=new Set(state.categories||[]);
  const cards=EXTRA_CATEGORIES.map(name=>`<button class="btn category-choice ${selected.has(name)?"selected":""}" data-cat="${esc(name)}">${esc(name)}</button>`).join("");
- app.innerHTML=shell("ADD MORE CATEGORIES",
-   `<div class="category-intro">MIX IN EXTRA TRIVIA</div>
+ app.innerHTML=shell("MIX IN EXTRA CATEGORIES",
+   `<div class="category-intro">MIX IN EXTRA CATEGORIES</div>
     <div class="category-master"><button id="selectAllCats" class="btn primary" data-voice="${selected.size===EXTRA_CATEGORIES.length?"CLEAR ALL":"SELECT ALL"}" data-voice-aliases="${selected.size===EXTRA_CATEGORIES.length?"clear categories|remove all categories":"all categories|choose all|give me everything"}">${selected.size===EXTRA_CATEGORIES.length?"CLEAR ALL":"SELECT ALL"}</button></div>
     <div class="category-grid">${cards}</div>
     <div class="subtle center">Pick as many as you want, or say “Skip.” You can also say “Add Music,” “Add Sports,” or “Remove Geography.”</div>`,
@@ -990,7 +998,7 @@ function render(){clearRuntime();({home,mode,industry,difficulty,fun,players,tim
 function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
-document.documentElement.dataset.build="6.0.5";
+document.documentElement.dataset.build="6.0.6";
 try{viewport();home()}
 catch(err){
  console.error("LOS startup error",err);

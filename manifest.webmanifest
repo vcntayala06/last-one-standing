@@ -1,7 +1,7 @@
 {
-  "name": "Last One Standing \u2014 Voice-First 6.0.5",
+  "name": "Last One Standing \u2014 Voice-First 6.0.6",
   "short_name": "LOS",
-  "start_url": "./?build=6.0.5",
+  "start_url": "./?build=6.0.6",
   "display": "standalone",
   "background_color": "#070b16",
   "theme_color": "#080b16",
@@ -17,5 +17,5 @@
       "type": "image/png"
     }
   ],
-  "id": "./?app=last-one-standing-6-0-5"
+  "id": "./?app=last-one-standing-6-0-6"
 }

@@ -450,3 +450,26 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
 
 .setup-exit{display:none!important}
 .setup-exit-bottom{min-width:92px;border-color:rgba(255,255,255,.24)!important;background:rgba(255,255,255,.06)!important}
+
+/* 6.0.6 */
+.extra-category-title{font-size:clamp(1.65rem,7vw,2.7rem);font-weight:1000;line-height:.95;letter-spacing:.02em;text-align:center}
+@media (orientation:portrait){
+ .game-time-grid{
+   width:min(720px,96%)!important;
+   display:flex!important;
+   flex-direction:column!important;
+   gap:9px!important;
+   height:100%!important;
+   justify-content:space-evenly!important;
+ }
+ .game-time-card{
+   width:100%!important;
+   min-height:0!important;
+   flex:1 1 0!important;
+   padding:12px 14px!important;
+   border-radius:18px!important;
+ }
+ .game-time-card .actions{margin-top:7px!important}
+ .game-time-card .btn{min-height:42px!important;padding:9px 11px!important}
+ .content:has(.game-time-grid){height:100%!important;justify-content:stretch!important}
+}
