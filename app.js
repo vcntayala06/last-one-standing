@@ -91,6 +91,7 @@ function ensurePlayers(){
 function speechSupported(){return !!(window.SpeechRecognition||window.webkitSpeechRecognition)}
 function stopVoice(){
  voiceCore.desired=false;
+ voiceCore.handledInterimSlots.clear();voiceCore.navQueued=null;
  clearTimeout(voiceCore.restart);voiceCore.restart=null;
  voiceCore.generation++;
  const r=recognition;recognition=null;
@@ -156,7 +157,33 @@ function fuzzyVisibleTarget(h){
  }
  return false
 }
-let voiceCore={ctx:null,restart:null,generation:0,retryAttempt:0,desired:false,lastKey:"",lastAt:0,lastHeard:"",permissionBlocked:false},lastPlayerVoiceMutation={key:"",at:0};
+let voiceCore={ctx:null,restart:null,generation:0,retryAttempt:0,desired:false,lastKey:"",lastAt:0,lastHeard:"",permissionBlocked:false,handledInterimSlots:new Set(),navQueued:null,diagnostics:[],utterance:0,currentUtterance:null,latencySeen:new Set()},lastPlayerVoiceMutation={key:"",at:0};
+const VOICE_LATENCY_MODE=new URLSearchParams(location.search).get("voiceLatency")==="1";
+
+function renderVoiceLatencyPanel(){
+ if(!VOICE_LATENCY_MODE)return;
+ let panel=document.getElementById("voiceLatencyPanel");
+ if(!panel){
+  panel=document.createElement("pre");panel.id="voiceLatencyPanel";
+  panel.style.cssText="position:fixed;left:8px;bottom:8px;z-index:9999;max-width:min(94vw,720px);max-height:42vh;overflow:auto;margin:0;padding:9px;border:1px solid #ffd04f;border-radius:8px;background:rgba(0,0,0,.88);color:#fff;font:11px/1.35 monospace;pointer-events:none;white-space:pre-wrap";
+  document.body.appendChild(panel)
+ }
+ const rows=voiceCore.diagnostics.slice(-18),bases=new Map();
+ panel.textContent="VOICE LATENCY MODE · "+navigator.userAgent+"\n"+rows.map(x=>{
+  if(x.utterance&&!bases.has(x.utterance)&&["sound-start","speech-start","first-result-activity"].includes(x.stage))bases.set(x.utterance,x.monoAt);
+  const base=x.utterance?bases.get(x.utterance):null,delta=base==null?"":` +${Math.round(x.monoAt-base)}ms`;
+  return `${Math.round(x.monoAt)}ms${delta} U${x.utterance||"-"} ${x.stage}${x.text?` “${x.text}”`:""}${Number.isFinite(x.confidence)?` c=${x.confidence.toFixed(2)}`:""}${x.reason?` (${x.reason})`:""}`
+ }).join("\n")
+}
+function beginVoiceLatencyUtterance(stage){
+ voiceCore.currentUtterance=++voiceCore.utterance;voiceCore.latencySeen.clear();voiceDiagnostic(stage)
+}
+
+function voiceDiagnostic(stage,detail={}){
+ voiceCore.diagnostics.push({stage,screen:state.screen,at:Date.now(),monoAt:performance.now(),utterance:voiceCore.currentUtterance,...detail});
+ if(voiceCore.diagnostics.length>80)voiceCore.diagnostics.splice(0,voiceCore.diagnostics.length-80);
+ if(VOICE_LATENCY_MODE){console.debug("[LOS voice latency]",voiceCore.diagnostics.at(-1));renderVoiceLatencyPanel()}
+}
 
 function voiceStatus(text,kind="listening"){
  voiceCore.lastHeard=text||"";
@@ -167,8 +194,8 @@ function voiceStatus(text,kind="listening"){
 }
 function voiceOnce(key,fn,windowMs=600){
  const now=Date.now(),k=commandKey(key);
- if(voiceCore.lastKey===k&&now-voiceCore.lastAt<windowMs)return true;
- voiceCore.lastKey=k;voiceCore.lastAt=now;fn();return true
+ if(voiceCore.lastKey===k&&now-voiceCore.lastAt<windowMs){voiceDiagnostic("command-rejected",{reason:"duplicate",command:k});return true}
+ voiceCore.lastKey=k;voiceCore.lastAt=now;voiceDiagnostic("command-matched",{command:k});voiceDiagnostic("command-executed",{command:k});fn();return true
 }
 function exactVisibleTarget(h){
  const n=commandKey(h);if(!n)return false;
@@ -181,9 +208,15 @@ function exactVisibleTarget(h){
  }
  return false
 }
-function centralNavIntent(h){
+function queueVoiceNavigation(h,isFinal,confidence){
+ voiceCore.navQueued={h,isFinal,confidence};
+ voiceDiagnostic("command-matched",{command:commandKey(h),result:"queued-navigation-lock"});
+ return true
+}
+function centralNavIntent(h,isFinal=false,confidence=0){
  const n=norm(h);
  if(/^(continue|next|done|go ahead|go on|move on|lets go|let s go|im ready|i m ready|ready|start|play|go|begin|lets begin|let s begin)$/.test(n)){
+  if(navLock)return queueVoiceNavigation(h,isFinal,confidence);
   if(state.screen==="players")return voiceOnce("continue:players",()=>playersContinue());
   if(state.screen==="industry")return voiceOnce("continue:industry",()=>industryContinue());
   return voiceOnce("continue:"+state.screen,()=>{
@@ -199,6 +232,7 @@ function centralNavIntent(h){
   })
  }
  if(/^(back|go back|previous|previous screen)$/.test(n)){
+  if(navLock)return queueVoiceNavigation(h,isFinal,confidence);
   return voiceOnce("back:"+state.screen,()=>back())
  }
  return false
@@ -208,7 +242,10 @@ function resolveExtraCategory(h){
  const aliases={
   "music":"Music",
   "movie":"Movies & TV","movies":"Movies & TV","movies and tv":"Movies & TV","movie and tv":"Movies & TV","tv":"Movies & TV",
-  "food":"Food & Drink","food and drink":"Food & Drink","food drink":"Food & Drink",
+  "food":"Food & Drink","food and drink":"Food & Drink","food drink":"Food & Drink","food drinks":"Food & Drink",
+  "history":"History",
+  "90s 2000s":"90s & 2000s","90s and 2000s":"90s & 2000s","90 s and 2000 s":"90s & 2000s",
+  "nineties and two thousands":"90s & 2000s","nineties two thousands":"90s & 2000s","the nineties and two thousands":"90s & 2000s",
   "transport":"Transportation","transportation":"Transportation"
  };
  if(aliases[n]&&EXTRA_CATEGORIES.includes(aliases[n]))return aliases[n];
@@ -217,6 +254,11 @@ function resolveExtraCategory(h){
 function centralSetupIntent(h){
  const n=norm(h);
  if(state.screen==="time"){
+  const durationMatch=n.match(/^(?:(?:set )?game length(?: to)?\s+)?(5|five|10|ten|15|fifteen|20|twenty)\s*(?:minutes?|mins?|min)$/);
+  if(durationMatch){
+   const values={five:5,ten:10,fifteen:15,twenty:20},minutes=values[durationMatch[1]]||Number(durationMatch[1]);
+   return voiceOnce("duration:"+minutes,()=>setGameDuration(minutes))
+  }
   if(/^(mute|mute volume|volume off)$/.test(n))return voiceOnce("volume:mute",()=>setVolume(0,true));
   if(/^(unmute|volume on)$/.test(n))return voiceOnce("volume:unmute",()=>setVolume(lastVolume,true));
   if(/^(volume up|louder|turn it up)$/.test(n))return voiceOnce("volume:up",()=>adjustGameVolume(.1));
@@ -241,16 +283,14 @@ function centralSetupIntent(h){
   if(rm){
    const target=resolveExtraCategory(rm[1]);
    if(target){
-    state.categories=(state.categories||[]).filter(x=>x!==target);
-    return voiceOnce("remove-category:"+target,()=>{voiceFeedback("✓ REMOVE "+target,"action");fun()})
+    return voiceOnce("remove-category:"+target,()=>{voiceFeedback("✓ REMOVE "+target,"action");setCategorySelected(target,false)})
    }
   }
 
   const stripped=h.replace(/^(?:add|select|choose)\s+/i,"").trim();
   const target=resolveExtraCategory(stripped);
   if(target){
-   if(!(state.categories||[]).includes(target))state.categories=[...(state.categories||[]),target];
-   return voiceOnce("add-category:"+target,()=>{voiceFeedback("✓ "+target,"action");fun()})
+   return voiceOnce("add-category:"+target,()=>{voiceFeedback("✓ "+target,"action");setCategorySelected(target,true)})
   }
  }
  if(state.screen==="difficulty"){
@@ -437,7 +477,7 @@ function routeVoiceCentral(h,{isFinal=false,confidence=0}={}){
  }
 
  // Setup navigation and fixed setup choices should feel immediate.
- if(centralNavIntent(h))return true;
+ if(centralNavIntent(h,isFinal,confidence))return true;
  if(centralSetupIntent(h))return true;
 
  // Keep the working question answer path unchanged in behavior.
@@ -471,6 +511,7 @@ function startVoice(ctx){
 
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  const generation=++voiceCore.generation;
+ voiceCore.handledInterimSlots.clear();
  try{
   const r=new SR();recognition=r;
   r.lang="en-US";
@@ -480,29 +521,43 @@ function startVoice(ctx){
 
   r.onstart=()=>{
    if(voiceCore.generation!==generation||recognition!==r)return;
-   voiceCore.retryAttempt=0;voiceStatus("MIC LISTENING","listening")
+   voiceCore.retryAttempt=0;voiceCore.currentUtterance=null;voiceDiagnostic("recognition-started",{generation});voiceStatus("MIC LISTENING","listening")
   };
+  if(VOICE_LATENCY_MODE){
+   r.onaudiostart=()=>voiceDiagnostic("audio-start",{generation});
+   r.onsoundstart=()=>beginVoiceLatencyUtterance("sound-start");
+   r.onspeechstart=()=>{if(!voiceCore.currentUtterance)beginVoiceLatencyUtterance("speech-start");else voiceDiagnostic("speech-start")};
+   r.onspeechend=()=>voiceDiagnostic("speech-end");
+   r.onsoundend=()=>voiceDiagnostic("sound-end");
+   r.onaudioend=()=>voiceDiagnostic("audio-end",{generation})
+  }
 
   r.onresult=e=>{
    if(voiceCore.generation!==generation||recognition!==r)return;
+   if(VOICE_LATENCY_MODE&&!voiceCore.currentUtterance)beginVoiceLatencyUtterance("first-result-activity");
+   if(!e?.results||e.resultIndex>=e.results.length){voiceDiagnostic("no-transcript",{reason:"empty-result-event"});return}
    for(let i=e.resultIndex;i<e.results.length;i++){
     const res=e.results[i];
+    if(!res)continue;
     let handled=false;
+
+    if(res.isFinal&&voiceCore.handledInterimSlots.has(i)){
+     voiceCore.handledInterimSlots.delete(i);
+     voiceDiagnostic("command-rejected",{reason:"final-after-handled-interim",resultIndex:i});
+     if(VOICE_LATENCY_MODE)voiceCore.currentUtterance=null;
+     continue
+    }
 
     for(let a=0;a<Math.min(res.length,5);a++){
      const alt=res[a],text=(alt?.transcript||"").trim();
      if(!text)continue;
      const confidence=Number.isFinite(alt.confidence)?alt.confidence:0;
+     voiceDiagnostic("transcript-received",{text,confidence,isFinal:!!res.isFinal,resultIndex:i,alternative:a});
+     const firstStage=res.isFinal?"first-final-transcript":"first-interim-transcript";
+     if(a===0&&!voiceCore.latencySeen.has(firstStage)){voiceCore.latencySeen.add(firstStage);voiceDiagnostic(firstStage,{text,confidence,resultIndex:i})}
 
      if(!res.isFinal){
       const n=norm(text);
-      if(state.screen==="fun"){
-       const cat=resolveExtraCategory(text.replace(/^(add|select|choose)\s+/i,"").trim());
-       if(cat){
-        if(!(state.categories||[]).includes(cat))state.categories=[...(state.categories||[]),cat];
-        voiceFeedback("✓ "+cat,"action");fun();handled=true;break
-       }
-      }
       const fastControl=/^(continue|next|done|go ahead|go on|move on|lets go|let s go|im ready|i m ready|start|begin|back|go back|exit|exit game|leave game|cancel game|quit setup|go home|pause|resume|quit|quit game|end game|stop game|pass|skip|select all|clear all|kids|easy|medium|hard|savage)$/;
       const setupFast=["home","mode","industry","difficulty","fun","players","time","ready","paused"].includes(state.screen);
       if(fastControl.test(n)||setupFast||state.screen==="question"){
@@ -512,6 +567,9 @@ function startVoice(ctx){
       if(routeVoiceCentral(text,{isFinal:true,confidence})){handled=true;break}
      }
     }
+    if(handled&&!res.isFinal)voiceCore.handledInterimSlots.add(i);
+    if(!handled&&res.isFinal)voiceDiagnostic("command-rejected",{reason:"no-command-match",resultIndex:i});
+    if(res.isFinal&&VOICE_LATENCY_MODE)voiceCore.currentUtterance=null;
     if(handled)break
    }
   };
@@ -519,6 +577,7 @@ function startVoice(ctx){
   r.onerror=e=>{
    if(voiceCore.generation!==generation||recognition!==r)return;
    const err=e?.error||"";
+   voiceDiagnostic("recognition-error",{generation,error:err});
    if(err==="not-allowed"||err==="service-not-allowed"){
     voiceCore.permissionBlocked=true;voiceCore.desired=false;
     clearTimeout(voiceCore.restart);voiceCore.restart=null;
@@ -529,7 +588,7 @@ function startVoice(ctx){
 
   r.onend=()=>{
    if(voiceCore.generation!==generation||recognition!==r)return;
-   recognition=null;scheduleVoiceRestart()
+   voiceDiagnostic("recognition-ended",{generation});recognition=null;scheduleVoiceRestart()
   };
 
   r.start()
@@ -622,7 +681,7 @@ let navLock=false;
 function go(s){
  if(navLock)return;
  navLock=true;clearRuntime();state.screen=s;render();
- setTimeout(()=>{navLock=false},220)
+ setTimeout(()=>{navLock=false;const queued=voiceCore.navQueued;voiceCore.navQueued=null;if(queued)routeVoiceCentral(queued.h,{isFinal:queued.isFinal,confidence:queued.confidence})},220)
 }
 function back(){const m={mode:"home",industry:"mode",difficulty:state.mode==="work"?"industry":"mode",fun:"difficulty",players:"fun",time:"players",ready:"time"};go(m[state.screen]||"home")}
 function home(){
@@ -667,6 +726,11 @@ function funContinue(){
  voiceFeedback("✓ CONTINUE","action");
  go("players");
 }
+function setCategorySelected(name,selected){
+ const set=new Set(state.categories||[]);
+ if(selected)set.add(name);else set.delete(name);
+ state.categories=[...set];fun()
+}
 function fun(){
  const selected=new Set(state.categories||[]);
  const cards=EXTRA_CATEGORIES.map(name=>`<button class="btn category-choice ${selected.has(name)?"selected":""}" data-cat="${esc(name)}" data-voice="${esc(name)}">${esc(name)}</button>`).join("");
@@ -677,9 +741,8 @@ function fun(){
     <div class="subtle center">Pick as many as you want, or say “Skip.” You can also say “Add Music,” “Add Sports,” or “Remove Geography.”</div>`,
    `<button id="skip" class="btn">SKIP</button><button id="cont" class="btn primary" data-voice="CONTINUE" data-voice-aliases="next|done|go ahead|lets go|im done|thats it|start|begin|im ready">CONTINUE</button>`);
  document.querySelectorAll("[data-cat]").forEach(b=>b.onclick=()=>{
-   const name=b.dataset.cat, set=new Set(state.categories||[]);
-   if(set.has(name))set.delete(name);else set.add(name);
-   state.categories=[...set];fun()
+   const name=b.dataset.cat;
+   setCategorySelected(name,!(state.categories||[]).includes(name))
  });
  const allBtn=document.getElementById("selectAllCats");
  allBtn.onclick=()=>{state.categories=state.categories.length===EXTRA_CATEGORIES.length?[]:[...EXTRA_CATEGORIES];fun()};
@@ -703,13 +766,14 @@ function players(){
  document.getElementById("continue").onclick=()=>{state.players=state.players.filter(p=>(p.name||"").trim());if(state.players.length<(state.mode==="solo"?1:2)){const msg=document.getElementById("rosterError");if(msg)msg.textContent=state.mode==="solo"?"ADD A PLAYER NAME TO CONTINUE":"ADD AT LEAST TWO NAMED PLAYERS TO CONTINUE";return}rememberNames();go("time")};startVoice("players")
 }
 function adjustGameVolume(delta){setVolume((state.volume??0.8)+delta,true)}
+function setGameDuration(minutes){state.quick=false;state.duration=minutes;time()}
 function applyVolume(){
  // Audio helpers read state.volume; keep any media elements synced too.
  document.querySelectorAll("audio,video").forEach(el=>{try{el.volume=state.volume??0.8}catch{}})
 }
 function time(){
  app.innerHTML=shell("GAME SETTINGS",`<div class="grid game-time-grid"><div class="card center game-time-card"><div class="game-time-label">QUESTION TIMER</div><div class="actions" style="margin-top:10px">${[10,15,20,30].map(s=>`<button class="btn ${state.questionSeconds===s?"selected":""}" data-sec="${s}">${s} SEC</button>`).join("")}</div></div><div class="card center game-time-card"><div class="game-time-label">GAME LENGTH</div><div class="actions" style="margin-top:10px">${[5,10,15,20].map(m=>`<button class="btn ${!state.quick&&state.duration===m?"selected":""}" data-min="${m}">${m} MIN</button>`).join("")}<button class="btn ${state.quick?"selected":""}" id="quick">QUICK GAME</button></div></div><div class="card center game-time-card"><div class="game-time-label">VOLUME</div><div class="volume-wrap" style="justify-content:center;margin-top:12px"><input id="vol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="volPct">${Math.round(state.volume*100)}%</strong></div></div><div class="card center game-time-card"><div class="game-time-label">VOICE RECOGNITION</div><div class="actions" style="margin-top:10px"><button id="voiceOn" class="btn ${state.voiceOn?"selected":""}">ON</button><button id="voiceOff" class="btn ${!state.voiceOn?"selected":""}">OFF</button></div></div></div>`,`<button id="back" class="btn">BACK</button><button class="btn setup-exit-bottom" data-setup-exit data-voice="EXIT" data-voice-aliases="exit game|leave game|cancel game|quit setup|go home|back to home">EXIT</button><button id="continue" class="btn primary">CONTINUE</button>`);
- document.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{state.questionSeconds=Number(b.dataset.sec);time()});document.querySelectorAll("[data-min]").forEach(b=>b.onclick=()=>{state.quick=false;state.duration=Number(b.dataset.min);time()});
+ document.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{state.questionSeconds=Number(b.dataset.sec);time()});document.querySelectorAll("[data-min]").forEach(b=>b.onclick=()=>setGameDuration(Number(b.dataset.min)));
  document.getElementById("quick").onclick=()=>{state.quick=true;state.duration=3;time()};document.getElementById("vol").oninput=e=>setVolume(Number(e.target.value));document.getElementById("voiceOn").onclick=()=>{voiceCore.permissionBlocked=false;voiceCore.retryAttempt=0;state.voiceOn=true;save();time()};document.getElementById("voiceOff").onclick=()=>{state.voiceOn=false;save();stopVoice();time()};document.getElementById("back").onclick=back;document.getElementById("continue").onclick=()=>go("ready");startVoice("time")
 }
 function ready(){
@@ -908,11 +972,28 @@ function resumeGame(){document.getElementById("pauseOverlay")?.remove();const fr
 function leaveGame(){document.getElementById("pauseOverlay")?.remove();clearRuntime();saveActiveGame();state.game=null;home()}
 function confirmEnd(){if(!document.querySelector(".pause-card"))pauseGame();const c=document.querySelector(".pause-card");if(!c)return;c.innerHTML=`<div class="pause-title">END THIS GAME?</div><button id="yes" class="btn danger large">YES</button><button id="no" class="btn">CANCEL</button>`;document.getElementById("yes").onclick=()=>{document.getElementById("pauseOverlay")?.remove();clearActiveGame();state.game=null;home()};document.getElementById("no").onclick=showPauseOverlay}
 function render(){clearRuntime();({home,mode,industry,difficulty,fun,players,time,ready,handoff,question,result}[state.screen]||home)()}
-function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
+function installLayoutBoundsDebug(){
+ const enabled=new URLSearchParams(location.search).get("layoutDebug")==="1"||localStorage.getItem("los_layout_debug")==="1";
+ if(!enabled)return;
+ const colors={layout:"#ffffff",visual:"#ff3f55",app:"#52db91",screen:"#ffd04f",shell:"#53b7ff",gameShell:"#b978ff",topbar:"#ff8b3d",content:"#42e5db",footer:"#ff65c7"};
+ const layer=document.createElement("div"),panel=document.createElement("pre");
+ layer.id="losLayoutBounds";layer.style.cssText="position:fixed;inset:0;z-index:2147483645;pointer-events:none";
+ panel.id="losLayoutMetrics";panel.style.cssText="position:fixed;z-index:2147483646;left:6px;top:6px;width:min(96vw,760px);max-height:48vh;overflow:auto;margin:0;padding:8px;border:1px solid #fff;background:rgba(0,0,0,.88);color:#fff;font:10px/1.3 monospace;white-space:pre-wrap;pointer-events:auto";
+ document.body.append(layer,panel);
+ const num=x=>Math.round((Number(x)||0)*10)/10,box=e=>{if(!e)return null;const r=e.getBoundingClientRect(),s=getComputedStyle(e);return{rect:{x:num(r.x),y:num(r.y),width:num(r.width),height:num(r.height),right:num(r.right),bottom:num(r.bottom)},computed:{height:s.height,minHeight:s.minHeight,maxHeight:s.maxHeight,marginTop:s.marginTop,marginBottom:s.marginBottom,paddingTop:s.paddingTop,paddingBottom:s.paddingBottom,rowGap:s.rowGap,columnGap:s.columnGap,display:s.display,position:s.position,overflowY:s.overflowY,gridTemplateRows:s.gridTemplateRows}}};
+ const safe=()=>{const p=document.createElement("div");p.style.cssText="position:fixed;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)";document.body.appendChild(p);const s=getComputedStyle(p),x={top:s.paddingTop,right:s.paddingRight,bottom:s.paddingBottom,left:s.paddingLeft};p.remove();return x};
+ const snapshot=()=>{const vv=visualViewport,html=document.documentElement,body=document.body;return{runtime:{userAgent:navigator.userAgent,devicePixelRatio:num(devicePixelRatio),outerWidth,outerHeight,windowOrientation:typeof orientation==="number"?orientation:null,screen:{width:screen.width,height:screen.height,availWidth:screen.availWidth,availHeight:screen.availHeight,orientationType:screen.orientation?.type||null,orientationAngle:screen.orientation?.angle??null}},viewport:{innerWidth:innerWidth,innerHeight:innerHeight,visualViewport:vv?{width:num(vv.width),height:num(vv.height),offsetTop:num(vv.offsetTop),offsetLeft:num(vv.offsetLeft),pageTop:num(vv.pageTop),pageLeft:num(vv.pageLeft),scale:num(vv.scale)}:null,documentClientWidth:html.clientWidth,documentClientHeight:html.clientHeight,safeArea:safe(),displayMode:{standalone:matchMedia("(display-mode: standalone)").matches,fullscreen:matchMedia("(display-mode: fullscreen)").matches,minimalUi:matchMedia("(display-mode: minimal-ui)").matches,browser:matchMedia("(display-mode: browser)").matches,navigatorStandalone:navigator.standalone===true},appHeightVariable:getComputedStyle(html).getPropertyValue("--app-h").trim()},boxes:{html:box(html),body:box(body),app:box(document.getElementById("app")),screen:box(document.querySelector(".screen")),shell:box(document.querySelector(".shell")),gameShell:box(document.querySelector(".game-shell")),topbar:box(document.querySelector(".topbar,.game-topbar")),content:box(document.querySelector(".content,.question-area,.handoff,.result-body,.transition-stage,.showdown-stage,.complete-stage")),footer:box(document.querySelector(".footer"))},parentChain:[...function*(){let e=document.querySelector(".screen");while(e){yield{name:e.id?`#${e.id}`:e.className?`.${String(e.className).trim().replace(/\s+/g,".")}`:e.tagName.toLowerCase(),box:box(e)};e=e.parentElement}}()]}};
+ let queued=false;
+ const refresh=()=>{queued=false;const data=snapshot();layer.replaceChildren();const vv=visualViewport,targets=[{name:"layout",rect:{x:0,y:0,width:innerWidth,height:innerHeight}},{name:"visual",rect:{x:vv?.offsetLeft||0,y:vv?.offsetTop||0,width:vv?.width||innerWidth,height:vv?.height||innerHeight}},{name:"app",element:document.getElementById("app")},{name:"screen",element:document.querySelector(".screen")},{name:"shell",element:document.querySelector(".shell")},{name:"gameShell",element:document.querySelector(".game-shell")},{name:"topbar",element:document.querySelector(".topbar,.game-topbar")},{name:"content",element:document.querySelector(".content,.question-area,.handoff,.result-body,.transition-stage,.showdown-stage,.complete-stage")},{name:"footer",element:document.querySelector(".footer")}];for(const t of targets){const r=t.rect||(t.element&&t.element.getBoundingClientRect());if(!r)continue;const d=document.createElement("div");d.style.cssText=`position:fixed;left:${r.x}px;top:${r.y}px;width:${r.width}px;height:${r.height}px;border:2px solid ${colors[t.name]};box-sizing:border-box;color:${colors[t.name]};font:700 10px monospace;text-shadow:0 1px 2px #000`;d.textContent=t.name;layer.appendChild(d)}panel.textContent="LAYOUT DEBUG — WHITE layout | RED visual | GREEN app | GOLD screen\n"+JSON.stringify(data,null,2)};
+ const schedule=()=>{if(!queued){queued=true;requestAnimationFrame(refresh)}};
+ addEventListener("resize",schedule,{passive:true});addEventListener("orientationchange",schedule,{passive:true});visualViewport?.addEventListener("resize",schedule,{passive:true});visualViewport?.addEventListener("scroll",schedule,{passive:true});new MutationObserver(schedule).observe(document.getElementById("app"),{childList:true,subtree:true});
+ globalThis.__LOS_LAYOUT_DEBUG__={snapshot,refresh:schedule};schedule()
+}
+function viewport(){document.documentElement.style.setProperty("--app-h",Math.max(document.documentElement.clientHeight||0,window.innerHeight||0)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("pointerdown",()=>{ensureAudio();if(["home","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
 document.documentElement.dataset.build="6.0.8";
-try{viewport();home()}
+try{viewport();home();installLayoutBoundsDebug()}
 catch(err){
  console.error("LOS startup error",err);
  app.innerHTML=`<section class="screen"><div class="shell"><div class="content"><div class="card"><h1>LAST ONE STANDING</h1><p>Build 6.0.1 could not start.</p><p class="subtle">${esc(err?.message||"Unknown startup error")}</p></div></div></div></section>`

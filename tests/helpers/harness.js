@@ -53,6 +53,8 @@ class FakeSpeechRecognition {
     this.continuous = false;
     this.maxAlternatives = 1;
     this.started = false;
+    this.nextResultIndex = 0;
+    this.interimResultIndex = null;
     FakeSpeechRecognition.instances.push(this);
   }
 
@@ -66,15 +68,32 @@ class FakeSpeechRecognition {
   }
   abort() { this.started = false; }
 
-  emit(transcript, { final = true, confidence = 1, alternatives = [] } = {}) {
+  emit(transcript, { final = true, confidence = 1, alternatives = [], resultIndex } = {}) {
+    if (resultIndex == null) {
+      if (final) {
+        resultIndex = this.interimResultIndex ?? this.nextResultIndex++;
+        if (this.interimResultIndex != null) this.nextResultIndex = Math.max(this.nextResultIndex, this.interimResultIndex + 1);
+        this.interimResultIndex = null;
+      } else {
+        if (this.interimResultIndex == null) this.interimResultIndex = this.nextResultIndex;
+        resultIndex = this.interimResultIndex;
+      }
+    }
     const result = [{ transcript, confidence }, ...alternatives.map(x => typeof x === "string" ? { transcript: x, confidence } : x)];
     result.isFinal = final;
-    const results = [result];
-    this.onresult?.({ resultIndex: 0, results });
+    const results = Array(resultIndex + 1);
+    results[resultIndex] = result;
+    this.onresult?.({ resultIndex, results });
   }
 
   end() { this.started = false; this.onend?.(); }
   error(error) { this.onerror?.({ error }); }
+  audioStart() { this.onaudiostart?.(); }
+  soundStart() { this.onsoundstart?.(); }
+  speechStart() { this.onspeechstart?.(); }
+  speechEnd() { this.onspeechend?.(); }
+  soundEnd() { this.onsoundend?.(); }
+  audioEnd() { this.onaudioend?.(); }
 }
 
 class FakeAudioParam {
@@ -101,7 +120,7 @@ function instrument(source) {
   const at = source.lastIndexOf(marker);
   if (at < 0) throw new Error("Unable to instrument app.js");
   const exposure = `\nObject.assign(globalThis.__LOS_TEST__, {\n` +
-    ` getState:()=>state, setState:patch=>Object.assign(state,patch), getRecognition:()=>recognition,\n` +
+    ` getState:()=>state, setState:patch=>Object.assign(state,patch), getRecognition:()=>recognition, getVoiceDiagnostics:()=>voiceCore.diagnostics.slice(),\n` +
     ` routeVoiceCentral, centralQuestionIntent, accepted, question, finish, startGame,\n` +
     ` players, playersContinue, fun, time, pauseGame, resumeGame, confirmEnd, leaveGame,\n` +
     ` setVolume, go, back, home, mode, industry, difficulty, ready, handoff, result,\n` +
@@ -111,12 +130,12 @@ function instrument(source) {
   return source.slice(0, at) + exposure + source.slice(at);
 }
 
-function createHarness({ storage = {} } = {}) {
+function createHarness({ storage = {}, voiceLatency = false } = {}) {
   FakeSpeechRecognition.instances.length = 0;
   FakeSpeechRecognition.startFailures = 0;
   const timers = new FakeTimers();
   const dom = new JSDOM("<!doctype html><html><body><main id=\"app\"></main></body></html>", {
-    url: "https://example.test/",
+    url: `https://example.test/${voiceLatency ? "?voiceLatency=1" : ""}`,
     runScripts: "outside-only",
     pretendToBeVisual: true
   });
