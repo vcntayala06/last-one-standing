@@ -1,0 +1,12 @@
+{
+  "name": "last-one-standing",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/regression.test.js tests/characterization.test.js",
+    "test:known-bugs": "node --test tests/known-bugs.test.js",
+    "test:all": "node --test tests/*.test.js"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
+  }
+}

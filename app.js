@@ -47,7 +47,7 @@ let state={
  quick:false,voiceOn:localStorage.getItem(STORAGE.voice)!=="false",
  volume:Number(localStorage.getItem(STORAGE.volume)||.65),categories:[],industry:"",difficulty:"medium",answerLanguage:"en",game:null
 };
-let recognition=null,voiceContext="",questionTimer=null,flowTimer=null,audioCtx=null,musicTimer=null,pausedRemaining=null,pausedFrom=null;
+let recognition=null,questionTimer=null,flowTimer=null,audioCtx=null,musicTimer=null,pausedRemaining=null,pausedFrom=null,renamePending=null,lastVolume=state.volume>0?state.volume:.65,questionSoundTimers=[];
 const uid=()=>Math.random().toString(36).slice(2,10);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
 const norm=s=>String(s||"").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu," ").replace(/\s+/g," ").trim();
@@ -69,7 +69,7 @@ function tickSound(rem){
  if(rem<=0)return;
  if(rem>=6){tone(500,.045,.05,"square");return}
  // Pressure zone: same tick character, rapid cadence from 5 through 1.
- [0,200,400,600,800].forEach(ms=>setTimeout(()=>tone(620,.032,.058,"square"),ms))
+ [0,200,400,600,800].forEach(ms=>questionSoundTimers.push(setTimeout(()=>tone(620,.032,.058,"square"),ms)))
 }
 function buzzer(){tone(175,.22,.12,"square");tone(150,.24,.11,"square",.17)}
 function good(){tone(620,.08,.07,"triangle");tone(820,.12,.07,"triangle",.08)}
@@ -77,12 +77,9 @@ function bad(){tone(220,.13,.09,"square")}
 function sting(){tone(360,.09,.06,"triangle");tone(520,.12,.07,"triangle",.1);tone(680,.15,.06,"triangle",.2)}
 function startMusic(){stopMusic();ensureAudio();let step=0;musicTimer=setInterval(()=>{if(["question","handoff","result","paused","transition"].includes(state.screen))return;const seq=[220,277,330,440];tone(seq[step++%seq.length],.12,.018,"triangle")},700)}
 function stopMusic(){clearInterval(musicTimer);musicTimer=null}
-function clearRuntime(){clearInterval(questionTimer);questionTimer=null;clearTimeout(flowTimer);flowTimer=null;stopVoice()}
+function clearRuntime(){clearInterval(questionTimer);questionTimer=null;clearTimeout(flowTimer);flowTimer=null;questionSoundTimers.forEach(clearTimeout);questionSoundTimers=[]}
 function isSetupScreen(){return ["mode","industry","difficulty","fun","players","time","ready"].includes(state.screen)}
-function exitSetup(){if(state.game)return;stopVoice();state.game=null;state.screen="home";home()}
-function bindSetupExit(){
- document.querySelectorAll("[data-setup-exit]").forEach(b=>b.onclick=exitSetup)
-}
+function exitSetup(){if(state.game)return;state.game=null;state.screen="home";home()}
 function shell(title,content,footer=""){return `<section class="screen"><div class="shell"><header class="topbar"><div></div><div class="topbar-title">${title||""}</div><div></div></header><div class="content">${content}</div><footer class="footer">${footer}</footer></div></section>${state.voiceOn?`<div id="voiceDiagnostic" class="voice-diagnostic">MIC LISTENING</div>`:""}`}
 function remembered(){try{return JSON.parse(localStorage.getItem(STORAGE.names)||"[]")}catch{return[]}}
 function rememberNames(){const ns=state.players.map(p=>p.name.trim()).filter(Boolean);localStorage.setItem(STORAGE.names,JSON.stringify([...new Set([...remembered(),...ns])].slice(-50)))}
@@ -93,13 +90,14 @@ function ensurePlayers(){
 }
 function speechSupported(){return !!(window.SpeechRecognition||window.webkitSpeechRecognition)}
 function stopVoice(){
- clearTimeout(voiceCore?.restart);
- voiceContext="";
- try{if(recognition){recognition.onend=null;recognition.abort()}}catch{}
- recognition=null
+ voiceCore.desired=false;
+ clearTimeout(voiceCore.restart);voiceCore.restart=null;
+ voiceCore.generation++;
+ const r=recognition;recognition=null;
+ try{if(r){r.onstart=r.onresult=r.onerror=r.onend=null;r.abort()}}catch{}
 }
 
-let voiceRestartTimer=null,voiceGeneration=0,lastVoiceAction={key:"",at:0};
+let lastVoiceAction={key:"",at:0};
 
 function voiceFeedback(text,kind="heard"){
  const el=document.getElementById("voiceFeedback");if(!el)return;
@@ -130,7 +128,7 @@ function visibleVoiceTargets(){
      return {el,label,phrases:[label,...aliases].filter(Boolean)}
    })
 }
-function clickVoiceTarget(h){
+function fuzzyVisibleTarget(h){
  const n=commandKey(h);if(!n)return false;
  const generic=/^(continue|start|begin|next|go|go ahead|lets go|let s go|lets begin|let s begin|im ready|i m ready|were ready|we re ready|move on)$/;
  if(generic.test(n)){
@@ -143,8 +141,7 @@ function clickVoiceTarget(h){
    for(const p of t.phrases){
      const k=commandKey(p);if(!k)continue;
      let score=0;
-     if(n===k)score=100;
-     else if(n===`click ${k}`||n===`choose ${k}`||n===`select ${k}`||n===`pick ${k}`||n===`press ${k}`)score=95;
+     if(n===`click ${k}`||n===`choose ${k}`||n===`select ${k}`||n===`pick ${k}`||n===`press ${k}`)score=95;
      else if(k==="add player"){
        if(/^(add player|add a player|add another player)$/.test(n))score=100;
      } else if(phraseMatch(n,k))score=70+Math.min(k.length,20);
@@ -159,38 +156,7 @@ function clickVoiceTarget(h){
  }
  return false
 }
-function activeGameVoiceCommand(h){
- const n=norm(h);
- if(!state.game)return false;
-
- // Save-and-leave commands: game remains resumable.
- if(/^(exit game|exit the game|leave game|leave the game|save and leave|save game and leave)$/.test(n)){
-   voiceFeedback("✓ EXIT GAME","action");
-   leaveGame();
-   return true
- }
-
- // Destructive commands: always require confirmation.
- if(/^(end game|end the game|quit game|quit the game|stop game|stop the game)$/.test(n)){
-   voiceFeedback("✓ END GAME","action");
-   confirmEnd();
-   return true
- }
- return false
-}
-function universalVoiceCommand(h){
- const n=norm(h);
- if(activeGameVoiceCommand(h))return true;
- if(/^(back|go back|previous|previous screen|take me back)$/.test(n)){voiceFeedback("✓ BACK","action");back();return true}
- if(/^(volume up|turn it up|louder)$/.test(n)){setVolume(state.volume+.1);voiceFeedback("✓ VOLUME UP","action");return true}
- if(/^(volume down|turn it down|quieter)$/.test(n)){setVolume(state.volume-.1);voiceFeedback("✓ VOLUME DOWN","action");return true}
- if(/^(mute|mute it)$/.test(n)){setVolume(0);voiceFeedback("✓ MUTED","action");return true}
- if(/^(unmute|sound on)$/.test(n)){setVolume(.65);voiceFeedback("✓ SOUND ON","action");return true}
- const vm=n.match(/^volume\s+(\d{1,3})$/);if(vm){setVolume(Math.min(100,Number(vm[1]))/100);voiceFeedback("✓ VOLUME "+vm[1],"action");return true}
- return clickVoiceTarget(h)
-}
-
-let voiceCore={ctx:null,restart:null,lastKey:"",lastAt:0,lastHeard:""};
+let voiceCore={ctx:null,restart:null,generation:0,retryAttempt:0,desired:false,lastKey:"",lastAt:0,lastHeard:"",permissionBlocked:false},lastPlayerVoiceMutation={key:"",at:0};
 
 function voiceStatus(text,kind="listening"){
  voiceCore.lastHeard=text||"";
@@ -203,16 +169,6 @@ function voiceOnce(key,fn,windowMs=600){
  const now=Date.now(),k=commandKey(key);
  if(voiceCore.lastKey===k&&now-voiceCore.lastAt<windowMs)return true;
  voiceCore.lastKey=k;voiceCore.lastAt=now;fn();return true
-}
-let voiceTargetCache={screen:"",items:[]};
-function refreshVoiceTargetCache(){
- voiceTargetCache={screen:state.screen,items:visibleVoiceTargets().map(t=>({el:t.el,label:t.label,phrases:t.phrases.map(commandKey).filter(Boolean)}))}
-}
-function cachedExactVoiceTarget(h){
- const n=commandKey(h);if(!n)return false;
- if(voiceTargetCache.screen!==state.screen||!voiceTargetCache.items.length)refreshVoiceTargetCache();
- const t=voiceTargetCache.items.find(x=>x.phrases.includes(n));if(!t)return false;
- return voiceOnce("cached:"+t.label,()=>{voiceFeedback("✓ "+t.label,"action");t.el.click()})
 }
 function exactVisibleTarget(h){
  const n=commandKey(h);if(!n)return false;
@@ -260,6 +216,16 @@ function resolveExtraCategory(h){
 }
 function centralSetupIntent(h){
  const n=norm(h);
+ if(state.screen==="time"){
+  if(/^(mute|mute volume|volume off)$/.test(n))return voiceOnce("volume:mute",()=>setVolume(0,true));
+  if(/^(unmute|volume on)$/.test(n))return voiceOnce("volume:unmute",()=>setVolume(lastVolume,true));
+  if(/^(volume up|louder|turn it up)$/.test(n))return voiceOnce("volume:up",()=>adjustGameVolume(.1));
+  if(/^(volume down|quieter|turn it down)$/.test(n))return voiceOnce("volume:down",()=>adjustGameVolume(-.1));
+  if(/^(full volume|max volume|maximum volume)$/.test(n))return voiceOnce("volume:max",()=>setVolume(1,true));
+  if(/^half volume$/.test(n))return voiceOnce("volume:half",()=>setVolume(.5,true));
+  const vm=n.match(/^(?:set )?volume(?: to)?\s+(\d{1,3})(?: percent)?$/);
+  if(vm){const pct=Math.max(0,Math.min(100,Number(vm[1])));return voiceOnce("volume:"+pct,()=>setVolume(pct/100,true))}
+ }
  if(state.screen==="fun"){
   if(/^(select all|all categories|choose all|give me everything)$/.test(n)){
    return voiceOnce("select-all",()=>{state.categories=[...EXTRA_CATEGORIES];voiceFeedback("✓ ALL CATEGORIES","action");fun()})
@@ -403,27 +369,6 @@ function playersVoiceController(h){
   players();return true
  }
 
- if(state.screen==="time"){
-  let m=n.match(/^(?:question timer\\s+)?(5|10|15|20|25|30)\\s*(?:seconds?|sec)?$/);
-  if(!m)m=n.match(/^set (?:the )?(?:question )?timer to (5|10|15|20|25|30)(?: seconds?)?$/);
-  if(m){
-   const sec=Number(m[1]);return voiceOnce("timer:"+sec,()=>{state.questionSeconds=sec;voiceFeedback("✓ "+sec+" SECONDS","action");time()})
-  }
- }
-
- if(state.screen==="time"){
-  if(/^(mute|mute volume|volume off)$/.test(n))return voiceOnce("volume:mute",()=>setGameVolume(0));
-  if(/^(unmute|volume on)$/.test(n))return voiceOnce("volume:unmute",()=>setGameVolume(state.volume>0?state.volume:.7));
-  if(/^(volume up|louder|turn it up)$/.test(n))return voiceOnce("volume:up",()=>adjustGameVolume(.1));
-  if(/^(volume down|quieter|turn it down)$/.test(n))return voiceOnce("volume:down",()=>adjustGameVolume(-.1));
-  if(/^(full volume|max volume|maximum volume)$/.test(n))return voiceOnce("volume:max",()=>setGameVolume(1));
-  if(/^(half volume)$/.test(n))return voiceOnce("volume:half",()=>setGameVolume(.5));
-  let vm=n.match(/^(?:set )?volume(?: to)?\\s+(\\d{1,3})(?: percent)?$/);
-  if(vm){
-   const pct=Math.max(0,Math.min(100,Number(vm[1])));
-   return voiceOnce("volume:"+pct,()=>setGameVolume(pct/100))
-  }
- }
  return false
 }
 function centralGameIntent(h){
@@ -469,7 +414,7 @@ function endConfirmIntent(h){
  const n=norm(h);
  const modal=document.querySelector(".modal,.confirm,.overlay");
  const yes=document.querySelector("[data-confirm-end],#confirmEnd,#endYes,.danger");
- const no=document.querySelector("[data-cancel-end],#cancelEnd,#endNo");
+ const no=document.querySelector("[data-cancel-end],#cancelEnd,#endNo,#no");
  if(!modal)return false;
  if(/^(yes|confirm|do it|end game|exit|quit)$/.test(n)&&yes){return voiceOnce("confirm-end",()=>yes.click())}
  if(/^(no|cancel|go back|keep playing|resume)$/.test(n)&&no){return voiceOnce("cancel-end",()=>no.click())}
@@ -485,7 +430,11 @@ function routeVoiceCentral(h,{isFinal=false,confidence=0}={}){
  if(centralGameIntent(h))return true;
 
  // WHO'S IN owns complete player-data phrases before generic setup parsing.
- if(state.screen==="players" && isFinal && playersVoiceController(h))return true;
+ if(state.screen==="players" && isFinal){
+  const key=commandKey(h),now=Date.now();
+  if(lastPlayerVoiceMutation.key===key&&now-lastPlayerVoiceMutation.at<1000)return true;
+  if(playersVoiceController(h)){lastPlayerVoiceMutation={key,at:now};return true}
+ }
 
  // Setup navigation and fixed setup choices should feel immediate.
  if(centralNavIntent(h))return true;
@@ -495,29 +444,33 @@ function routeVoiceCentral(h,{isFinal=false,confidence=0}={}){
  if(centralQuestionIntent(h,isFinal,confidence))return true;
 
  // Exact visible controls can fire quickly everywhere except player Add/Edit controls on interim speech.
- if((state.screen!=="players" || isFinal) && cachedExactVoiceTarget(h))return true;
  if((state.screen!=="players" || isFinal) && exactVisibleTarget(h))return true;
 
  // Fuzzy control matching remains final-only.
- if(isFinal&&clickVoiceTarget(h))return true;
+ if(isFinal&&fuzzyVisibleTarget(h))return true;
  return false
 }
+function scheduleVoiceRestart(){
+ if(!voiceCore.desired||!state.voiceOn||voiceCore.permissionBlocked||recognition||voiceCore.restart)return;
+ const delays=[25,100,250,500,1000],delay=delays[Math.min(voiceCore.retryAttempt++,delays.length-1)];
+ voiceCore.restart=setTimeout(()=>{
+  voiceCore.restart=null;
+  if(voiceCore.desired&&state.voiceOn&&!voiceCore.permissionBlocked&&!recognition)startVoice(voiceCore.ctx||state.screen)
+ },delay)
+}
 function startVoice(ctx){
- const previousCtx=voiceCore.ctx;
- voiceContext=ctx;voiceCore.ctx=ctx;
+ voiceCore.ctx=ctx;
  if(!state.voiceOn||!speechSupported()){stopVoice();return}
+ if(voiceCore.permissionBlocked){voiceCore.desired=false;return}
+ voiceCore.desired=true;
 
- // If the screen changed, do not keep an old recognizer session alive.
- // Restart immediately with the new screen's command context.
  if(recognition){
-  // Persistent controller: screen changes only update command context.
-  // Do not abort a healthy recognizer just because the UI changed.
-  voiceContext=ctx;voiceCore.ctx=ctx;
-  refreshVoiceTargetCache();
   return
  }
+ clearTimeout(voiceCore.restart);voiceCore.restart=null;
 
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ const generation=++voiceCore.generation;
  try{
   const r=new SR();recognition=r;
   r.lang="en-US";
@@ -525,9 +478,13 @@ function startVoice(ctx){
   try{r.continuous=true}catch{}
   try{r.maxAlternatives=5}catch{}
 
-  r.onstart=()=>voiceStatus("MIC LISTENING","listening");
+  r.onstart=()=>{
+   if(voiceCore.generation!==generation||recognition!==r)return;
+   voiceCore.retryAttempt=0;voiceStatus("MIC LISTENING","listening")
+  };
 
   r.onresult=e=>{
+   if(voiceCore.generation!==generation||recognition!==r)return;
    for(let i=e.resultIndex;i<e.results.length;i++){
     const res=e.results[i];
     let handled=false;
@@ -548,7 +505,6 @@ function startVoice(ctx){
       }
       const fastControl=/^(continue|next|done|go ahead|go on|move on|lets go|let s go|im ready|i m ready|start|begin|back|go back|exit|exit game|leave game|cancel game|quit setup|go home|pause|resume|quit|quit game|end game|stop game|pass|skip|select all|clear all|kids|easy|medium|hard|savage)$/;
       const setupFast=["home","mode","industry","difficulty","fun","players","time","ready","paused"].includes(state.screen);
-      if(state.screen!=="players"&&cachedExactVoiceTarget(text)){handled=true;break}
       if(fastControl.test(n)||setupFast||state.screen==="question"){
        if(routeVoiceCentral(text,{isFinal:false,confidence})){handled=true;break}
       }
@@ -561,129 +517,26 @@ function startVoice(ctx){
   };
 
   r.onerror=e=>{
+   if(voiceCore.generation!==generation||recognition!==r)return;
    const err=e?.error||"";
-   if(err==="not-allowed"||err==="service-not-allowed")voiceStatus("MIC PERMISSION NEEDED","error");
+   if(err==="not-allowed"||err==="service-not-allowed"){
+    voiceCore.permissionBlocked=true;voiceCore.desired=false;
+    clearTimeout(voiceCore.restart);voiceCore.restart=null;
+    voiceStatus("MIC PERMISSION NEEDED","error")
+   }
    else if(err!=="aborted"&&err!=="no-speech")voiceStatus("MIC LISTENING","listening")
   };
 
   r.onend=()=>{
-   if(recognition===r)recognition=null;
-   if(!state.voiceOn)return;
-   clearTimeout(voiceCore.restart);
-   const nextCtx=voiceContext||state.screen;
-   voiceCore.restart=setTimeout(()=>startVoice(nextCtx),25)
+   if(voiceCore.generation!==generation||recognition!==r)return;
+   recognition=null;scheduleVoiceRestart()
   };
 
   r.start()
  }catch{
-  recognition=null;
-  clearTimeout(voiceCore.restart);
-  voiceCore.restart=setTimeout(()=>{
-   if(state.voiceOn)startVoice(voiceContext||state.screen)
-  },55)
+  if(voiceCore.generation!==generation)return;
+  recognition=null;scheduleVoiceRestart()
  }
-}
-function ensureQuestionVoice(){
- if(state.voiceOn&&state.screen==="question"&&!recognition)startVoice("question")
-}
-function globalCmd(h){
- const n=norm(h);
- if(/^(back|go back|previous|previous screen|take me back)$/.test(n))return"back";
- if(/^(continue|start|lets start|let s start|lets begin|let s begin|begin|go|go ahead|next|move on|im ready|i m ready|were ready|we re ready|lets go|let s go|start the game|continue on)$/.test(n))return"continue";
- if(/^(pause|pause game|hold on|stop for a second)$/.test(n))return"pause";
- if(/^(resume|resume game|continue game|keep going)$/.test(n))return"resume";
- if(/^(leave game|exit game|leave)$/.test(n))return"leave";
- if(/^(end game|end the game|quit the game)$/.test(n))return"end";
- if(/^(volume up|turn it up|louder)$/.test(n))return"volup";
- if(/^(volume down|turn it down|quieter)$/.test(n))return"voldown";
- if(/^(mute|mute it)$/.test(n))return"mute";
- if(/^(unmute|sound on)$/.test(n))return"unmute";
- const m=n.match(/^volume\s+(\d{1,3})$/);if(m)return"vol:"+Math.min(100,Number(m[1]));
- if(/^(what did you hear|repeat what you heard|what was heard)$/.test(n))return"heard";
- return""
-}
-function heard(ctx,h){
- const c=globalCmd(h), n=norm(h);
- if(c==="volup"){setVolume(state.volume+.1);return}
- if(c==="voldown"){setVolume(state.volume-.1);return}
- if(c==="mute"){setVolume(0);return}
- if(c==="unmute"){setVolume(.65);return}
- if(c.startsWith("vol:")){setVolume(Number(c.slice(4))/100);return}
-
- if(ctx==="question"){
-   state.game.speechLog.push(h);
-   if(c==="pause"){pauseGame();return}
-   if(/^(skip|skip it|skip this one|skip question|next question)$/.test(n)){state.game.lastOutcomeDetail="skip";finish("pass");return}
-   if(/^(pass|i pass|ill pass|i ll pass|im passing|i m passing)$/.test(n)){state.game.lastOutcomeDetail="pass";finish("pass");return}
-   if(accepted(h,state.game.current)){finish("correct");return}
-   return
- }
- if(ctx==="paused"){
-   if(activeGameVoiceCommand(h))return;
-   if(c==="resume"||c==="continue"){resumeGame();return}
-   if(c==="leave"){leaveGame();return}
-   if(c==="end"){confirmEnd();return}
-   return
- }
-
- if(c==="back"){back();return}
-
- if(ctx==="home"){
-   if(/^(start game|start|lets play|let s play|play)$/.test(n)||c==="continue"){primaryAction();return}
- }
-
- if(ctx==="mode"){
-   if(/^(quick|quick game|quit game|start a quick game|start quick game)$/.test(n)){state.quick=true;state.duration=3;state.mode="friends";go("difficulty");return}
-   if(/^(work|work game)$/.test(n)){state.mode="work";state.quick=false;go("industry");return}
-   if(/^(family|family game)$/.test(n)){state.mode="family";state.quick=false;go("difficulty");return}
-   if(/^(friends|friend|friends game)$/.test(n)){state.mode="friends";state.quick=false;go("difficulty");return}
-   if(/^(solo|solo game)$/.test(n)){state.mode="solo";state.quick=false;go("difficulty");return}
- }
-
- if(ctx==="industry"){
-   const target=WORK_INDUSTRIES.find(x=>phraseMatch(h,x)||norm(x)===norm(h));
-   if(target){state.industry=target;voiceFeedback("✓ "+target,"action");industry();return}
-   if(c==="continue"&&state.industry){go("fun");return}
- }
- if(ctx==="difficulty"){
-   const d=DIFFICULTIES.find(x=>norm(x.label)===n||n===`make it ${norm(x.label)}`||n===`${norm(x.label)} questions`);
-   if(d){state.difficulty=d.id;voiceFeedback("✓ "+d.label,"action");difficulty();return}
-   if(c==="continue"){go("fun");return}
- }
- if(ctx==="fun"){
-   if(/^(continue|next|done|go ahead|lets go|let s go|im done|i m done|thats it|that s it|start|begin|im ready|i m ready)$/.test(n)){funContinue();return}
-   if(/^(select all|all categories|choose all|give me everything)$/.test(n)){state.categories=[...EXTRA_CATEGORIES];voiceFeedback("✓ ALL CATEGORIES","action");fun();return}
-   if(/^(clear all|clear categories|remove all categories)$/.test(n)){state.categories=[];voiceFeedback("✓ CLEAR ALL","action");fun();return}
-
-   if(/^(skip|skip this|no thanks|none|no extra categories)$/.test(n)){state.categories=[];go("players");return}
-   let m=h.match(/^(?:add|include|select|choose)\s+(.+)$/i);
-   if(m){
-     const target=norm(m[1]), cat=EXTRA_CATEGORIES.find(x=>norm(x)===target||norm(x).includes(target)||target.includes(norm(x)));
-     if(cat){const set=new Set(state.categories||[]);set.add(cat);state.categories=[...set];fun();return}
-   }
-   m=h.match(/^(?:remove|delete|deselect)\s+(.+)$/i);
-   if(m){
-     const target=norm(m[1]), cat=EXTRA_CATEGORIES.find(x=>norm(x)===target||norm(x).includes(target)||target.includes(norm(x)));
-     if(cat){state.categories=(state.categories||[]).filter(x=>x!==cat);fun();return}
-   }
-   if(c==="continue"){primaryAction();return}
- }
-
- if(ctx==="players"){
-   if(handlePlayerVoice(h))return;
-   if(c==="continue"){primaryAction();return}
- }
-
- if(ctx==="time"){
-   let m=n.match(/^(\d+)\s*seconds?$/);
-   if(m){state.questionSeconds=Math.max(5,Math.min(30,Number(m[1])));time();return}
-   m=n.match(/^(\d+)\s*minutes?$/);
-   if(m){state.duration=Number(m[1]);state.quick=false;time();return}
-   if(/^(quick|quick game|quit game)$/.test(n)){state.quick=true;state.duration=3;time();return}
-   if(c==="continue"){primaryAction();return}
- }
-
- if(ctx==="ready"&&c==="continue"){primaryAction();return}
 }
 function phoneticKey(s){
  return norm(s).replace(/[^a-z0-9 ]/g,"").split(/\s+/).map(w=>w
@@ -718,117 +571,7 @@ function spokenLetters(s){
  const map={ay:"a",bee:"b",see:"c",sea:"c",dee:"d",eff:"f",gee:"g",aitch:"h",eye:"i",jay:"j",kay:"k",el:"l",em:"m",en:"n",oh:"o",pee:"p",cue:"q",are:"r",ess:"s",tee:"t",you:"u",vee:"v",doubleyou:"w",ex:"x",why:"y",zee:"z",zed:"z"};
  const p=norm(s).split(" ");let out="";for(const x of p){if(x.length===1)out+=x;else if(map[x])out+=map[x];else return""}return out
 }
-function handlePlayerVoice(h){
- const n=norm(h);if(!n)return false;
- if(/^(player|players|player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+))$/.test(n))return false;
-
- if(renamePending){
-  const p=state.players.find(x=>x.id===renamePending.id);if(!p){renamePending=null;return false}
-  if(/^(cancel|never mind|nevermind)$/.test(n)){renamePending=null;return true}
-  if(/^(spell|spell it|spell the name|change the spelling)$/.test(n)){renamePending.spell=true;return true}
-  if(renamePending.spell){
-   const s=spokenLetters(h);
-   if(s){p.name=s[0].toUpperCase()+s.slice(1);renamePending=null;players();return true}
-   return true
-  }
-  const candidate=h.replace(/^(the name is|name is|make it|change it to|to)\s+/i,"").trim();
-  if(candidate){p.name=candidate;renamePending=null;players();return true}
-  return true
- }
-
- let m;
- // Delete / Remove
- m=h.match(/^(?:please\s+)?(?:delete|remove|get rid of|take out)\s+(?:player\s+)?(.+?)(?:\s+please)?$/i);
- if(m){
-  const raw=m[1].trim(), num=spokenNumber(raw);
-  if(num){
-   const i=num-1;
-   if(i>=0&&i<state.players.length){state.players.splice(i,1);players();return true}
-  }
-  const target=nameKey(raw);
-  let i=state.players.findIndex(p=>nameKey(p.name)===target);
-  if(i<0)i=state.players.findIndex(p=>nameKey(p.name).startsWith(target)||target.startsWith(nameKey(p.name)));
-  if(i>=0){state.players.splice(i,1);players();return true}
-  return false
- }
-
- // Rename / Change
- m=h.match(/^(?:change|rename|make|set)\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:to|as|is)\s+(.+)$/i);
- if(m){
-  const i=spokenNumber(m[1])-1;
-  if(i>=0){while(state.players.length<=i)state.players.push({id:uid(),name:""});state.players[i].name=m[2].trim();players();return true}
- }
- m=h.match(/^(?:i want|put|make)\s+(.+?)\s+(?:as|for)\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)$/i);
- if(m){
-  const i=spokenNumber(m[2])-1;
-  if(i>=0){while(state.players.length<=i)state.players.push({id:uid(),name:""});state.players[i].name=m[1].trim();players();return true}
- }
- m=h.match(/^(?:change|rename)\s+(.+?)\s+to\s+(.+)$/i);
- if(m){
-  const p=state.players.find(x=>nameKey(x.name)===nameKey(m[1]));
-  if(p){p.name=m[2].trim();players();return true}
- }
-
- // Spell
- m=n.match(/^spell\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)$/);
- if(m){
-  const p=state.players[spokenNumber(m[1])-1];
-  if(p){renamePending={id:p.id,spell:true};return true}
- }
- m=n.match(/^(?:change|rename)\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)$/);
- if(m){
-  const p=state.players[spokenNumber(m[1])-1];
-  if(p){renamePending={id:p.id,spell:false};return true}
- }
-
- // Multi-assign
- const chunks=h.split(/\s*(?:,| and )\s*/i);let changed=false;
- for(const chunk of chunks){
-  const bm=chunk.match(/^player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(?:(?:is|to|should be|can be|will be)\s+)?(.+)$/i);
-  if(bm){
-   const i=spokenNumber(bm[1])-1;
-   if(i>=0){while(state.players.length<=i)state.players.push({id:uid(),name:""});state.players[i].name=bm[2].trim();changed=true}
-  }
- }
- if(changed){players();return true}
-
- // Natural rename shorthand: "make player two Todd" / "set player two Todd"
- m=h.match(/^(?:make|set)\s+player\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(.+)$/i);
- if(m){
-  const i=spokenNumber(m[1])-1;
-  if(i>=0){
-   while(state.players.length<=i)state.players.push({id:uid(),name:""});
-   state.players[i].name=m[2].trim();players();return true
-  }
- }
-
- // Add only on explicit add intent.
- m=h.match(/^(?:please\s+)?add\s+(?:a\s+|another\s+)?player(?:\s+(?:named|called))?(?:\s+(.+))?$/i);
- if(m){
-  const name=(m[1]||"").trim();
-  state.players.push({id:uid(),name});
-  players();return true
- }
- return false
-}
-function setVolume(v){state.volume=Math.max(0,Math.min(1,v));localStorage.setItem(STORAGE.volume,String(state.volume));const e=document.getElementById("vol");if(e)e.value=state.volume;const p=document.getElementById("volPct");if(p)p.textContent=Math.round(state.volume*100)+"%"}
-function decorateVoiceTargets(){
- const aliasMap={
-  "CONTINUE":"start|begin|next|go ahead|lets go|let's go|im ready|i'm ready|move on",
-  "START":"begin|lets begin|let's begin|lets go|let's go|im ready|i'm ready",
-  "SKIP":"no thanks|none|no extra categories",
-  "BACK":"go back|previous",
-  "PAUSE":"hold on|stop for a second",
-  "RESUME":"keep going|continue game",
-  "PASS":"skip question|skip this one|i pass|ill pass|i'll pass",
-  "VOICE ON":"microphone on|turn voice on",
-  "VOICE OFF":"microphone off|turn voice off"
- };
- visibleVoiceTargets().forEach(({el,label})=>{
-   const key=label.replace(/\s+/g," ").trim().toUpperCase();
-   if(aliasMap[key]&&!el.dataset.voiceAliases)el.dataset.voiceAliases=aliasMap[key]
- })
-}
+function setVolume(v,announce=false){state.volume=Math.max(0,Math.min(1,Number(v)||0));if(state.volume>0)lastVolume=state.volume;localStorage.setItem(STORAGE.volume,String(state.volume));const e=document.getElementById("vol");if(e)e.value=state.volume;const p=document.getElementById("volPct");if(p)p.textContent=Math.round(state.volume*100)+"%";const pe=document.getElementById("pauseVol");if(pe)pe.value=state.volume;const pp=document.getElementById("pauseVolPct");if(pp)pp.textContent=Math.round(state.volume*100)+"%";applyVolume();if(announce)voiceFeedback(state.volume===0?"✓ MUTED":"✓ VOLUME "+Math.round(state.volume*100),"action")}
 function saveActiveGame(){
  if(!state.game){localStorage.removeItem(STORAGE.activeGame);return}
  try{
@@ -959,13 +702,7 @@ function players(){
  document.getElementById("add").onclick=()=>{state.players.push({id:uid(),name:""});players()};document.getElementById("back").onclick=back;
  document.getElementById("continue").onclick=()=>{state.players=state.players.filter(p=>(p.name||"").trim());if(state.players.length<(state.mode==="solo"?1:2)){const msg=document.getElementById("rosterError");if(msg)msg.textContent=state.mode==="solo"?"ADD A PLAYER NAME TO CONTINUE":"ADD AT LEAST TWO NAMED PLAYERS TO CONTINUE";return}rememberNames();go("time")};startVoice("players")
 }
-function setGameVolume(v,announce=true){
- state.volume=Math.max(0,Math.min(1,Number(v)||0));
- try{localStorage.setItem("los.volume",String(state.volume))}catch{}
- if(announce)voiceFeedback(state.volume===0?"✓ MUTED":"✓ VOLUME "+Math.round(state.volume*100),"action");
- applyVolume?.()
-}
-function adjustGameVolume(delta){setGameVolume((state.volume??0.8)+delta)}
+function adjustGameVolume(delta){setVolume((state.volume??0.8)+delta,true)}
 function applyVolume(){
  // Audio helpers read state.volume; keep any media elements synced too.
  document.querySelectorAll("audio,video").forEach(el=>{try{el.volume=state.volume??0.8}catch{}})
@@ -973,7 +710,7 @@ function applyVolume(){
 function time(){
  app.innerHTML=shell("GAME SETTINGS",`<div class="grid game-time-grid"><div class="card center game-time-card"><div class="game-time-label">QUESTION TIMER</div><div class="actions" style="margin-top:10px">${[10,15,20,30].map(s=>`<button class="btn ${state.questionSeconds===s?"selected":""}" data-sec="${s}">${s} SEC</button>`).join("")}</div></div><div class="card center game-time-card"><div class="game-time-label">GAME LENGTH</div><div class="actions" style="margin-top:10px">${[5,10,15,20].map(m=>`<button class="btn ${!state.quick&&state.duration===m?"selected":""}" data-min="${m}">${m} MIN</button>`).join("")}<button class="btn ${state.quick?"selected":""}" id="quick">QUICK GAME</button></div></div><div class="card center game-time-card"><div class="game-time-label">VOLUME</div><div class="volume-wrap" style="justify-content:center;margin-top:12px"><input id="vol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="volPct">${Math.round(state.volume*100)}%</strong></div></div><div class="card center game-time-card"><div class="game-time-label">VOICE RECOGNITION</div><div class="actions" style="margin-top:10px"><button id="voiceOn" class="btn ${state.voiceOn?"selected":""}">ON</button><button id="voiceOff" class="btn ${!state.voiceOn?"selected":""}">OFF</button></div></div></div>`,`<button id="back" class="btn">BACK</button><button class="btn setup-exit-bottom" data-setup-exit data-voice="EXIT" data-voice-aliases="exit game|leave game|cancel game|quit setup|go home|back to home">EXIT</button><button id="continue" class="btn primary">CONTINUE</button>`);
  document.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{state.questionSeconds=Number(b.dataset.sec);time()});document.querySelectorAll("[data-min]").forEach(b=>b.onclick=()=>{state.quick=false;state.duration=Number(b.dataset.min);time()});
- document.getElementById("quick").onclick=()=>{state.quick=true;state.duration=3;time()};document.getElementById("vol").oninput=e=>setVolume(Number(e.target.value));document.getElementById("voiceOn").onclick=()=>{state.voiceOn=true;save();time()};document.getElementById("voiceOff").onclick=()=>{state.voiceOn=false;save();time()};document.getElementById("back").onclick=back;document.getElementById("continue").onclick=()=>go("ready");startVoice("time")
+ document.getElementById("quick").onclick=()=>{state.quick=true;state.duration=3;time()};document.getElementById("vol").oninput=e=>setVolume(Number(e.target.value));document.getElementById("voiceOn").onclick=()=>{voiceCore.permissionBlocked=false;voiceCore.retryAttempt=0;state.voiceOn=true;save();time()};document.getElementById("voiceOff").onclick=()=>{state.voiceOn=false;save();stopVoice();time()};document.getElementById("back").onclick=back;document.getElementById("continue").onclick=()=>go("ready");startVoice("time")
 }
 function ready(){
  app.innerHTML=shell("READY TO PLAY?",`<div class="card center ready-card"><div class="ready-player-names">${state.players.map(p=>esc(p.name)).join(" · ")}</div><div class="compact-ready">${state.difficulty.toUpperCase()} · ${state.questionSeconds} SEC · ${state.voiceOn?"VOICE ON":"VOICE OFF"}</div><div class="ready-rule">3 STRIKES AND YOU’RE OUT.</div></div>`,`<button id="back" class="btn">BACK</button><button class="btn setup-exit-bottom" data-setup-exit data-voice="EXIT" data-voice-aliases="exit game|leave game|cancel game|quit setup|go home|back to home">EXIT</button><button id="play" class="btn primary large">START GAME</button>`);
@@ -1012,19 +749,20 @@ function pickQuestion(){
  const item=pool[Math.floor(Math.random()*pool.length)];
  g.used.push(item.i);return item.q
 }
-function question(){
+function question(resumeCurrent=false){
  clearRuntime();state.screen="question";saveActiveGame();const g=state.game;
  const regularSeconds=Number(state.questionSeconds)||15;
- const remStart=g.showdown?Math.max(5,regularSeconds-5):regularSeconds;
- g.current=pickQuestion();g.answered=false;g.speechLog=[];
+ const resuming=resumeCurrent&&g.current&&!g.answered;
+ const remStart=resuming?Math.max(1,Number(pausedRemaining??g.questionRemaining)||regularSeconds):(g.showdown?Math.max(5,regularSeconds-5):regularSeconds);
+ if(!resuming){g.current=pickQuestion();g.answered=false;g.speechLog=[]}
  let rem=remStart;
+ g.questionRemaining=rem;
  app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(true)}<div class="question-area"><div class="question-text">${esc(g.current.q)}</div>
      ${!state.voiceOn?`<div class="keyboard-answer"><input id="typedAnswer" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="TYPE YOUR ANSWER"><button id="lockAnswer" class="btn primary">LOCK IN</button></div>`:""}<div id="timer" class="timer ${rem<=5?"urgent":""}">${rem}</div></div></div></section>`;
  bindGamebar();startVoice("question");
  tickSound(rem);
  questionTimer=setInterval(()=>{
-   ensureQuestionVoice();
-   rem--;
+   rem--;g.questionRemaining=Math.max(0,rem);
    const t=document.getElementById("timer");
    if(t){t.textContent=Math.max(0,rem);t.classList.toggle("urgent",rem<=5)}
    if(rem>0)tickSound(rem);
@@ -1160,12 +898,15 @@ function confetti(){
  };
  spawn();const id=setInterval(()=>{if(state.screen!=="complete"){clearInterval(id);return}spawn()},700)
 }
-function pauseGame(){
- if(!state.game)return;pausedFrom=state.screen;clearRuntime();state.screen="paused";const o=document.createElement("div");o.className="overlay";o.id="pauseOverlay";o.innerHTML=`<div class="pause-card card"><div class="pause-title">GAME PAUSED</div><div class="pause-volume"><span>VOLUME</span><input id="pauseVol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="pauseVolPct">${Math.round(state.volume*100)}%</strong></div><button id="resume" class="btn primary large">RESUME</button><button id="leave" class="btn">LEAVE GAME</button><button id="end" class="btn danger">QUIT</button></div>`;document.body.appendChild(o);document.getElementById("resume").onclick=resumeGame;document.getElementById("leave").onclick=leaveGame;document.getElementById("end").onclick=confirmEnd;document.getElementById("pauseVol").oninput=e=>{setVolume(Number(e.target.value));document.getElementById("pauseVolPct").textContent=Math.round(state.volume*100)+"%"};startVoice("paused")
+function showPauseOverlay(){
+ document.getElementById("pauseOverlay")?.remove();const o=document.createElement("div");o.className="overlay";o.id="pauseOverlay";o.innerHTML=`<div class="pause-card card"><div class="pause-title">GAME PAUSED</div><div class="pause-volume"><span>VOLUME</span><input id="pauseVol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="pauseVolPct">${Math.round(state.volume*100)}%</strong></div><button id="resume" class="btn primary large">RESUME</button><button id="leave" class="btn">LEAVE GAME</button><button id="end" class="btn danger">QUIT</button></div>`;document.body.appendChild(o);document.getElementById("resume").onclick=resumeGame;document.getElementById("leave").onclick=leaveGame;document.getElementById("end").onclick=confirmEnd;document.getElementById("pauseVol").oninput=e=>{setVolume(Number(e.target.value));document.getElementById("pauseVolPct").textContent=Math.round(state.volume*100)+"%"};startVoice("paused")
 }
-function resumeGame(){document.getElementById("pauseOverlay")?.remove();if(pausedFrom==="question")question();else handoff()}
-function leaveGame(){document.getElementById("pauseOverlay")?.remove();saveActiveGame();state.game=null;home()}
-function confirmEnd(){const c=document.querySelector(".pause-card");if(!c)return;c.innerHTML=`<div class="pause-title">END THIS GAME?</div><button id="yes" class="btn danger large">YES</button><button id="no" class="btn">CANCEL</button>`;document.getElementById("yes").onclick=()=>{document.getElementById("pauseOverlay")?.remove();clearActiveGame();state.game=null;home()};document.getElementById("no").onclick=()=>{document.getElementById("pauseOverlay")?.remove();pauseGame()}}
+function pauseGame(){
+ if(!state.game)return;if(state.screen!=="paused"){pausedFrom=state.screen;if(pausedFrom==="question")pausedRemaining=state.game.questionRemaining??state.questionSeconds;clearRuntime();state.screen="paused"}showPauseOverlay()
+}
+function resumeGame(){document.getElementById("pauseOverlay")?.remove();const from=pausedFrom;pausedFrom=null;if(from==="question"){question(true);pausedRemaining=null}else{pausedRemaining=null;handoff()}}
+function leaveGame(){document.getElementById("pauseOverlay")?.remove();clearRuntime();saveActiveGame();state.game=null;home()}
+function confirmEnd(){if(!document.querySelector(".pause-card"))pauseGame();const c=document.querySelector(".pause-card");if(!c)return;c.innerHTML=`<div class="pause-title">END THIS GAME?</div><button id="yes" class="btn danger large">YES</button><button id="no" class="btn">CANCEL</button>`;document.getElementById("yes").onclick=()=>{document.getElementById("pauseOverlay")?.remove();clearActiveGame();state.game=null;home()};document.getElementById("no").onclick=showPauseOverlay}
 function render(){clearRuntime();({home,mode,industry,difficulty,fun,players,time,ready,handoff,question,result}[state.screen]||home)()}
 function viewport(){document.documentElement.style.setProperty("--app-h",(window.visualViewport?.height||window.innerHeight)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
