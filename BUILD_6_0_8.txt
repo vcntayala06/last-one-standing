@@ -1,0 +1,14 @@
+LAST ONE STANDING — BUILD 6.0.8 STABILIZATION PASS
+
+- WHO'S IN Continue uses one dedicated action for tap and voice.
+- Player voice supports add/edit/delete and spelling flow.
+- Category voice aliases strengthened for Music, Movies & TV, Food & Drink, Transportation.
+- Category voice selection remains additive.
+- Game Settings accepts exact timer voice commands including 10 seconds.
+- Volume slider uses shared game-volume state.
+- Voice volume commands: Mute, Unmute, Volume Up/Down, Full Volume, Half Volume, Volume 50, Set Volume to 75 Percent.
+- End/Quit confirmation accepts Yes, Confirm, Do It, End Game, Exit, Quit.
+- Cancel side accepts No, Cancel, Go Back, Keep Playing, Resume.
+- Short context-aware commands accept simple action words like Start/Play/Go when unambiguous.
+- MIC LISTENING badge hidden during normal operation; only errors need visible mic feedback.
+- Question-answer voice path intentionally left unchanged.

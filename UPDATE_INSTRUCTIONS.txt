@@ -1,1 +1,1 @@
-GitHub Desktop summary: 6.0.7 Core Setup Reliability
+GitHub Desktop summary: 6.0.8 Stabilization Pass

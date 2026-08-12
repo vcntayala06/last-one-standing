@@ -493,3 +493,6 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
  .game-time-grid{width:96%!important;display:flex!important;flex-direction:column!important;gap:10px!important;height:100%!important;justify-content:space-between!important}
  .game-time-card{flex:1 1 0!important;width:100%!important;min-height:0!important;padding:14px 16px!important;border-radius:18px!important}
 }
+
+/* 6.0.8 Stabilization Pass */
+.voice-diagnostic{display:none!important}
