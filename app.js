@@ -122,7 +122,7 @@ const HOST_LINE_TUNING={
 let hostSystem=null;
 let recognition=null,questionTimer=null,flowTimer=null,pausedRemaining=null,pausedFrom=null,pausedResultDelay=null,resultDelayRemaining=null,renamePending=null,lastVolume=state.volume>0?state.volume:.65,questionSoundTimers=[],celebrationTimers=[],handoffTimers=[];
 let runtimeSessionId=0,renderGeneration=0,setupRenderId=0,pendingTransitionCause={trigger:"internal",reason:"runtime"},questionReading=false,questionSessionId=0,answerListening=false,playerUpRenderGeneration=0;
-const BUILD_INFO={stage:"6.19",version:"portrait-live-stability",builtAt:"2026-08-14"},transitionDiagnostics=[],screenLifetimeDiagnostics=[],answerDiagnostics=[],playerUpDiagnostics=[],audioDiagnostics={tick:"off",buzzerFired:false},transitionDebugEnabled=new URLSearchParams(location.search).get("playtestDebug")==="1"||localStorage.getItem("los_playtest_debug")==="1";
+const BUILD_INFO={stage:"6.20",version:"voice-audit-party",builtAt:"2026-08-14"},transitionDiagnostics=[],screenLifetimeDiagnostics=[],answerDiagnostics=[],playerUpDiagnostics=[],audioDiagnostics={tick:"off",buzzerFired:false},transitionDebugEnabled=new URLSearchParams(location.search).get("playtestDebug")==="1"||localStorage.getItem("los_playtest_debug")==="1";
 function enterScreen(next,reason="render",trigger=pendingTransitionCause.trigger||"internal"){
  const from=state.screen,sourceSession=runtimeSessionId,validScreens=new Set(["home","setup","mode","industry","difficulty","fun","players","time","ready","handoff","transition","question","result","showdown","complete","paused"]),valid=validScreens.has(next);
  if(!valid){const rejected={accepted:false,from,to:next,reason,trigger,command:trigger==="voice"?pendingTransitionCause.reason:null,callback:trigger==="internal-game-event"?reason:null,at:Date.now(),sourceSession,session:runtimeSessionId,renderGeneration};transitionDiagnostics.push(rejected);return runtimeSessionId}
@@ -135,7 +135,7 @@ function transitionOwner(screen,session,to,source,meta={}){
  const accepted=state.screen===screen&&runtimeSessionId===session;if(accepted)return true;
  const item={accepted:false,from:state.screen,to,reason:meta.reason||"stale-transition-request",trigger:source,source,callback:meta.callback||null,hostEvent:meta.hostEvent||null,voiceTranscript:meta.voiceTranscript||null,timerId:meta.timerId||null,at:Date.now(),sourceSession:session,session:runtimeSessionId,renderGeneration,sourceStillOwnsCurrentScreen:false,rejectionReason:state.screen!==screen?"source-screen-no-longer-current":"source-session-no-longer-current"};transitionDiagnostics.push(item);if(transitionDiagnostics.length>150)transitionDiagnostics.shift();if(transitionDebugEnabled)console.debug("[LOS transition rejected]",item);return false
 }
-function playtestSnapshot(){const g=state.game,p=g?.players?.[g.idx];return{build:BUILD_INFO,screen:state.screen,lastTransition:transitionDiagnostics.at(-1)||null,lastScreenLifetime:screenLifetimeDiagnostics.at(-1)||null,activePlayer:p?.name||null,hostEvent:hostSystem?.history.at(-1)||null,hostPlayback:globalThis.__LOS_HOST_AUDIO_DIAGNOSTICS__?.history?.at(-1)||null,readQuestions:state.readQuestions,voiceOn:state.voiceOn,questionReading,questionSessionId,answerListening,recognition:recognition?"active":"inactive",answerTimer:questionTimer?"running":"stopped",runtimeSessionId,renderGeneration,paused:state.screen==="paused",pausedRemaining,audio:{...audioDiagnostics},setupSaved:hasResumableSetup(),playerUpRenderGeneration}}
+function playtestSnapshot(){const g=state.game,p=g?.players?.[g.idx];return{build:BUILD_INFO,screen:state.screen,lastTransition:transitionDiagnostics.at(-1)||null,lastScreenLifetime:screenLifetimeDiagnostics.at(-1)||null,activePlayer:p?.name||null,hostEvent:hostSystem?.history.at(-1)||null,hostPlayback:globalThis.__LOS_HOST_AUDIO_DIAGNOSTICS__?.history?.at(-1)||null,readQuestions:state.readQuestions,voiceOn:state.voiceOn,questionReading,questionSessionId,answerListening,recognition:voiceTimelineSnapshot(),answerTimer:questionTimer?"running":"stopped",runtimeSessionId,renderGeneration,paused:state.screen==="paused",pausedRemaining,audio:{...audioDiagnostics},setupSaved:hasResumableSetup(),playerUpRenderGeneration}}
 globalThis.__LOS_PLAYTEST_DIAGNOSTICS__={snapshot:playtestSnapshot,history:()=>transitionDiagnostics.slice(),lifetimes:()=>screenLifetimeDiagnostics.slice(),answers:()=>answerDiagnostics.slice(),playerUps:()=>playerUpDiagnostics.slice(),host:()=>hostSystem?.history.slice()||[]};
 const uid=()=>Math.random().toString(36).slice(2,10);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
@@ -287,14 +287,14 @@ function createHostSystem(provider=defaultHostProvider()){
   const [level="optional",chance=0]=HOST_EVENT_POLICY[event]||[],priority=HOST_PRIORITY[level]||1;
   if(chance<1&&Math.random()>chance){history.push({event,result:"frequency-skip",context});return false}
   const line=choose(event,context);if(!line){history.push({event,result:"no-safe-line",context});return false}
-  history.push({hostEventId:`host-${++eventSequence}`,event,result:provider.available===false?"provider-unavailable":"selected",priority,lineId:line.id,text:line.text,screen:state.screen,session:runtimeSessionId,renderGeneration,requestTime:Date.now(),context});
-  if(provider.available===false)return true;
+  history.push({hostEventId:`host-${++eventSequence}`,event,result:provider.available!==true?"provider-unavailable":"selected",priority,lineId:line.id,text:line.text,screen:state.screen,session:runtimeSessionId,renderGeneration,requestTime:Date.now(),context});
+  if(provider.available!==true)return true;
   if(speaking&&priority<currentPriority)return false;
   const carriedMic=speaking?cancel("interrupted-by-"+event,false):false;
-  const myToken=++token;currentPriority=priority;speaking=true;micWasActive=carriedMic||temporarilySuspendRecognitionForHost();
+  const myToken=++token;currentPriority=priority;speaking=true;micWasActive=carriedMic||(provider.available===true&&temporarilySuspendRecognitionForHost());
   const historyEntry=history.at(-1),spanishTerms=line.text.match(/\b(?:compa|perro|orale|órale|vicente fernández|ramón ayala|jenni rivera|selena|los tigres del norte|ana gabriel|rocío dúrcal)\b/gi)||[];currentEntry=historyEntry;historyEntry.playbackRequestedAt=Date.now();historyEntry.volume=state.volume;historyEntry.pronunciation={mode:"human-review-gated",terms:spanishTerms};
   Promise.resolve(provider.play({hostEventId:historyEntry.hostEventId,event,text:line.text,priority:level,volume:state.volume,context:{...context,screen:state.screen,runtimeSession:runtimeSessionId,renderGeneration}})).then(()=>{historyEntry.result="playback-completed";historyEntry.playbackCompletedAt=Date.now()}).catch(error=>{historyEntry.result="playback-failed";historyEntry.error=String(error?.message||error)}).finally(()=>{
-   if(myToken!==token)return;speaking=false;currentPriority=0;historyEntry.settledAt=Date.now();currentEntry=null;settleIdle(historyEntry);const resume=micWasActive;micWasActive=false;if(resume&&state.voiceOn&&voiceCore.desired&&!voiceCore.permissionBlocked)startVoice(state.screen)
+   if(myToken!==token)return;speaking=false;currentPriority=0;historyEntry.settledAt=Date.now();currentEntry=null;settleIdle(historyEntry);const resume=micWasActive;micWasActive=false;if(voiceCore.suppressionReason==="host-speech")voiceCore.suppressionReason="";if(resume&&state.voiceOn&&voiceCore.desired&&!voiceCore.permissionBlocked)startVoice(state.screen)
   });return true
  };
  return {emit,cancel,choose,whenIdle,history,isSpeaking:()=>speaking,provider}
@@ -317,11 +317,13 @@ function ensurePlayers(){
 function speechSupported(){return !!(window.SpeechRecognition||window.webkitSpeechRecognition)}
 function temporarilySuspendRecognitionForHost(){
  if(!state.voiceOn||!recognition)return false;
+ voiceCore.actualState="suppressed";voiceCore.suppressionReason="host-speech";voiceDiagnostic("recognition-suppressed",{reason:"host-speech"});
  clearTimeout(voiceCore.restart);voiceCore.restart=null;voiceCore.generation++;
  const r=recognition;recognition=null;try{r.onstart=r.onresult=r.onerror=r.onend=null;r.abort()}catch{};return true
 }
 function stopVoice(){
  voiceCore.desired=false;
+ voiceCore.actualState="stopped";voiceCore.suppressionReason="voice-off";voiceDiagnostic("recognition-stop-requested",{reason:"voice-off"});
  voiceCore.handledInterimSlots.clear();voiceCore.navQueued=null;
  clearTimeout(voiceCore.restart);voiceCore.restart=null;
  voiceCore.generation++;
@@ -388,8 +390,13 @@ function fuzzyVisibleTarget(h){
  }
  return false
 }
-let voiceCore={ctx:null,restart:null,generation:0,retryAttempt:0,desired:false,lastKey:"",lastAt:0,lastHeard:"",permissionBlocked:false,handledInterimSlots:new Set(),navQueued:null,diagnostics:[],utterance:0,currentUtterance:null,latencySeen:new Set()},lastPlayerVoiceMutation={key:"",at:0};
+let voiceCore={ctx:null,owner:null,restart:null,generation:0,retryAttempt:0,restartCount:0,desired:false,actualState:"stopped",lastKey:"",lastAt:0,lastHeard:"",lastTranscript:"",lastTranscriptFinal:null,lastRoute:"",lastError:"",suppressionReason:"",startRequestedAt:null,startedAt:null,endedAt:null,permissionBlocked:false,handledInterimSlots:new Map(),navQueued:null,diagnostics:[],utterance:0,currentUtterance:null,latencySeen:new Set()},lastPlayerVoiceMutation={key:"",at:0};
 const VOICE_LATENCY_MODE=new URLSearchParams(location.search).get("voiceLatency")==="1";
+function voiceTimelineSnapshot(){
+ const rows=voiceCore.diagnostics,latest=stage=>[...rows].reverse().find(x=>x.stage===stage),speech=latest("speech-start")||latest("sound-start"),interim=latest("first-interim-transcript"),final=latest("first-final-transcript"),executed=latest("command-executed")||latest("answer-executed");
+ const delta=(a,b)=>a&&b?Math.max(0,Math.round(b.monoAt-a.monoAt)):null;
+ return{state:voiceCore.actualState,desired:voiceCore.desired,owner:voiceCore.owner,generation:voiceCore.generation,restartCount:voiceCore.restartCount,lastTranscript:voiceCore.lastTranscript,lastTranscriptFinal:voiceCore.lastTranscriptFinal,lastRoute:voiceCore.lastRoute,lastError:voiceCore.lastError,suppressionReason:voiceCore.suppressionReason,screen:state.screen,session:runtimeSessionId,startLatencyMs:delta(latest("recognition-start-requested"),latest("recognition-started")),speechToInterimMs:delta(speech,interim),speechToFinalMs:delta(speech,final),finalToExecutionMs:delta(final,executed),speechToActionMs:delta(speech,executed)}
+}
 
 function renderVoiceLatencyPanel(){
  if(!VOICE_LATENCY_MODE)return;
@@ -426,7 +433,7 @@ function voiceStatus(text,kind="listening"){
 function voiceOnce(key,fn,windowMs=600){
  const now=Date.now(),k=commandKey(key);
  if(voiceCore.lastKey===k&&now-voiceCore.lastAt<windowMs){voiceDiagnostic("command-rejected",{reason:"duplicate",command:k});return true}
- voiceCore.lastKey=k;voiceCore.lastAt=now;voiceDiagnostic("command-matched",{command:k});voiceDiagnostic("command-executed",{command:k});fn();return true
+ voiceCore.lastKey=k;voiceCore.lastAt=now;voiceCore.lastRoute=k;voiceDiagnostic("command-matched",{command:k});const executionStartedAt=performance.now();fn();voiceDiagnostic(String(key).startsWith("answer:")?"answer-executed":"command-executed",{command:k,monoAt:executionStartedAt,completedAt:performance.now()});return true
 }
 function exactVisibleTarget(h){
  const n=commandKey(h);if(!n)return false;
@@ -566,13 +573,15 @@ function centralSetupIntent(h){
 function centralExitIntent(h,isFinal=false){
  const n=norm(h);
  if(isSetupScreen()&&/^(exit|exit game|exit the game|leave|leave game|leave the game|cancel|cancel game|cancel setup|quit setup|go home|back to home|return home)$/.test(n)){
-  if(state.screen==="ready"&&!isFinal)return false;
+  if(!isFinal)return false;
   return voiceOnce("exit-setup",()=>exitSetup())
  }
  if(state.game&&/^(exit game|exit the game|leave game|leave the game|save and leave|save game and leave|go home and save)$/.test(n)){
+  if(!isFinal)return false;
   return voiceOnce("exit-active",()=>{voiceFeedback("✓ EXIT GAME","action");leaveGame()})
  }
  if(state.game&&/^(quit|quit game|quit the game|end game|end the game|stop game|stop the game)$/.test(n)){
+  if(!isFinal)return false;
   return voiceOnce("quit-active",()=>{voiceFeedback("✓ QUIT","action");confirmEnd()})
  }
  return false
@@ -689,8 +698,10 @@ function playersVoiceController(h){
 
  return false
 }
-function centralGameIntent(h){
+function centralGameIntent(h,isFinal=false){
  const n=norm(h);if(!state.game)return false;
+ const destructive=/^(quit|quit game|quit the game|end game|end the game|stop game|stop the game|exit game|exit the game|leave game|leave the game|save and leave|save game and leave|go home and save|pause|pause game|pause the game|hold on|resume|resume game|continue game|keep playing|continue)$/;
+ if(!isFinal&&destructive.test(n))return false;
  if((state.screen==="paused"||document.getElementById("pauseOverlay"))&&/^(quit|quit game|quit the game|end game|end the game|stop game|stop the game)$/.test(n)){
   return voiceOnce("pause-quit",()=>{voiceFeedback("✓ QUIT","action");confirmEnd()})
  }
@@ -743,15 +754,14 @@ function endConfirmIntent(h){
 function routeVoiceCentral(h,{isFinal=false,confidence=0}={}){
  h=(h||"").trim();if(!h)return false;
  pendingTransitionCause={trigger:"voice",reason:h};
- if(!isFinal&&/^(back|go back|previous|previous screen)$/i.test(h)){voiceDiagnostic("command-rejected",{command:norm(h),reason:"back-final-only",screen:state.screen,session:runtimeSessionId});return false}
- if(state.screen==="ready"&&!isFinal&&/^(start|start game|begin|begin game|exit|exit game|leave game|back|go back)$/i.test(h)){voiceDiagnostic("command-rejected",{command:norm(h),reason:"showtime-navigation-final-only",screen:state.screen,session:runtimeSessionId});return false}
+ if(!isFinal&&/^(?:continue|next|done|go ahead|go on|move on|lets go|let s go|im ready|i m ready|ready|start|start game|begin|begin game|back|go back|previous|previous screen|exit|exit game|exit the game|leave|leave game|leave the game|cancel|cancel game|cancel setup|quit|quit game|quit setup|end game|stop game|go home|back to home|return home|pause|pause game|resume|resume game|keep playing)$/i.test(h)){voiceDiagnostic("command-rejected",{command:norm(h),reason:"navigation-final-only",screen:state.screen,session:runtimeSessionId});return false}
  voiceStatus(isFinal?`HEARD: ${h}`:`… ${h}`,isFinal?"heard":"listening");
  if(endConfirmIntent(h))return true;
  if(centralChampionIntent(h,isFinal))return true;
 
  // Highest priority commands first.
  if(centralExitIntent(h,isFinal))return true;
- if(centralGameIntent(h))return true;
+ if(centralGameIntent(h,isFinal))return true;
 
  // WHO'S IN owns complete player-data phrases before generic setup parsing.
  if(state.screen==="players" && isFinal){
@@ -787,25 +797,28 @@ function routeVoiceCentral(h,{isFinal=false,confidence=0}={}){
 function scheduleVoiceRestart(){
  if(!voiceCore.desired||!state.voiceOn||voiceCore.permissionBlocked||recognition||voiceCore.restart)return;
  const delays=[25,100,250,500,1000],delay=delays[Math.min(voiceCore.retryAttempt++,delays.length-1)];
+ voiceDiagnostic("recognition-restart-scheduled",{delay,attempt:voiceCore.retryAttempt});
  voiceCore.restart=setTimeout(()=>{
   voiceCore.restart=null;
-  if(voiceCore.desired&&state.voiceOn&&!voiceCore.permissionBlocked&&!recognition)startVoice(voiceCore.ctx||state.screen)
+  if(voiceCore.desired&&state.voiceOn&&!voiceCore.permissionBlocked&&!recognition){voiceCore.restartCount++;startVoice(voiceCore.ctx||state.screen)}
  },delay)
 }
 function startVoice(ctx){
- voiceCore.ctx=ctx;
+ voiceCore.ctx=ctx;voiceCore.owner={screen:ctx,session:runtimeSessionId};
  if(hostSystem?.isSpeaking()){voiceCore.desired=!!state.voiceOn;return}
  if(!state.voiceOn||!speechSupported()){stopVoice();return}
  if(voiceCore.permissionBlocked){voiceCore.desired=false;return}
  voiceCore.desired=true;
 
  if(recognition){
+  voiceDiagnostic("recognition-owner-updated",{generation:voiceCore.generation,owner:voiceCore.owner});
   return
  }
  clearTimeout(voiceCore.restart);voiceCore.restart=null;
 
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  const generation=++voiceCore.generation;
+ voiceCore.actualState="starting";voiceCore.startRequestedAt=performance.now();voiceDiagnostic("recognition-start-requested",{generation,owner:voiceCore.owner});
  voiceCore.handledInterimSlots.clear();
  try{
   const r=new SR();recognition=r;
@@ -816,20 +829,18 @@ function startVoice(ctx){
 
   r.onstart=()=>{
    if(voiceCore.generation!==generation||recognition!==r)return;
-   voiceCore.retryAttempt=0;voiceCore.currentUtterance=null;voiceDiagnostic("recognition-started",{generation});voiceStatus("MIC LISTENING","listening")
+   voiceCore.retryAttempt=0;voiceCore.currentUtterance=null;voiceCore.actualState="listening";voiceCore.startedAt=performance.now();voiceCore.suppressionReason="";voiceDiagnostic("recognition-started",{generation,owner:voiceCore.owner});voiceStatus("MIC LISTENING","listening")
   };
-  if(VOICE_LATENCY_MODE){
-   r.onaudiostart=()=>voiceDiagnostic("audio-start",{generation});
-   r.onsoundstart=()=>beginVoiceLatencyUtterance("sound-start");
-   r.onspeechstart=()=>{if(!voiceCore.currentUtterance)beginVoiceLatencyUtterance("speech-start");else voiceDiagnostic("speech-start")};
-   r.onspeechend=()=>voiceDiagnostic("speech-end");
-   r.onsoundend=()=>voiceDiagnostic("sound-end");
-   r.onaudioend=()=>voiceDiagnostic("audio-end",{generation})
-  }
+  r.onaudiostart=()=>voiceDiagnostic("audio-start",{generation});
+  r.onsoundstart=()=>beginVoiceLatencyUtterance("sound-start");
+  r.onspeechstart=()=>{if(!voiceCore.currentUtterance)beginVoiceLatencyUtterance("speech-start");else voiceDiagnostic("speech-start")};
+  r.onspeechend=()=>voiceDiagnostic("speech-end");
+  r.onsoundend=()=>voiceDiagnostic("sound-end");
+  r.onaudioend=()=>voiceDiagnostic("audio-end",{generation});
 
   r.onresult=e=>{
    if(voiceCore.generation!==generation||recognition!==r)return;
-   if(VOICE_LATENCY_MODE&&!voiceCore.currentUtterance)beginVoiceLatencyUtterance("first-result-activity");
+   if(!voiceCore.currentUtterance)beginVoiceLatencyUtterance("first-result-activity");
    if(!e?.results||e.resultIndex>=e.results.length){voiceDiagnostic("no-transcript",{reason:"empty-result-event"});return}
    for(let i=e.resultIndex;i<e.results.length;i++){
     const res=e.results[i];
@@ -837,19 +848,20 @@ function startVoice(ctx){
     let handled=false;
 
     if(res.isFinal&&voiceCore.handledInterimSlots.has(i)){
-     voiceCore.handledInterimSlots.delete(i);
-     voiceDiagnostic("command-rejected",{reason:"final-after-handled-interim",resultIndex:i});
-     if(VOICE_LATENCY_MODE)voiceCore.currentUtterance=null;
-     continue
+     const prior=voiceCore.handledInterimSlots.get(i),finalText=norm(res[0]?.transcript||"");voiceCore.handledInterimSlots.delete(i);
+     if(prior.transcript===finalText&&prior.screen===state.screen&&prior.session===runtimeSessionId){voiceDiagnostic("command-rejected",{reason:"final-after-handled-interim",resultIndex:i,command:finalText});voiceCore.currentUtterance=null;continue}
     }
 
-    for(let a=0;a<Math.min(res.length,5);a++){
+    const alternativeOrder=[...Array(Math.min(res.length,5)).keys()];
+    if(res.isFinal&&state.screen==="question"&&state.game?.current){const acceptedIndex=alternativeOrder.find(a=>accepted((res[a]?.transcript||"").trim(),state.game.current));if(acceptedIndex>0){alternativeOrder.splice(acceptedIndex,1);alternativeOrder.unshift(acceptedIndex);voiceDiagnostic("answer-alternative-promoted",{resultIndex:i,alternative:acceptedIndex})}}
+    for(const a of alternativeOrder){
      const alt=res[a],text=(alt?.transcript||"").trim();
      if(!text)continue;
      const confidence=Number.isFinite(alt.confidence)?alt.confidence:0;
-     voiceDiagnostic("transcript-received",{text,confidence,isFinal:!!res.isFinal,resultIndex:i,alternative:a});
+     voiceCore.lastTranscript=text;voiceCore.lastTranscriptFinal=!!res.isFinal;
+     voiceDiagnostic("transcript-received",{text,normalizedText:norm(text),confidence,isFinal:!!res.isFinal,resultIndex:i,alternative:a});
      const firstStage=res.isFinal?"first-final-transcript":"first-interim-transcript";
-     if(a===0&&!voiceCore.latencySeen.has(firstStage)){voiceCore.latencySeen.add(firstStage);voiceDiagnostic(firstStage,{text,confidence,resultIndex:i})}
+     if(!voiceCore.latencySeen.has(firstStage)){voiceCore.latencySeen.add(firstStage);voiceDiagnostic(firstStage,{text,confidence,resultIndex:i,alternative:a})}
 
      if(!res.isFinal){
       const n=norm(text);
@@ -862,9 +874,9 @@ function startVoice(ctx){
       if(routeVoiceCentral(text,{isFinal:true,confidence})){handled=true;break}
      }
     }
-    if(handled&&!res.isFinal)voiceCore.handledInterimSlots.add(i);
+    if(handled&&!res.isFinal)voiceCore.handledInterimSlots.set(i,{transcript:norm(res[0]?.transcript||""),screen:state.screen,session:runtimeSessionId,generation});
     if(!handled&&res.isFinal)voiceDiagnostic("command-rejected",{reason:"no-command-match",resultIndex:i});
-    if(res.isFinal&&VOICE_LATENCY_MODE)voiceCore.currentUtterance=null;
+    if(res.isFinal)voiceCore.currentUtterance=null;
     if(handled)break
    }
   };
@@ -872,6 +884,7 @@ function startVoice(ctx){
   r.onerror=e=>{
    if(voiceCore.generation!==generation||recognition!==r)return;
    const err=e?.error||"";
+   voiceCore.lastError=err;voiceCore.actualState="error";voiceCore.suppressionReason=err;
    voiceDiagnostic("recognition-error",{generation,error:err});
    if(err==="not-allowed"||err==="service-not-allowed"){
     voiceCore.permissionBlocked=true;voiceCore.desired=false;
@@ -883,13 +896,13 @@ function startVoice(ctx){
 
   r.onend=()=>{
    if(voiceCore.generation!==generation||recognition!==r)return;
-   voiceDiagnostic("recognition-ended",{generation});recognition=null;scheduleVoiceRestart()
+   voiceCore.actualState="stopped";voiceCore.endedAt=performance.now();voiceDiagnostic("recognition-ended",{generation,error:voiceCore.lastError});recognition=null;scheduleVoiceRestart()
   };
 
   r.start()
- }catch{
+ }catch(error){
   if(voiceCore.generation!==generation)return;
-  recognition=null;scheduleVoiceRestart()
+  voiceCore.actualState="error";voiceCore.lastError=String(error?.message||error);voiceDiagnostic("recognition-start-failed",{generation,error:voiceCore.lastError});recognition=null;scheduleVoiceRestart()
  }
 }
 function phoneticKey(s){
@@ -1006,7 +1019,7 @@ function back(){
 }
 function home(){
  if(state.screen!=="home")enterScreen("home","home-cleanup");
- hostSystem?.cancel("home");GameAudio.stopAll();state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.19</div></div><div class="actions">${hasSavedSession()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasSavedSession()?"":"primary"} large">START</button></div>`);
+ hostSystem?.cancel("home");GameAudio.stopAll();state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.20</div></div><div class="actions">${hasSavedSession()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasSavedSession()?"":"primary"} large">START</button></div>`);
  document.getElementById("start").onclick=chooseGame;const rs=document.getElementById("resumeSaved");if(rs)rs.onclick=resumeSavedGame;startVoice("home")
 }
 function chooseGame(){ensureAudio();clearSetupState();go("setup","home-start")}
@@ -1183,9 +1196,9 @@ function gamebar(showName=true){
 function bindGamebar(){document.getElementById("pause").onclick=pauseGame}
 function handoff(){
  clearRuntime();const session=enterScreen("handoff","player-up","internal-game-event"),g=state.game;if(g.players[g.idx].eliminated)g.idx=nextActive(g.idx);const p=g.players[g.idx],opening=!g.hostOpened;g.hostOpened=true;saveActiveGame();
- const renderGeneration=++playerUpRenderGeneration,renderDiagnostic={phase:"message",screen:"player-up",renderGeneration,runtimeSession:session,activePlayer:p.name,playerId:p.id,at:Date.now(),previousScreen:transitionDiagnostics.at(-1)?.from||null,domText:"",visible:true};playerUpDiagnostics.push(renderDiagnostic);if(playerUpDiagnostics.length>150)playerUpDiagnostics.shift();if(transitionDebugEnabled)console.debug("[LOS player-up]",renderDiagnostic);
+ const renderGeneration=++playerUpRenderGeneration,renderDiagnostic={phase:"message",screen:"player-up",renderGeneration,runtimeSession:session,activePlayer:p.name,playerId:p.id,at:Date.now(),previousScreen:transitionDiagnostics.at(-1)?.from||null,domText:"",visible:false};playerUpDiagnostics.push(renderDiagnostic);if(playerUpDiagnostics.length>150)playerUpDiagnostics.shift();if(transitionDebugEnabled)console.debug("[LOS player-up]",renderDiagnostic);
  const nameSize=p.name.length>24?"name-long":"name-regular";
- app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(false)}<div class="handoff"><div class="handoff-intro"><div class="handoff-player-name ${nameSize}">${esc(p.name)}</div><div class="handoff-hype">YOU’RE UP!</div><div class="handoff-sub">${g.showdown?"FINAL SHOWDOWN":""}</div></div><div id="handoffCount" class="handoff-count urgent" aria-live="polite"></div></div></div></section>`;
+ app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(false)}<div class="handoff"><div class="handoff-intro" hidden aria-hidden="true"><div class="handoff-player-name ${nameSize}">${esc(p.name)}</div><div class="handoff-hype">YOU’RE UP!</div><div class="handoff-sub">${g.showdown?"FINAL SHOWDOWN":""}</div></div><div id="handoffCount" class="handoff-count urgent" aria-live="polite"></div></div></div></section>`;
  const playerUpMessage=document.querySelector(".handoff-intro");if(playerUpMessage){playerUpMessage.id="playerUpMessage";renderDiagnostic.domText=playerUpMessage.innerText||playerUpMessage.textContent||""}bindGamebar();const event=state.mode==="solo"?"soloTurn":opening?"firstTurn":"turn";hostSystem?.emit(event,{name:p.name,mode:state.mode});
  const enteredAt=Date.now(),postHostBeatMs=450,minFallbackVisibleMs=1200;
  let countdownStarted=false,countdownScheduled=false,advanced=false;
@@ -1193,7 +1206,7 @@ function handoff(){
  const advanceOnce=()=>{if(advanced)return;if(!valid()){transitionOwner("handoff",session,"transition","timer",{reason:"stale-player-countdown",callback:"advanceOnce",timerId:"handoff-countdown"});return}advanced=true;transition("question",()=>question(),"player-countdown-complete")};
  const beginCountdown=()=>{
   if(countdownStarted||!valid())return;countdownStarted=true;
-  const count=document.getElementById("handoffCount"),message=document.getElementById("playerUpMessage");if(!count)return;
+  const count=document.getElementById("handoffCount"),message=document.getElementById("playerUpMessage");if(!count)return;if(message){message.hidden=false;message.setAttribute("aria-hidden","false")}
   const countdownDiagnostic={phase:"countdown",screen:"player-up",renderGeneration,runtimeSession:session,activePlayer:p.name,playerId:p.id,at:Date.now(),previousScreen:"player-up",domText:"3",visibleName:document.querySelector(".handoff-player-name")?.textContent||"",visibleHype:document.querySelector(".handoff-hype")?.textContent||"",countdownVisible:true,playerUpVisible:!!message&&!message.hidden};playerUpDiagnostics.push(countdownDiagnostic);if(playerUpDiagnostics.length>150)playerUpDiagnostics.shift();
   const showDigit=value=>{count.textContent=String(value);count.classList.remove("countdown-punch");void count.offsetWidth;count.classList.add("countdown-punch");handoffTick(value)};
   showDigit(3);
@@ -1213,7 +1226,7 @@ function transition(kind,done,reason="game-transition"){
  clearRuntime();const session=enterScreen("transition",reason,"internal-game-event"),enteredAt=Date.now(),map={question:["LOCK IN","QUESTION INCOMING"],elimination:["PLAYER ELIMINATED","THE GAME CONTINUES"],showdown:["FINAL SHOWDOWN","PLAYOFF MODE"]};const [a,b]=map[kind]||map.question;
  app.innerHTML=`<section class="screen transition-screen"><div class="transition-stage"><div class="transition-glow"></div><div class="transition-copy"><div class="transition-big">${a}</div><div class="transition-small">${b}</div></div></div></section>`;if(kind==="question")GameAudio.playSfx("lockIn",{eventId:`lock-in:${session}`});else sting();
  const complete=()=>{if(transitionOwner("transition",session,kind==="question"?"question":kind==="showdown"?"showdown":"handoff","timer",{reason:`${kind}-transition-complete`,callback:"complete"}))done()};
- if(kind==="question"){hostSystem?.emit("lockIn",{mode:state.mode});flowTimer=setTimeout(complete,1000)}else flowTimer=setTimeout(complete,kind==="elimination"?2200:1800)
+ if(kind==="question"){hostSystem?.emit("lockIn",{mode:state.mode});flowTimer=setTimeout(complete,1350)}else flowTimer=setTimeout(complete,kind==="elimination"?2200:1800)
 }
 function pickQuestion(){
  const g=state.game;
@@ -1418,7 +1431,7 @@ window.addEventListener("resize",viewport,{passive:true});window.visualViewport?
 window.addEventListener("pointerdown",()=>{ensureAudio();hostSystem?.provider?.activate?.();if(["home","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
 window.addEventListener("pointerdown",()=>{pendingTransitionCause={trigger:"click",reason:"pointer-control"}},{capture:true,passive:true});
 window.addEventListener("keydown",event=>{ensureAudio();hostSystem?.provider?.activate?.();pendingTransitionCause={trigger:"keyboard",reason:event.key||"key"};if(state.screen==="question"&&!event.repeat&&(event.key==="Escape"||String(event.key).toLowerCase()==="p")){event.preventDefault();pauseGame()}},{capture:true});
-document.documentElement.dataset.build="6.19";
+document.documentElement.dataset.build="6.20";
 try{hostSystem=createHostSystem();viewport();home();installLayoutBoundsDebug()}
 catch(err){
  console.error("LOS startup error",err);

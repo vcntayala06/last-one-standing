@@ -68,6 +68,6 @@ const provider={
 window.__LOS_HOST_AUDIO_DIAGNOSTICS__=diagnostics;
 window.__LOS_HOST_PROVIDER__=provider;
 statusReady=fetch("/api/host-status",{headers:{accept:"application/json"}}).then(r=>r.ok?r.json():null).then(status=>{
- provider.available=status?.configured===false?false:null;diagnostics.providerStatus=status?.status||"pending";record("status",{available:provider.available,status:diagnostics.providerStatus,configured:!!status?.configured,provider:status?.provider||"none",voice:status?.voice||""});
+ provider.available=status?.configured===true?true:status?.configured===false?false:null;diagnostics.providerStatus=status?.status||"pending";record("status",{available:provider.available,status:diagnostics.providerStatus,configured:!!status?.configured,provider:status?.provider||"none",voice:status?.voice||""});
 }).catch(error=>{provider.available=null;diagnostics.providerStatus="pending";diagnostics.lastError=String(error?.message||error);record("status-failure",{status:"pending",error:diagnostics.lastError})});
 })();

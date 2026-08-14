@@ -29,7 +29,7 @@ function providerHarness({speechStatus=200,contentType="audio/mpeg",speechBody="
 }
 
 test("natural provider fetches same-origin audio without browser credentials and completes playback",async()=>{
- const h=providerHarness();try{await settle();assert.equal(h.provider.available,null);assert.equal(h.diagnostics.providerStatus,"pending");const playing=h.provider.play({event:"correct",text:"There you go.",priority:"optional",volume:.4,context:{}});await settle();assert.equal(h.requests[1].url,"/api/host-speech");assert.equal(h.requests[1].options.headers["xi-api-key"],undefined);assert.equal(h.audios[0].volume,.4);assert.equal(typeof h.diagnostics.lastStartLatencyMs,"number");assert.equal(h.provider.available,true);assert.equal(h.diagnostics.providerStatus,"available");h.audios[0].finish();await playing;assert.equal(h.diagnostics.requests,1);assert.equal(h.diagnostics.failures,0)}finally{h.close()}
+ const h=providerHarness();try{await settle();assert.equal(h.provider.available,true);assert.equal(h.diagnostics.providerStatus,"pending");const playing=h.provider.play({event:"correct",text:"There you go.",priority:"optional",volume:.4,context:{}});await settle();assert.equal(h.requests[1].url,"/api/host-speech");assert.equal(h.requests[1].options.headers["xi-api-key"],undefined);assert.equal(h.audios[0].volume,.4);assert.equal(typeof h.diagnostics.lastStartLatencyMs,"number");assert.equal(h.provider.available,true);assert.equal(h.diagnostics.providerStatus,"available");h.audios[0].finish();await playing;assert.equal(h.diagnostics.requests,1);assert.equal(h.diagnostics.failures,0)}finally{h.close()}
 });
 
 test("master volume updates an active natural Host clip",async()=>{

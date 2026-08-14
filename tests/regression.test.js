@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { createHarness } = require("./helpers/harness");
+const { createHarness, FakeSpeechRecognition } = require("./helpers/harness");
 
 function withHarness(fn) {
   return () => {
@@ -35,9 +35,9 @@ function activeTimedQuestion(h) {
   return state;
 }
 
-test("fake SpeechRecognition is active and routes a Home command", withHarness(h => {
+test("fake SpeechRecognition is active and routes a final Home command", withHarness(h => {
   assert.equal(h.api.getState().screen, "home");
-  h.speak("start", { final: false });
+  h.speak("start", { final: true });
   assert.equal(h.api.getState().screen, "setup");
 }));
 
@@ -269,7 +269,7 @@ test("player Continue touch and voice both advance a valid roster to Showtime", 
   h.timers.advance(220);
   state.screen = "players";
   h.api.players();
-  h.speak("continue", { final: false });
+  h.speak("continue", { final: true });
   assert.equal(state.screen, "ready");
 }));
 
@@ -421,7 +421,7 @@ test("Unified Setup Voice Volume and Read Questions controls use canonical persi
 });
 
 test("Game Setup voice changes choices and Continue opens the correct next page",()=>{
- const h=createHarness();try{const state=h.api.getState();h.speak("start",{final:false});assert.equal(state.screen,"setup");h.speak("start",{final:true});assert.equal(state.screen,"setup");h.timers.advance(220);h.speak("work edition");assert.equal(state.screen,"setup");assert.equal(state.mode,"work");h.speak("hard");assert.equal(state.difficulty,"hard");h.speak("20 seconds");assert.equal(state.questionSeconds,20);h.speak("5 minutes");assert.equal(state.duration,5);h.speak("read questions off");assert.equal(state.readQuestions,false);h.speak("continue",{final:false});assert.equal(state.screen,"players");h.timers.advance(220);h.speak("continue",{final:true});assert.equal(state.screen,"players","final duplicate must not cross into Showtime")}finally{h.close()}
+ const h=createHarness();try{const state=h.api.getState();h.speak("start",{final:false});assert.equal(state.screen,"home");h.speak("start",{final:true});assert.equal(state.screen,"setup");h.timers.advance(220);h.speak("work edition");assert.equal(state.screen,"setup");assert.equal(state.mode,"work");h.speak("hard");assert.equal(state.difficulty,"hard");h.speak("20 seconds");assert.equal(state.questionSeconds,20);h.speak("5 minutes");assert.equal(state.duration,5);h.speak("read questions off");assert.equal(state.readQuestions,false);h.speak("continue",{final:false});assert.equal(state.screen,"setup");h.speak("continue",{final:true});assert.equal(state.screen,"players");h.timers.advance(220);assert.equal(state.screen,"players")}finally{h.close()}
 });
 
 test("detached legacy Continue cannot advance Game Setup and final Back returns Home once",()=>{
@@ -475,8 +475,8 @@ test("fresh preferences never create Resume while explicitly abandoned setup doe
  const stale=createHarness({storage:{los5_setup_state:JSON.stringify({version:1,kind:"setup",screen:"setup",players:[]})}});try{assert.equal(stale.document.querySelector("#resumeSaved"),null,"obsolete setup records are not resumable")}finally{stale.close()}
 });
 
-test("one Player-Up composition remains visible while its countdown begins",withHarness(h=>{
- const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];h.api.startGame();const message=h.document.getElementById("playerUpMessage");assert.ok(message);assert.equal(message.hidden,false);h.timers.advance(450);assert.equal(message.hidden,false);assert.equal(h.document.getElementById("handoffCount").textContent,"3");h.timers.advance(2000);assert.equal(message.hidden,false);const trace=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.playerUps();assert.equal(trace.filter(x=>x.phase==="message").length,1);assert.equal(trace.filter(x=>x.phase==="countdown").length,1);assert.equal(trace.at(-1).playerUpVisible,true);assert.equal(trace.at(-1).visibleHype,"YOU’RE UP!")
+test("the first Player-Up moment stays hidden and one intended presentation begins with countdown",withHarness(h=>{
+ const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];h.api.startGame();const message=h.document.getElementById("playerUpMessage");assert.ok(message);assert.equal(message.hidden,true);h.timers.advance(449);assert.equal(message.hidden,true);h.timers.advance(1);assert.equal(message.hidden,false);assert.equal(h.document.getElementById("handoffCount").textContent,"3");h.timers.advance(2000);assert.equal(message.hidden,false);const trace=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.playerUps();assert.equal(trace.filter(x=>x.phase==="message").length,1);assert.equal(trace.filter(x=>x.phase==="countdown").length,1);assert.equal(trace.find(x=>x.phase==="message").visible,false);assert.equal(trace.at(-1).playerUpVisible,true);assert.equal(trace.at(-1).visibleHype,"YOU’RE UP!")
 }));
 
 test("answer diagnostics explain exact, rejected, resumed, and near-timeout recognition",withHarness(h=>{
@@ -530,7 +530,7 @@ test("physical Read Questions controls persist and govern actual question narrat
 });
 
 test("Stage 6.15 production flow preserves every major screen in sequence",withHarness(h=>{
- const state=h.api.getState();state.mode="original";state.voiceOn=false;state.readQuestions=true;state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"},{id:"p3",name:"Casey"}];state.screen="players";h.api.go("ready","production-playthrough");h.timers.advance(220);assert.equal(state.screen,"ready");h.click("#showtimeStart");assert.equal(state.screen,"handoff");h.timers.advance(3450);assert.equal(state.screen,"transition");h.timers.advance(1000);assert.equal(state.screen,"question");state.game.current={id:"flow-q",q:"What planet is red?",a:"Mars",cat:"Science"};state.game.answered=false;h.api.finish("correct");assert.equal(state.screen,"result");h.timers.advance(3200);assert.equal(state.screen,"handoff");state.game.players[2].eliminated=true;h.api.showdownIntro();assert.equal(state.screen,"showdown");h.timers.advance(3700);assert.equal(state.screen,"handoff");h.api.champion(state.game.players[0]);assert.equal(state.screen,"complete");const screens=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.lifetimes().map(x=>x.screen);for(const expected of ["ready","handoff","transition","question","result","showdown","complete"])assert.ok(screens.includes(expected),expected)
+ const state=h.api.getState();state.mode="original";state.voiceOn=false;state.readQuestions=true;state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"},{id:"p3",name:"Casey"}];state.screen="players";h.api.go("ready","production-playthrough");h.timers.advance(220);assert.equal(state.screen,"ready");h.click("#showtimeStart");assert.equal(state.screen,"handoff");h.timers.advance(3450);assert.equal(state.screen,"transition");h.timers.advance(1350);assert.equal(state.screen,"question");state.game.current={id:"flow-q",q:"What planet is red?",a:"Mars",cat:"Science"};state.game.answered=false;h.api.finish("correct");assert.equal(state.screen,"result");h.timers.advance(3200);assert.equal(state.screen,"handoff");state.game.players[2].eliminated=true;h.api.showdownIntro();assert.equal(state.screen,"showdown");h.timers.advance(3700);assert.equal(state.screen,"handoff");h.api.champion(state.game.players[0]);assert.equal(state.screen,"complete");const screens=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.lifetimes().map(x=>x.screen);for(const expected of ["ready","handoff","transition","question","result","showdown","complete"])assert.ok(screens.includes(expected),expected)
 }));
 
 test("Stage 6.19 strike awards are atomic, capped at three, and eliminate immediately",()=>{
@@ -565,6 +565,30 @@ test("Showtime Start Back and Exit are final-only and use the visible controls",
  {const{h,state}=make();try{h.speak("exit",{final:false});assert.equal(state.screen,"ready");h.speak("exit",{final:true});assert.equal(state.screen,"home")}finally{h.close()}}
 });
 
-test("Lock In remains visible for a full second without waiting for Host",withHarness(h=>{
- const state=setupQuestion(h);h.api.transition("question",()=>h.api.question(),"lock-in-test");assert.equal(state.screen,"transition");h.timers.advance(999);assert.equal(state.screen,"transition");h.timers.advance(1);assert.equal(state.screen,"question")
+test("Lock In remains visible for 1.35 seconds without waiting for Host",withHarness(h=>{
+ const state=setupQuestion(h);h.api.transition("question",()=>h.api.question(),"lock-in-test");assert.equal(state.screen,"transition");h.timers.advance(1349);assert.equal(state.screen,"transition");h.timers.advance(1);assert.equal(state.screen,"question")
+}));
+
+test("Stage 6.20 exact safe settings remain interim while navigation and destructive commands are final-only",()=>{
+ const h=createHarness();try{const state=h.api.getState();state.screen="setup";h.api.setup();h.speak("hard",{final:false,confidence:.01});assert.equal(state.difficulty,"hard");h.speak("20 seconds",{final:false,confidence:.01});assert.equal(state.questionSeconds,20);h.speak("back",{final:false});assert.equal(state.screen,"setup");h.speak("back",{final:true});assert.equal(state.screen,"home")}finally{h.close()}
+});
+
+test("Stage 6.20 Leave Game and Exit Game use the canonical saved-game Home path and require final speech",()=>{
+ for(const phrase of ["leave game","exit game"]){const h=createHarness();try{const state=activeTimedQuestion(h);const game=state.game;h.speak(phrase,{final:false});assert.equal(state.screen,"question",phrase);assert.equal(state.game,game);h.speak(phrase,{final:true});assert.equal(state.screen,"home",phrase);assert.ok(h.document.querySelector("#resumeSaved"),phrase);assert.ok(h.window.localStorage.getItem("los5_active_game"),phrase)}finally{h.close()}}
+});
+
+test("Stage 6.20 background command-like speech is rejected and a later intended answer executes",withHarness(h=>{
+ const state=activeTimedQuestion(h);state.game.current={id:"party-answer",q:"What planet is red?",a:"Mars"};h.speak("go back to the house",{final:true,confidence:.18});assert.equal(state.screen,"question");assert.equal(state.game.answered,false);h.speak("Mars",{final:true,confidence:.2});assert.equal(state.screen,"result");assert.equal(state.game.players[0].correct,1)
+}));
+
+test("Stage 6.20 accepts a bounded correct question alternative without broadening answer matching",withHarness(h=>{
+ const state=activeTimedQuestion(h);state.game.current={id:"alternative-answer",q:"Who sang Respect?",a:"Aretha Franklin"};h.speak("Franklin Roosevelt",{final:true,confidence:.72,alternatives:[{transcript:"Aretha Franklin",confidence:.61}]});assert.equal(state.screen,"result");assert.equal(state.game.players[0].correct,1);assert.ok(h.api.getVoiceDiagnostics().some(x=>x.stage==="answer-alternative-promoted"&&x.alternative===1))
+}));
+
+test("Stage 6.20 spoken answers execute synchronously after the final callback",withHarness(h=>{
+ const state=activeTimedQuestion(h);state.game.current={id:"latency-answer",q:"What planet is red?",a:"Mars"};h.recognition().speechStart();h.speak("Mars",{final:true});const rows=h.api.getVoiceDiagnostics(),final=[...rows].reverse().find(x=>x.stage==="first-final-transcript"),executed=[...rows].reverse().find(x=>x.stage==="answer-executed");assert.ok(final&&executed);assert.ok(executed.monoAt-final.monoAt<5);assert.equal(state.screen,"result")
+}));
+
+test("Stage 6.20 no-speech recovery is prompt and normal screen changes do not churn recognition",withHarness(h=>{
+ const first=h.recognition(),initialCount=FakeSpeechRecognition.instances.length;h.api.go("setup");h.api.setup();assert.equal(h.recognition(),first);assert.equal(FakeSpeechRecognition.instances.length,initialCount);first.error("no-speech");first.end();h.timers.advance(24);assert.equal(FakeSpeechRecognition.instances.length,initialCount);h.timers.advance(1);assert.equal(FakeSpeechRecognition.instances.length,initialCount+1);const snapshot=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().recognition;assert.equal(snapshot.state,"listening");assert.equal(snapshot.restartCount,1);assert.equal(snapshot.lastError,"no-speech")
 }));
