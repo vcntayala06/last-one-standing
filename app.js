@@ -120,9 +120,9 @@ const HOST_LINE_TUNING={
  ]
 };
 let hostSystem=null;
-let recognition=null,questionTimer=null,flowTimer=null,audioCtx=null,musicTimer=null,pausedRemaining=null,pausedFrom=null,pausedResultDelay=null,resultDelayRemaining=null,renamePending=null,lastVolume=state.volume>0?state.volume:.65,questionSoundTimers=[],celebrationTimers=[],handoffTimers=[];
+let recognition=null,questionTimer=null,flowTimer=null,pausedRemaining=null,pausedFrom=null,pausedResultDelay=null,resultDelayRemaining=null,renamePending=null,lastVolume=state.volume>0?state.volume:.65,questionSoundTimers=[],celebrationTimers=[],handoffTimers=[];
 let runtimeSessionId=0,renderGeneration=0,setupRenderId=0,pendingTransitionCause={trigger:"internal",reason:"runtime"},questionReading=false,questionSessionId=0,answerListening=false,playerUpRenderGeneration=0;
-const BUILD_INFO={stage:"6.17",version:"visual-polish",builtAt:"2026-08-14"},transitionDiagnostics=[],screenLifetimeDiagnostics=[],answerDiagnostics=[],playerUpDiagnostics=[],audioDiagnostics={tick:"off",buzzerFired:false},transitionDebugEnabled=new URLSearchParams(location.search).get("playtestDebug")==="1"||localStorage.getItem("los_playtest_debug")==="1";
+const BUILD_INFO={stage:"6.18",version:"game-audio",builtAt:"2026-08-14"},transitionDiagnostics=[],screenLifetimeDiagnostics=[],answerDiagnostics=[],playerUpDiagnostics=[],audioDiagnostics={tick:"off",buzzerFired:false},transitionDebugEnabled=new URLSearchParams(location.search).get("playtestDebug")==="1"||localStorage.getItem("los_playtest_debug")==="1";
 function enterScreen(next,reason="render",trigger=pendingTransitionCause.trigger||"internal"){
  const from=state.screen,sourceSession=runtimeSessionId,validScreens=new Set(["home","setup","mode","industry","difficulty","fun","players","time","ready","handoff","transition","question","result","showdown","complete","paused"]),valid=validScreens.has(next);
  if(!valid){const rejected={accepted:false,from,to:next,reason,trigger,command:trigger==="voice"?pendingTransitionCause.reason:null,callback:trigger==="internal-game-event"?reason:null,at:Date.now(),sourceSession,session:runtimeSessionId,renderGeneration};transitionDiagnostics.push(rejected);return runtimeSessionId}
@@ -147,24 +147,49 @@ function spokenNumber(s){
 }
 function nameKey(s){return norm(s).replace(/\b(player|please|the)\b/g,"").replace(/\s+/g," ").trim()}
 
-function ensureAudio(){if(!audioCtx)try{audioCtx=new (window.AudioContext||window.webkitAudioContext)()}catch{};if(audioCtx?.state==="suspended")audioCtx.resume()}
-function tone(freq=440,d=.05,gain=.06,type="sine",delay=0){
- ensureAudio();if(!audioCtx)return;const now=audioCtx.currentTime+delay,o=audioCtx.createOscillator(),g=audioCtx.createGain();
- o.type=type;o.frequency.setValueAtTime(freq,now);g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(Math.max(.001,gain*state.volume),now+.01);g.gain.exponentialRampToValueAtTime(.0001,now+d);
- o.connect(g);g.connect(audioCtx.destination);o.start(now);o.stop(now+d+.02)
-}
-function handoffTick(){tone(520,.045,.045,"square")}
+const GameAudio=(()=>{
+ let ctx=null,activated=false,paused=false,music=null,musicTimer=null,generation=0,lastError=null,duckGain=1;
+ const gains={music:.28,sfx:.72},recent=new Map(),scheduled=new Set();
+ const diagnostics={currentMusic:null,lastSfx:null,activated:false,masterVolume:state.volume,musicGain:gains.music,sfxGain:gains.sfx,playing:false,paused:false,lastPlaybackError:null,owner:null,generation:0,history:[]};
+ const record=(type,name,extra={})=>{const item={type,name,at:Date.now(),screen:state.screen,session:runtimeSessionId,generation,...extra};diagnostics.history.push(item);if(diagnostics.history.length>200)diagnostics.history.shift();return item};
+ const ensure=()=>{if(!ctx)try{ctx=new (window.AudioContext||window.webkitAudioContext)()}catch(error){lastError=String(error?.message||error);diagnostics.lastPlaybackError=lastError}if(ctx?.state==="suspended")Promise.resolve(ctx.resume?.()).catch(error=>{lastError=String(error?.message||error);diagnostics.lastPlaybackError=lastError});return ctx};
+ const activate=()=>{activated=true;diagnostics.activated=true;ensure();return !!ctx};
+ const tone=(freq=440,d=.05,gain=.06,type="sine",delay=0,channel="sfx",ownerGeneration=generation)=>{
+  const ac=ensure();if(!ac||paused||ownerGeneration!==generation||state.volume<=0)return false;
+  try{const now=ac.currentTime+delay,o=ac.createOscillator(),g=ac.createGain(),level=Math.max(.0001,gain*state.volume*gains[channel]*(channel==="music"?duckGain:1));o.type=type;o.frequency.setValueAtTime(freq,now);g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(level,now+.012);g.gain.exponentialRampToValueAtTime(.0001,now+d);o.connect(g);g.connect(ac.destination);o.start(now);o.stop(now+d+.025);return true}catch(error){lastError=String(error?.message||error);diagnostics.lastPlaybackError=lastError;record("error","tone",{error:lastError});return false}
+ };
+ const cues={
+  countdown3:[[440,.075,.09,"triangle",0],[660,.055,.045,"sine",.035]],countdown2:[[500,.075,.09,"triangle",0],[740,.055,.045,"sine",.035]],countdown1:[[580,.09,.1,"triangle",0],[870,.09,.055,"sine",.045]],
+  lockIn:[[180,.08,.09,"sine",0],[540,.13,.1,"triangle",.025],[820,.11,.055,"sine",.075]],questionStart:[[720,.045,.025,"sine",0]],tick:[[480,.035,.035,"triangle",0]],urgentTick:[[610,.035,.05,"triangle",0],[760,.025,.025,"sine",.018]],
+  timeout:[[190,.18,.11,"triangle",0],[145,.2,.09,"sine",.14]],correct:[[560,.07,.075,"triangle",0],[720,.09,.08,"triangle",.065],[920,.13,.065,"sine",.14]],wrong:[[270,.1,.065,"triangle",0],[205,.15,.055,"sine",.075]],pass:[[420,.055,.035,"triangle",0],[330,.07,.03,"sine",.045]],strike:[[155,.08,.08,"triangle",0],[110,.13,.075,"sine",.055]],elimination:[[240,.12,.065,"triangle",0],[180,.17,.06,"sine",.09],[120,.22,.05,"sine",.19]],transition:[[360,.07,.04,"triangle",0],[520,.1,.05,"triangle",.075],[680,.12,.045,"sine",.15]],champion:[[330,.16,.08,"triangle",0],[440,.18,.08,"triangle",.1],[660,.24,.085,"triangle",.2],[880,.32,.07,"sine",.31]]
+ };
+ const playSfx=(name,{eventId=null,force=false}={})=>{if(paused)return false;const key=eventId||`${name}:${runtimeSessionId}`,now=Date.now();if(!force&&recent.has(key)&&now-recent.get(key)<1500)return false;recent.set(key,now);if(recent.size>80)for(const [k,t] of recent)if(now-t>10000)recent.delete(k);const recipe=cues[name];if(!recipe)return false;diagnostics.lastSfx=name;diagnostics.owner={screen:state.screen,session:runtimeSessionId};record("sfx",name,{eventId:key});const own=generation;recipe.forEach(([f,d,g,t,delay])=>{if(!delay){tone(f,d,g,t,0,"sfx",own);return}const id=setTimeout(()=>{scheduled.delete(id);tone(f,d,g,t,0,"sfx",own)},delay*1000);scheduled.add(id)});return true};
+ const stopMusic=()=>{if(musicTimer)clearInterval(musicTimer);musicTimer=null;music=null;diagnostics.currentMusic=null;diagnostics.playing=false;record("music-stop","music")};
+  const playMusic=(name,{owner=state.screen}={})=>{if(music?.name===name&&!paused)return false;stopMusic();ensure();const patterns={setup:[220,277,330,440],showdown:[110,165,220,277,220,165],champion:[330,440,523,659,784,659]};const seq=patterns[name];if(!seq)return false;music={name,owner,step:0};diagnostics.currentMusic=name;diagnostics.owner=owner;diagnostics.playing=true;record("music-start",name,{owner});const cadence=name==="showdown"?520:name==="champion"?420:700;musicTimer=setInterval(()=>{if(paused||!music)return;const f=seq[music.step++%seq.length];tone(f,name==="showdown"?.22:.14,name==="showdown"?.035:.024,"triangle",0,"music",generation)},cadence);return true};
+ const pause=()=>{paused=true;diagnostics.paused=true;diagnostics.playing=false;record("pause","audio")};
+ const resume=()=>{paused=false;diagnostics.paused=false;diagnostics.playing=!!music;record("resume","audio")};
+ const stopPending=()=>{generation++;diagnostics.generation=generation;for(const id of scheduled)clearTimeout(id);scheduled.clear()};
+ const stopAll=()=>{stopPending();stopMusic();record("stop-all","audio")};
+ const setVolume=value=>{diagnostics.masterVolume=Math.max(0,Math.min(1,Number(value)||0))};
+ const duck=(value=.35)=>{duckGain=Math.max(.1,Math.min(1,value));record("duck","music",{gain:duckGain})};
+ const restore=()=>{duckGain=1;record("restore","music")};
+ return {activate,ensure,tone,playSfx,playMusic,stopMusic,stopPending,stopAll,pause,resume,setVolume,duck,restore,diagnostics};
+})();
+globalThis.__LOS_GAME_AUDIO__=GameAudio;
+function ensureAudio(){return GameAudio.activate()}
+function tone(freq=440,d=.05,gain=.06,type="sine",delay=0){return GameAudio.tone(freq,d,gain,type,delay)}
+function handoffTick(value){GameAudio.playSfx(value===3?"countdown3":value===2?"countdown2":"countdown1",{eventId:`countdown:${runtimeSessionId}:${value}`})}
 function tickSound(rem){
  if(rem<=0)return;
  audioDiagnostics.tick=rem>=6?"normal":"urgent";
- if(rem>=6){tone(500,.045,.05,"square");return}
+ if(rem>=6){GameAudio.playSfx("tick",{eventId:`tick:${questionSessionId}:${rem}`});return}
  // Pressure zone: same tick character, rapid cadence from 5 through 1.
- [0,200,400,600,800].forEach(ms=>questionSoundTimers.push(setTimeout(()=>tone(620,.032,.058,"square"),ms)))
+ [0,200,400,600,800].forEach((ms,index)=>questionSoundTimers.push(setTimeout(()=>GameAudio.playSfx("urgentTick",{eventId:`urgent:${questionSessionId}:${rem}:${index}`}),ms)))
 }
-function buzzer(){audioDiagnostics.buzzerFired=true;audioDiagnostics.tick="off";tone(175,.22,.12,"square");tone(150,.24,.11,"square",.17)}
-function good(){tone(620,.08,.07,"triangle");tone(820,.12,.07,"triangle",.08)}
-function bad(){tone(220,.13,.09,"square")}
-function sting(){tone(360,.09,.06,"triangle");tone(520,.12,.07,"triangle",.1);tone(680,.15,.06,"triangle",.2)}
+function buzzer(){audioDiagnostics.buzzerFired=true;audioDiagnostics.tick="off";GameAudio.playSfx("timeout",{eventId:`timeout:${questionSessionId}`})}
+function good(){GameAudio.playSfx("correct",{eventId:`correct:${questionSessionId}`})}
+function bad(){GameAudio.playSfx("wrong",{eventId:`wrong:${questionSessionId}`})}
+function sting(){GameAudio.playSfx("transition",{eventId:`transition:${runtimeSessionId}`})}
 
 const HOST_LINES={
  showtime:[
@@ -274,9 +299,9 @@ function createHostSystem(provider=defaultHostProvider()){
  };
  return {emit,cancel,choose,whenIdle,history,isSpeaking:()=>speaking,provider}
 }
-function startMusic(){stopMusic();ensureAudio();let step=0;musicTimer=setInterval(()=>{if(["question","handoff","result","paused","transition"].includes(state.screen))return;const seq=[220,277,330,440];tone(seq[step++%seq.length],.12,.018,"triangle")},700)}
-function stopMusic(){clearInterval(musicTimer);musicTimer=null}
-function clearRuntime(){hostSystem?.cancel("runtime-change");questionReading=false;answerListening=false;audioDiagnostics.tick="off";clearInterval(questionTimer);questionTimer=null;clearTimeout(flowTimer);flowTimer=null;questionSoundTimers.forEach(clearTimeout);questionSoundTimers=[];handoffTimers.forEach(clearTimeout);handoffTimers=[];celebrationTimers.forEach(id=>{clearTimeout(id);clearInterval(id)});celebrationTimers=[]}
+function startMusic(){if(isSetupScreen()||state.screen==="home")GameAudio.playMusic("setup",{owner:"setup"})}
+function stopMusic(){GameAudio.stopMusic()}
+function clearRuntime(){hostSystem?.cancel("runtime-change");questionReading=false;answerListening=false;audioDiagnostics.tick="off";GameAudio.stopPending();clearInterval(questionTimer);questionTimer=null;clearTimeout(flowTimer);flowTimer=null;questionSoundTimers.forEach(clearTimeout);questionSoundTimers=[];handoffTimers.forEach(clearTimeout);handoffTimers=[];celebrationTimers.forEach(id=>{clearTimeout(id);clearInterval(id)});celebrationTimers=[]}
 function isSetupScreen(){return ["setup","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen)}
 function exitSetup(){if(state.game)return;markSetupAbandoned(state.screen);state.game=null;home()}
 function bindSetupShell(){document.querySelectorAll("[data-setup-exit]").forEach(button=>button.onclick=exitSetup)}
@@ -901,7 +926,7 @@ function spokenLetters(s){
  const map={ay:"a",bee:"b",see:"c",sea:"c",dee:"d",eff:"f",gee:"g",aitch:"h",eye:"i",jay:"j",kay:"k",el:"l",em:"m",en:"n",oh:"o",pee:"p",cue:"q",are:"r",ess:"s",tee:"t",you:"u",vee:"v",doubleyou:"w",ex:"x",why:"y",zee:"z",zed:"z"};
  const p=norm(s).split(" ");let out="";for(const x of p){if(x.length===1)out+=x;else if(map[x])out+=map[x];else return""}return out
 }
-function setVolume(v,announce=false){state.volume=Math.max(0,Math.min(1,Number(v)||0));if(state.volume>0)lastVolume=state.volume;localStorage.setItem(STORAGE.volume,String(state.volume));const e=document.getElementById("vol");if(e)e.value=state.volume;const p=document.getElementById("volPct");if(p)p.textContent=Math.round(state.volume*100)+"%";const pe=document.getElementById("pauseVol");if(pe)pe.value=state.volume;const pp=document.getElementById("pauseVolPct");if(pp)pp.textContent=Math.round(state.volume*100)+"%";hostSystem?.provider?.setVolume?.(state.volume);applyVolume();if(["setup","players"].includes(state.screen))saveSetupState(state.screen);if(announce)voiceFeedback(state.volume===0?"✓ MUTED":"✓ VOLUME "+Math.round(state.volume*100),"action")}
+function setVolume(v,announce=false){state.volume=Math.max(0,Math.min(1,Number(v)||0));if(state.volume>0)lastVolume=state.volume;localStorage.setItem(STORAGE.volume,String(state.volume));const e=document.getElementById("vol");if(e)e.value=state.volume;const p=document.getElementById("volPct");if(p)p.textContent=Math.round(state.volume*100)+"%";const pe=document.getElementById("pauseVol");if(pe)pe.value=state.volume;const pp=document.getElementById("pauseVolPct");if(pp)pp.textContent=Math.round(state.volume*100)+"%";GameAudio.setVolume(state.volume);hostSystem?.provider?.setVolume?.(state.volume);applyVolume();if(["setup","players"].includes(state.screen))saveSetupState(state.screen);if(announce)voiceFeedback(state.volume===0?"✓ MUTED":"✓ VOLUME "+Math.round(state.volume*100),"action")}
 function saveActiveGame(){
  if(!state.game){localStorage.removeItem(STORAGE.activeGame);return}
  try{
@@ -966,8 +991,8 @@ function back(){
 }
 function home(){
  if(state.screen!=="home")enterScreen("home","home-cleanup");
- hostSystem?.cancel("home");state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.0.8</div></div><div class="actions">${hasSavedSession()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasSavedSession()?"":"primary"} large">START</button></div>`);
- document.getElementById("start").onclick=chooseGame;const rs=document.getElementById("resumeSaved");if(rs)rs.onclick=resumeSavedGame;startMusic();startVoice("home")
+ hostSystem?.cancel("home");GameAudio.stopAll();state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.18</div></div><div class="actions">${hasSavedSession()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasSavedSession()?"":"primary"} large">START</button></div>`);
+ document.getElementById("start").onclick=chooseGame;const rs=document.getElementById("resumeSaved");if(rs)rs.onclick=resumeSavedGame;startVoice("home")
 }
 function chooseGame(){ensureAudio();clearSetupState();go("setup","home-start")}
 function ensureUnifiedRoster(){
@@ -1148,9 +1173,9 @@ function handoff(){
   if(countdownStarted||!valid())return;countdownStarted=true;
   const count=document.getElementById("handoffCount"),message=document.getElementById("playerUpMessage");if(!count)return;if(message){message.hidden=true;message.setAttribute("aria-hidden","true")}
   const countdownDiagnostic={phase:"countdown",screen:"player-up",renderGeneration,runtimeSession:session,activePlayer:p.name,playerId:p.id,at:Date.now(),previousScreen:"player-up",domText:"3",playerUpVisible:!!message&&!message.hidden};playerUpDiagnostics.push(countdownDiagnostic);if(playerUpDiagnostics.length>150)playerUpDiagnostics.shift();
-  const showDigit=value=>{count.textContent=String(value);count.classList.remove("countdown-punch");void count.offsetWidth;count.classList.add("countdown-punch");handoffTick()};
+  const showDigit=value=>{count.textContent=String(value);count.classList.remove("countdown-punch");void count.offsetWidth;count.classList.add("countdown-punch");handoffTick(value)};
   showDigit(3);
-  [2,1].forEach((value,index)=>handoffTimers.push(setTimeout(()=>{if(!valid())return;const current=document.getElementById("handoffCount");if(current){current.textContent=String(value);current.classList.remove("countdown-punch");void current.offsetWidth;current.classList.add("countdown-punch");handoffTick()}},(index+1)*1000)));
+  [2,1].forEach((value,index)=>handoffTimers.push(setTimeout(()=>{if(!valid())return;const current=document.getElementById("handoffCount");if(current){current.textContent=String(value);current.classList.remove("countdown-punch");void current.offsetWidth;current.classList.add("countdown-punch");handoffTick(value)}},(index+1)*1000)));
  handoffTimers.push(setTimeout(advanceOnce,3000))
  };
  const scheduleCountdown=()=>{
@@ -1164,7 +1189,7 @@ function handoff(){
 }
 function transition(kind,done,reason="game-transition"){
  clearRuntime();const session=enterScreen("transition",reason,"internal-game-event"),enteredAt=Date.now(),map={question:["LOCK IN","QUESTION INCOMING"],elimination:["PLAYER ELIMINATED","THE GAME CONTINUES"],showdown:["FINAL SHOWDOWN","PLAYOFF MODE"]};const [a,b]=map[kind]||map.question;
- app.innerHTML=`<section class="screen transition-screen"><div class="transition-stage"><div class="transition-glow"></div><div class="transition-copy"><div class="transition-big">${a}</div><div class="transition-small">${b}</div></div></div></section>`;sting();
+ app.innerHTML=`<section class="screen transition-screen"><div class="transition-stage"><div class="transition-glow"></div><div class="transition-copy"><div class="transition-big">${a}</div><div class="transition-small">${b}</div></div></div></section>`;if(kind==="question")GameAudio.playSfx("lockIn",{eventId:`lock-in:${session}`});else sting();
  const complete=()=>{if(transitionOwner("transition",session,kind==="question"?"question":kind==="showdown"?"showdown":"handoff","timer-or-host",{reason:`${kind}-transition-complete`,callback:"complete"}))done()};
  if(kind==="question"){hostSystem?.emit("lockIn",{mode:state.mode});const afterHost=()=>{const remaining=Math.max(0,650-(Date.now()-enteredAt));flowTimer=setTimeout(complete,remaining)};if(hostSystem?.isSpeaking())hostSystem.whenIdle().then(afterHost);else afterHost()}else flowTimer=setTimeout(complete,kind==="elimination"?2200:1800)
 }
@@ -1190,7 +1215,7 @@ function question(resumeCurrent=false){
      ${!state.voiceOn?`<div class="keyboard-answer"><input id="typedAnswer" disabled autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="TYPE YOUR ANSWER"><button id="lockAnswer" disabled class="btn primary">LOCK IN</button></div>`:""}<div id="answerAttemptFeedback" class="answer-attempt-feedback" aria-live="polite"></div><div id="timer" class="timer ${rem<=5?"urgent":""}" style="--timer-progress:${rem/remStart}" aria-label="${rem} seconds remaining">${rem}</div></div></div></section>`;
  bindGamebar();
  const startClock=()=>{
-  if(state.screen!=="question"||runtimeSessionId!==session||g.answered)return;questionReading=false;answerListening=true;audioDiagnostics.buzzerFired=false;const input=document.getElementById("typedAnswer"),lock=document.getElementById("lockAnswer");if(input)input.disabled=false;if(lock)lock.disabled=false;startVoice("question");tickSound(rem);
+  if(state.screen!=="question"||runtimeSessionId!==session||g.answered)return;questionReading=false;answerListening=true;audioDiagnostics.buzzerFired=false;const input=document.getElementById("typedAnswer"),lock=document.getElementById("lockAnswer");if(input)input.disabled=false;if(lock)lock.disabled=false;startVoice("question");GameAudio.playSfx("questionStart",{eventId:`question-start:${questionSessionId}`});tickSound(rem);
   questionTimer=setInterval(()=>{
    rem--;g.questionRemaining=Math.max(0,rem);
    const t=document.getElementById("timer");
@@ -1211,7 +1236,7 @@ function question(resumeCurrent=false){
 }
 function finish(outcome){
  const g=state.game;if(!g||g.answered)return;g.answered=true;clearRuntime();const p=g.players[g.idx];g.lastSpeechLog=[...g.speechLog];saveActiveGame();
- if(outcome==="correct"){p.correct++;p.hostCorrectStreak=(p.hostCorrectStreak||0)+1;p.hostMissStreak=0;good()}else{if(outcome==="timeout"){p.timeout++;buzzer()}else{p.wrong++;bad()}p.strikes++;p.hostMissStreak=(p.hostMissStreak||0)+1;p.hostCorrectStreak=0;if(p.strikes>=3)p.eliminated=true}
+ if(outcome==="correct"){p.correct++;p.hostCorrectStreak=(p.hostCorrectStreak||0)+1;p.hostMissStreak=0;good()}else{if(outcome==="timeout"){p.timeout++;buzzer()}else{p.wrong++;if(outcome==="pass")GameAudio.playSfx("pass",{eventId:`pass:${questionSessionId}`});else bad()}p.strikes++;p.hostMissStreak=(p.hostMissStreak||0)+1;p.hostCorrectStreak=0;if(p.strikes>=3)p.eliminated=true;if(p.eliminated)GameAudio.playSfx("elimination",{eventId:`elimination:${questionSessionId}`});else GameAudio.playSfx("strike",{eventId:`strike:${questionSessionId}`})}
  const category=g.current?.cat||"General Knowledge",categoryKey=norm(category);p.hostCategoryStats=p.hostCategoryStats||{};const categoryStats=p.hostCategoryStats[categoryKey]||{correct:0,miss:0};if(outcome==="correct")categoryStats.correct++;else categoryStats.miss++;p.hostCategoryStats[categoryKey]=categoryStats;
  const context={name:p.name,mode:state.mode,difficulty:state.difficulty,category,remaining:g.questionRemaining,elapsed:Math.max(0,(g.questionStartedWith||state.questionSeconds)-(g.questionRemaining||0)),streak:p.hostCorrectStreak||p.hostMissStreak||0,categoryCorrect:categoryStats.correct,categoryMiss:categoryStats.miss};
  let event;
@@ -1298,29 +1323,13 @@ function showdownIntro(){
    <div class="showdown-rule">3 STRIKES AND YOU’RE OUT.</div>
    <div class="showdown-time">${secs} SECOND QUESTIONS</div>
  </div></section>`;
- sting();hostSystem?.emit("showdown",{names:g.players.map(p=>p.name),mode:state.mode});
+ GameAudio.playMusic("showdown",{owner:"final-showdown"});sting();hostSystem?.emit("showdown",{names:g.players.map(p=>p.name),mode:state.mode});
  const launchShowdown=()=>{if(!transitionOwner("showdown",session,"handoff","host-settled",{reason:"showdown-sequence-ready",callback:"launchShowdown",hostEvent:hostSystem?.history.at(-1)?.hostEventId}))return;const remaining=Math.max(0,minimumVisibleMs-(Date.now()-enteredAt));flowTimer=setTimeout(()=>{if(transitionOwner("showdown",session,"handoff","timer",{reason:"showdown-minimum-visible-complete",callback:"launchShowdownTimer",timerId:"showdown-minimum-visible"}))handoff()},remaining)};
  if(hostSystem?.isSpeaking())hostSystem.whenIdle().then(launchShowdown);else launchShowdown()
 }
 function applause(){
- ensureAudio();if(!audioCtx)return;
- const now=audioCtx.currentTime;
- // Dense short noise-like claps.
- for(let burst=0;burst<12;burst++){
-   const when=now+burst*.28;
-   for(let i=0;i<24;i++){
-     const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-     o.type=(i%2)?"square":"sawtooth";
-     o.frequency.setValueAtTime(700+Math.random()*2500,when+Math.random()*.18);
-     g.gain.setValueAtTime(.0001,when);
-     g.gain.exponentialRampToValueAtTime((.004+Math.random()*.010)*state.volume,when+.006);
-     g.gain.exponentialRampToValueAtTime(.0001,when+.045+Math.random()*.08);
-     o.connect(g);g.connect(audioCtx.destination);o.start(when);o.stop(when+.16);
-   }
- }
- // Cheer / victory rise layered over applause.
- [330,392,494,587,659,784].forEach((f,i)=>tone(f,.34,.045,"triangle",.10+i*.09));
- celebrationTimers.push(setTimeout(()=>{if(state.screen==="complete")[523,659,784,1047].forEach((f,i)=>tone(f,.42,.04,"triangle",i*.07))},900));
+ [330,392,494,587,659,784].forEach((f,i)=>celebrationTimers.push(setTimeout(()=>{if(state.screen==="complete")tone(f,.28,.045,"triangle")},80+i*80)));
+ celebrationTimers.push(setTimeout(()=>{if(state.screen==="complete")[523,659,784,1047].forEach((f,i)=>tone(f,.34,.035,"triangle",i*.06))},850));
 }
 function champion(p){
  clearRuntime();stopMusic();clearActiveGame();enterScreen("complete","champion","internal-game-event");
@@ -1338,10 +1347,10 @@ function champion(p){
 function resetMatchRuntime(){pausedRemaining=pausedFrom=pausedResultDelay=resultDelayRemaining=null;renamePending=null;state.game=null;clearActiveGame()}
 function replayGame(){
  if(state.screen!=="complete")return;const players=(state.game?.players||state.players).map(p=>({id:p.id||uid(),name:p.name,hostStyle:p.hostStyle||"neutral"}));
- clearRuntime();resetMatchRuntime();state.players=players;state.selectedIds=players.map(p=>p.id);enterScreen("ready","play-again",pendingTransitionCause.trigger||"touch");ready()
+ clearRuntime();GameAudio.stopAll();resetMatchRuntime();state.players=players;state.selectedIds=players.map(p=>p.id);enterScreen("ready","play-again",pendingTransitionCause.trigger||"touch");ready()
 }
-function championHome(){clearRuntime();resetMatchRuntime();home()}
-function victory(){[220,330,440,660].forEach((f,i)=>tone(f,.28,.08,"triangle",i*.12))}
+function championHome(){clearRuntime();GameAudio.stopAll();resetMatchRuntime();home()}
+function victory(){GameAudio.playSfx("champion",{eventId:`champion:${runtimeSessionId}`});GameAudio.playMusic("champion",{owner:"champion"})}
 function confetti(){
  const box=document.getElementById("confetti");if(!box)return;
  if(typeof matchMedia==="function"&&matchMedia("(prefers-reduced-motion: reduce)").matches)return;
@@ -1358,10 +1367,10 @@ function showPauseOverlay(){
  document.getElementById("pauseOverlay")?.remove();const o=document.createElement("div");o.className="overlay";o.id="pauseOverlay";o.innerHTML=`<div class="pause-card card" role="dialog" aria-modal="true" aria-labelledby="pauseTitle"><div class="pause-title" id="pauseTitle">GAME PAUSED</div><div class="pause-volume"><span>VOLUME</span><input id="pauseVol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="pauseVolPct">${Math.round(state.volume*100)}%</strong></div><button id="resume" class="btn primary large">RESUME</button><button id="leave" class="btn">LEAVE GAME</button><button id="end" class="btn danger">QUIT</button></div>`;document.body.appendChild(o);document.getElementById("resume").onclick=resumeGame;document.getElementById("leave").onclick=leaveGame;document.getElementById("end").onclick=confirmEnd;document.getElementById("pauseVol").oninput=e=>{setVolume(Number(e.target.value));document.getElementById("pauseVolPct").textContent=Math.round(state.volume*100)+"%"};document.getElementById("resume").focus();startVoice("paused")
 }
 function pauseGame(){
- if(!state.game)return;if(state.screen!=="paused"){pausedFrom=state.screen;if(pausedFrom==="question")pausedRemaining=state.game.questionRemaining??state.questionSeconds;if(pausedFrom==="result")pausedResultDelay=resultDelayRemaining;clearRuntime();enterScreen("paused","pause",pendingTransitionCause.trigger)}showPauseOverlay()
+ if(!state.game)return;if(state.screen!=="paused"){pausedFrom=state.screen;if(pausedFrom==="question")pausedRemaining=state.game.questionRemaining??state.questionSeconds;if(pausedFrom==="result")pausedResultDelay=resultDelayRemaining;clearRuntime();GameAudio.pause();enterScreen("paused","pause",pendingTransitionCause.trigger)}showPauseOverlay()
 }
-function resumeGame(){document.getElementById("pauseOverlay")?.remove();const from=pausedFrom;pausedFrom=null;if(from==="question"){question(true);pausedRemaining=null}else if(from==="result"&&state.game?.lastOutcome){const delay=pausedResultDelay;pausedResultDelay=null;result(state.game.lastOutcome,delay)}else{pausedRemaining=null;pausedResultDelay=null;handoff()}}
-function leaveGame(){document.getElementById("pauseOverlay")?.remove();clearRuntime();saveActiveGame();state.game=null;home()}
+function resumeGame(){document.getElementById("pauseOverlay")?.remove();GameAudio.resume();const from=pausedFrom;pausedFrom=null;if(from==="question"){question(true);pausedRemaining=null}else if(from==="result"&&state.game?.lastOutcome){const delay=pausedResultDelay;pausedResultDelay=null;result(state.game.lastOutcome,delay)}else{pausedRemaining=null;pausedResultDelay=null;handoff()}}
+function leaveGame(){document.getElementById("pauseOverlay")?.remove();clearRuntime();GameAudio.stopAll();saveActiveGame();state.game=null;home()}
 function confirmEnd(){if(!document.querySelector(".pause-card"))pauseGame();const c=document.querySelector(".pause-card");if(!c)return;c.setAttribute("aria-labelledby","confirmEndTitle");c.innerHTML=`<div class="pause-title" id="confirmEndTitle">END THIS GAME?</div><button id="yes" class="btn danger large">YES</button><button id="no" class="btn">CANCEL</button>`;document.getElementById("yes").onclick=()=>{document.getElementById("pauseOverlay")?.remove();clearRuntime();clearActiveGame();state.game=null;home()};document.getElementById("no").onclick=showPauseOverlay;document.getElementById("yes").focus()}
 function render(){clearRuntime();({home,setup,mode,industry,difficulty,fun,players,time,ready,handoff,question,result}[state.screen]||home)()}
 function installLayoutBoundsDebug(){
@@ -1386,8 +1395,8 @@ function viewport(){document.documentElement.style.setProperty("--app-h",Math.ma
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("pointerdown",()=>{ensureAudio();hostSystem?.provider?.activate?.();if(["home","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
 window.addEventListener("pointerdown",()=>{pendingTransitionCause={trigger:"click",reason:"pointer-control"}},{capture:true,passive:true});
-window.addEventListener("keydown",event=>{pendingTransitionCause={trigger:"keyboard",reason:event.key||"key"};if(state.screen==="question"&&!event.repeat&&(event.key==="Escape"||String(event.key).toLowerCase()==="p")){event.preventDefault();pauseGame()}},{capture:true});
-document.documentElement.dataset.build="6.0.8";
+window.addEventListener("keydown",event=>{ensureAudio();hostSystem?.provider?.activate?.();pendingTransitionCause={trigger:"keyboard",reason:event.key||"key"};if(state.screen==="question"&&!event.repeat&&(event.key==="Escape"||String(event.key).toLowerCase()==="p")){event.preventDefault();pauseGame()}},{capture:true});
+document.documentElement.dataset.build="6.18";
 try{hostSystem=createHostSystem();viewport();home();installLayoutBoundsDebug()}
 catch(err){
  console.error("LOS startup error",err);

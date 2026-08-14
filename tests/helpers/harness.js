@@ -125,7 +125,7 @@ function instrument(source) {
     ` setup, startUnifiedGame, players, playersContinue, fun, time, pauseGame, resumeGame, confirmEnd, leaveGame,\n` +
     ` setVolume, go, back, home, mode, selectMode, industry, difficulty, ready, handoff, result, pickQuestion, showdownIntro, champion, replayGame, advance,\n` +
     ` startVoice, stopVoice, saveActiveGame, loadActiveGame, resumeSavedGame, clearActiveGame, saveSetupState, loadSetupState, clearSetupState,\n` +
-    ` EXTRA_CATEGORIES, QUESTIONS, QUESTION_BANK, HOST_LINES, getHostSystem:()=>hostSystem\n` +
+    ` EXTRA_CATEGORIES, QUESTIONS, QUESTION_BANK, HOST_LINES, GameAudio, transition, getHostSystem:()=>hostSystem\n` +
     `});\n`;
   return source.slice(0, at) + exposure + source.slice(at);
 }
