@@ -130,12 +130,12 @@ function instrument(source) {
   return source.slice(0, at) + exposure + source.slice(at);
 }
 
-function createHarness({ storage = {}, voiceLatency = false, hostProvider = null } = {}) {
+function createHarness({ storage = {}, voiceLatency = false, voiceHealth = false, hostProvider = null } = {}) {
   FakeSpeechRecognition.instances.length = 0;
   FakeSpeechRecognition.startFailures = 0;
   const timers = new FakeTimers();
   const dom = new JSDOM("<!doctype html><html><body><main id=\"app\"></main></body></html>", {
-    url: `https://example.test/${voiceLatency ? "?voiceLatency=1" : ""}`,
+    url: `https://example.test/${voiceLatency ? "?voiceLatency=1" : voiceHealth ? "?voiceHealth=1" : ""}`,
     runScripts: "outside-only",
     pretendToBeVisual: true
   });

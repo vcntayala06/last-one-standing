@@ -29,9 +29,11 @@ function gameState(h, { players = 2, strikes = 0 } = {}) {
 const events = h => h.api.GameAudio.diagnostics.history;
 const count = (h, type, name) => events(h).filter(x => x.type === type && x.name === name).length;
 
-test("countdown plays exactly one distinct cue per digit and Lock In once", withHarness(h => {
+test("Lock In plays first, then countdown plays exactly one distinct cue per digit", withHarness(h => {
   gameState(h);
   h.api.handoff();
+  assert.equal(count(h, "sfx", "lockIn"), 1);
+  h.timers.advance(1600);
   h.timers.advance(450);
   assert.equal(count(h, "sfx", "countdown3"), 1);
   h.timers.advance(1000);
@@ -39,7 +41,7 @@ test("countdown plays exactly one distinct cue per digit and Lock In once", with
   h.timers.advance(1000);
   assert.equal(count(h, "sfx", "countdown1"), 1);
   h.timers.advance(1000);
-  assert.equal(count(h, "sfx", "lockIn"), 1);
+  assert.equal(h.api.getState().screen, "question");
 }));
 
 test("correct, wrong final, pass, strike, and timeout cues remain semantically distinct", withHarness(h => {
@@ -118,4 +120,23 @@ test("Web Audio playback failure is diagnostic-only and never breaks gameplay fl
   assert.match(h.api.GameAudio.diagnostics.lastPlaybackError, /audio device unavailable/);
   assert.doesNotThrow(() => h.api.finish("correct"));
   assert.equal(h.api.getState().screen, "result");
+}));
+
+test("Stage 6.21 final five seconds produce one clear urgent cue per second then one buzzer", withHarness(h => {
+  const state=gameState(h);state.game.questionRemaining=6;h.api.GameAudio.activate();h.api.question(true);h.timers.advance(6000);
+  const urgent=Array.from(events(h).filter(x=>x.type==="sfx"&&x.name==="urgentTick"));assert.deepEqual(urgent.map(x=>x.remaining),[5,4,3,2,1]);assert.equal(new Set(urgent.map(x=>x.eventId)).size,5);assert.ok(urgent.every(x=>x.urgency==="urgent"&&x.activated===true&&x.paused===false&&x.sfxGain>.5));assert.equal(count(h,"sfx","timeout"),1);assert.equal(state.screen,"result")
+}));
+
+test("urgent tick dedupe rejects only the same second and records the reason", withHarness(h => {
+  gameState(h);h.api.GameAudio.activate();assert.equal(h.api.GameAudio.playSfx("urgentTick",{eventId:"urgent:q:5",remaining:5,urgency:"urgent"}),true);assert.equal(h.api.GameAudio.playSfx("urgentTick",{eventId:"urgent:q:5",remaining:5,urgency:"urgent"}),false);assert.equal(h.api.GameAudio.playSfx("urgentTick",{eventId:"urgent:q:4",remaining:4,urgency:"urgent"}),true);assert.equal(count(h,"sfx","urgentTick"),2);assert.ok(events(h).some(x=>x.type==="sfx-rejected"&&x.result==="duplicate"&&x.remaining===5))
+}));
+
+test("game audio playback never suppresses or restarts healthy recognition", withHarness(h => {
+  const recognizer=h.recognition(),snapshot=()=>h.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().recognition;
+  h.api.GameAudio.activate();
+  h.api.GameAudio.playSfx("urgentTick",{eventId:"urgent:voice:5",remaining:5,urgency:"urgent"});
+  h.api.GameAudio.playMusic("showdown",{owner:"voice-coexistence"});
+  assert.equal(h.recognition(),recognizer);
+  assert.equal(snapshot().state,"listening");
+  assert.equal(snapshot().suppressionReason,"");
 }));
