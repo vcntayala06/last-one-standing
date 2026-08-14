@@ -180,3 +180,18 @@ test("Stage 6.17 reduced motion preserves state while disabling celebration moti
   }finally{await page.close()}
  }finally{await browser.close()}
 });
+
+test("Stage 6.19 portrait-first setup and gameplay controls fit at 320x568 and 390x844",{timeout:90000},async()=>{
+ const browser=await launch();
+ try{
+  for(const viewport of [{width:320,height:568,name:"small-phone"},{width:390,height:844,name:"iphone-portrait"}]){
+   const page=await createPage(browser,viewport);
+   try{
+    for(const screen of ["setup","players","ready","handoff","lock-in","question-ordinary","result-ordinary","showdown","champion"]){
+     await show(page,screen);const x=await page.evaluate(()=>{const root=document.querySelector(".screen"),pause=document.querySelector("#pause"),name=document.querySelector(".handoff-player-name"),buttons=[...document.querySelectorAll("button")].filter(e=>getComputedStyle(e).display!=="none").map(e=>{const r=e.getBoundingClientRect();return{w:r.width,h:r.height}}),r=root.getBoundingClientRect();return{horizontal:Math.max(document.body.scrollWidth,document.documentElement.scrollWidth)-innerWidth,root:{top:r.top,bottom:r.bottom},pause:pause?{display:getComputedStyle(pause).display,alignItems:getComputedStyle(pause).alignItems,justifyContent:getComputedStyle(pause).justifyContent}:null,name:name?{height:name.getBoundingClientRect().height,lineHeight:parseFloat(getComputedStyle(name).lineHeight),long:name.classList.contains("name-long")}:null,small:buttons.filter(b=>b.w<44||b.h<44).length}});assert.ok(x.horizontal<=1,`${viewport.name}/${screen} horizontal overflow`);assert.ok(x.root.top>=-.5&&x.root.bottom<=viewport.height+.5,`${viewport.name}/${screen} stage clipped`);assert.equal(x.small,0,`${viewport.name}/${screen} small control`);if(x.pause){assert.equal(x.pause.display,"flex");assert.equal(x.pause.alignItems,"center");assert.equal(x.pause.justifyContent,"center")}if(x.name&&!x.name.long)assert.ok(x.name.height<=x.name.lineHeight*1.25,`${viewport.name} ordinary Player-Up name wrapped`)
+    }
+    await show(page,"setup");const setup=await page.evaluate(()=>{const labels=[...document.querySelectorAll(".unified-setup-heading,.topbar-title")].filter(e=>e.textContent.trim()==="GAME SETUP"&&getComputedStyle(e).display!=="none"),button=document.querySelector('[data-setup-mode="original"]'),before=document.querySelector(".content");before.scrollTop=Math.min(120,before.scrollHeight-before.clientHeight);const scroll=before.scrollTop;document.querySelector('[data-setup-minutes="20"]').click();const after=document.querySelector(".content"),b=button.getBoundingClientRect(),fresh=document.querySelector('[data-setup-mode="original"]').getBoundingClientRect();return{titleCount:labels.length,scroll,after:after.scrollTop,originalInside:fresh.left>=0&&fresh.right<=innerWidth,oldDetached:!button.isConnected}});assert.equal(setup.titleCount,1);assert.equal(setup.after,setup.scroll,`${viewport.name} setup scroll jumped`);assert.equal(setup.originalInside,true);assert.equal(setup.oldDetached,true)
+   }finally{await page.close()}
+  }
+ }finally{await browser.close()}
+});

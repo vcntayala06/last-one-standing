@@ -122,7 +122,7 @@ const HOST_LINE_TUNING={
 let hostSystem=null;
 let recognition=null,questionTimer=null,flowTimer=null,pausedRemaining=null,pausedFrom=null,pausedResultDelay=null,resultDelayRemaining=null,renamePending=null,lastVolume=state.volume>0?state.volume:.65,questionSoundTimers=[],celebrationTimers=[],handoffTimers=[];
 let runtimeSessionId=0,renderGeneration=0,setupRenderId=0,pendingTransitionCause={trigger:"internal",reason:"runtime"},questionReading=false,questionSessionId=0,answerListening=false,playerUpRenderGeneration=0;
-const BUILD_INFO={stage:"6.18",version:"game-audio",builtAt:"2026-08-14"},transitionDiagnostics=[],screenLifetimeDiagnostics=[],answerDiagnostics=[],playerUpDiagnostics=[],audioDiagnostics={tick:"off",buzzerFired:false},transitionDebugEnabled=new URLSearchParams(location.search).get("playtestDebug")==="1"||localStorage.getItem("los_playtest_debug")==="1";
+const BUILD_INFO={stage:"6.19",version:"portrait-live-stability",builtAt:"2026-08-14"},transitionDiagnostics=[],screenLifetimeDiagnostics=[],answerDiagnostics=[],playerUpDiagnostics=[],audioDiagnostics={tick:"off",buzzerFired:false},transitionDebugEnabled=new URLSearchParams(location.search).get("playtestDebug")==="1"||localStorage.getItem("los_playtest_debug")==="1";
 function enterScreen(next,reason="render",trigger=pendingTransitionCause.trigger||"internal"){
  const from=state.screen,sourceSession=runtimeSessionId,validScreens=new Set(["home","setup","mode","industry","difficulty","fun","players","time","ready","handoff","transition","question","result","showdown","complete","paused"]),valid=validScreens.has(next);
  if(!valid){const rejected={accepted:false,from,to:next,reason,trigger,command:trigger==="voice"?pendingTransitionCause.reason:null,callback:trigger==="internal-game-event"?reason:null,at:Date.now(),sourceSession,session:runtimeSessionId,renderGeneration};transitionDiagnostics.push(rejected);return runtimeSessionId}
@@ -446,6 +446,14 @@ function queueVoiceNavigation(h,isFinal,confidence){
 }
 function centralNavIntent(h,isFinal=false,confidence=0){
  const n=norm(h);
+ if(state.screen==="home"&&/^(resume|resume game|continue game)$/.test(n)){
+  if(!isFinal)return false;
+  return voiceOnce("resume:saved",()=>resumeSavedGame())
+ }
+ if(state.screen==="ready"){
+  if(/^(start|start game|begin|begin game)$/.test(n)){if(!isFinal)return false;return voiceOnce("showtime:start",()=>document.getElementById("showtimeStart")?.click())}
+  if(/^(back|go back)$/.test(n)){if(!isFinal)return false;return voiceOnce("showtime:back",()=>document.getElementById("back")?.click())}
+ }
  if(state.screen==="setup"){
   if(/^(continue|start game)$/.test(n))return voiceOnce("continue:setup",()=>startUnifiedGame());
   if(/^(back|go back)$/.test(n)){if(!isFinal)return false;return voiceOnce("back:setup",()=>{markSetupAbandoned("setup");go("home","setup-back")})}
@@ -516,9 +524,9 @@ function centralSetupIntent(h){
   const mode={original:"original","original game":"original",work:"work","work edition":"work","work game":"work",solo:"solo","solo game":"solo"}[n];
   if(mode)return voiceOnce("setup-mode:"+mode,()=>setUnifiedMode(mode));
   const difficulty=DIFFICULTIES.find(x=>x.id!=="kids"&&(n===norm(x.label)||n===`${norm(x.label)} questions`));
-  if(difficulty)return voiceOnce("setup-difficulty:"+difficulty.id,()=>{state.difficulty=difficulty.id;setup()});
+  if(difficulty)return voiceOnce("setup-difficulty:"+difficulty.id,()=>setSetupDifficulty(difficulty.id));
   const answerTime=n.match(/^(?:(?:set )?answer time(?: to)?\s+)?(10|ten|15|fifteen|20|twenty|30|thirty)\s*(?:seconds?|secs?|sec)$/);
-  if(answerTime){const values={ten:10,fifteen:15,twenty:20,thirty:30},seconds=values[answerTime[1]]||Number(answerTime[1]);return voiceOnce("setup-seconds:"+seconds,()=>{state.questionSeconds=seconds;setup()})}
+  if(answerTime){const values={ten:10,fifteen:15,twenty:20,thirty:30},seconds=values[answerTime[1]]||Number(answerTime[1]);return voiceOnce("setup-seconds:"+seconds,()=>setSetupSeconds(seconds))}
  }
  if(state.screen==="fun"){
   if(/^(select all|all categories|choose all|give me everything)$/.test(n)){
@@ -555,9 +563,10 @@ function centralSetupIntent(h){
  }
  return false
 }
-function centralExitIntent(h){
+function centralExitIntent(h,isFinal=false){
  const n=norm(h);
  if(isSetupScreen()&&/^(exit|exit game|exit the game|leave|leave game|leave the game|cancel|cancel game|cancel setup|quit setup|go home|back to home|return home)$/.test(n)){
+  if(state.screen==="ready"&&!isFinal)return false;
   return voiceOnce("exit-setup",()=>exitSetup())
  }
  if(state.game&&/^(exit game|exit the game|leave game|leave the game|save and leave|save game and leave|go home and save)$/.test(n)){
@@ -735,12 +744,13 @@ function routeVoiceCentral(h,{isFinal=false,confidence=0}={}){
  h=(h||"").trim();if(!h)return false;
  pendingTransitionCause={trigger:"voice",reason:h};
  if(!isFinal&&/^(back|go back|previous|previous screen)$/i.test(h)){voiceDiagnostic("command-rejected",{command:norm(h),reason:"back-final-only",screen:state.screen,session:runtimeSessionId});return false}
+ if(state.screen==="ready"&&!isFinal&&/^(start|start game|begin|begin game|exit|exit game|leave game|back|go back)$/i.test(h)){voiceDiagnostic("command-rejected",{command:norm(h),reason:"showtime-navigation-final-only",screen:state.screen,session:runtimeSessionId});return false}
  voiceStatus(isFinal?`HEARD: ${h}`:`… ${h}`,isFinal?"heard":"listening");
  if(endConfirmIntent(h))return true;
  if(centralChampionIntent(h,isFinal))return true;
 
  // Highest priority commands first.
- if(centralExitIntent(h))return true;
+ if(centralExitIntent(h,isFinal))return true;
  if(centralGameIntent(h))return true;
 
  // WHO'S IN owns complete player-data phrases before generic setup parsing.
@@ -954,13 +964,18 @@ function hasSavedSession(){return hasActiveGame()||hasResumableSetup()}
 function clearActiveGame(){localStorage.removeItem(STORAGE.activeGame)}
 function resumeSavedGame(){
  const x=loadActiveGame();if(!x||!x.game){const setupSave=loadSetupState();if(!setupSave?.resumable){clearActiveGame();clearSetupState();home();return}state.mode=setupSave.mode||"original";state.quick=!!setupSave.quick;state.duration=setupSave.duration||15;state.questionSeconds=setupSave.questionSeconds||15;state.categories=setupSave.categories||[];state.industry=setupSave.industry||"";state.difficulty=setupSave.difficulty||"medium";state.answerLanguage=setupSave.answerLanguage||"en";state.voiceOn=setupSave.voiceOn!==false;state.volume=Number.isFinite(Number(setupSave.volume))?Number(setupSave.volume):.65;state.readQuestions=setupSave.readQuestions!==false;state.players=Array.isArray(setupSave.players)?setupSave.players:[];state.game=null;localStorage.setItem(STORAGE.voice,String(state.voiceOn));localStorage.setItem(STORAGE.volume,String(state.volume));localStorage.setItem(STORAGE.readQuestions,String(state.readQuestions));if(state.volume>0)localStorage.setItem(STORAGE.lastVolume,String(state.volume));enterScreen(setupSave.screen==="players"&&state.mode!=="solo"?"players":"setup","resume-setup");render();return}
+ resumeActiveMatch(x)
+}
+function resumeActiveMatch(x){
  state.mode=x.mode||"friends";state.quick=!!x.quick;state.duration=x.duration||10;
  state.questionSeconds=x.questionSeconds||15;state.categories=x.categories||[];
  state.industry=x.industry||"";state.difficulty=x.difficulty||"medium";state.answerLanguage=x.answerLanguage||"en";state.readQuestions=x.readQuestions!==false;state.players=x.players||[];
- state.game=x.game;
+ state.game=x.game;state.game.players=state.game.players.map(p=>({...p,strikes:Math.min(3,Math.max(0,Number(p.strikes)||0)),eliminated:!!p.eliminated||(Number(p.strikes)||0)>=3}));
  // Resume cleanly at the beginning of the saved player's turn.
  const alive=state.game.players.filter(p=>!p.eliminated);
  if(!alive.length){clearActiveGame();home();return}
+ if(state.game.players[state.game.idx]?.eliminated)state.game.idx=state.game.players.findIndex(p=>!p.eliminated);
+ state.game.answered=false;state.game.current=null;state.game.speechLog=[];
  handoff()
 }
 function primaryAction(){
@@ -991,7 +1006,7 @@ function back(){
 }
 function home(){
  if(state.screen!=="home")enterScreen("home","home-cleanup");
- hostSystem?.cancel("home");GameAudio.stopAll();state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.18</div></div><div class="actions">${hasSavedSession()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasSavedSession()?"":"primary"} large">START</button></div>`);
+ hostSystem?.cancel("home");GameAudio.stopAll();state.screen="home";app.innerHTML=shell("",`<div class="hero"><div class="logo">LAST ONE<br>STANDING</div><div class="tagline">THINK FAST. STAY IN THE GAME.<br><strong>3 STRIKES AND YOU’RE OUT.</strong></div><div class="build-badge">BUILD 6.19</div></div><div class="actions">${hasSavedSession()?`<button id="resumeSaved" class="btn primary large">RESUME GAME</button>`:""}<button id="start" class="btn ${hasSavedSession()?"":"primary"} large">START</button></div>`);
  document.getElementById("start").onclick=chooseGame;const rs=document.getElementById("resumeSaved");if(rs)rs.onclick=resumeSavedGame;startVoice("home")
 }
 function chooseGame(){ensureAudio();clearSetupState();go("setup","home-start")}
@@ -1000,26 +1015,33 @@ function ensureUnifiedRoster(){
  state.players=state.players.map(p=>({id:p.id||uid(),name:String(p.name||""),hostStyle:["masculine","feminine","neutral"].includes(p.hostStyle)?p.hostStyle:"neutral"}));state.selectedIds=state.players.filter(p=>p.name.trim()).map(p=>p.id)
 }
 function setupSection(title,body,extra=""){return `<section class="setup-card card ${extra}" data-setup-section="${title.toLowerCase().replace(/\s+/g,"-")}" tabindex="-1"><div class="setup-label">${title}</div>${body}</section>`}
+function rerenderSetupPreservingViewport(mutator,focusSelector=""){
+ const content=document.querySelector(".content:has(.unified-setup)"),scrollTop=content?.scrollTop||0,active=document.activeElement;
+ const selector=focusSelector||(active?.id?`#${active.id}`:active?.dataset?.setupMode?`[data-setup-mode="${active.dataset.setupMode}"]`:active?.dataset?.setupDifficulty?`[data-setup-difficulty="${active.dataset.setupDifficulty}"]`:active?.dataset?.setupSeconds?`[data-setup-seconds="${active.dataset.setupSeconds}"]`:active?.dataset?.setupMinutes?`[data-setup-minutes="${active.dataset.setupMinutes}"]`:"");
+ mutator();setup();const next=document.querySelector(".content:has(.unified-setup)");if(next)next.scrollTop=scrollTop;if(selector)try{document.querySelector(selector)?.focus({preventScroll:true})}catch{}
+}
+function setSetupDifficulty(value){if(!["easy","medium","hard","savage"].includes(value))return;rerenderSetupPreservingViewport(()=>{state.difficulty=value},`[data-setup-difficulty="${value}"]`)}
+function setSetupSeconds(value){value=Number(value);if(![10,15,20,30].includes(value))return;rerenderSetupPreservingViewport(()=>{state.questionSeconds=value},`[data-setup-seconds="${value}"]`)}
 function setup(){
  ensureUnifiedRoster();const renderId=++setupRenderId,live=fn=>()=>{if(state.screen==="setup"&&renderId===setupRenderId)fn()};
  const modes=[["original","ORIGINAL"],["work","WORK EDITION"],["solo","SOLO"]].map(([id,label])=>`<button class="btn setup-choice ${state.mode===id?"selected":""}" data-setup-mode="${id}" aria-pressed="${state.mode===id}">${label}</button>`).join("");
  const difficulties=DIFFICULTIES.filter(d=>d.id!=="kids").map(d=>`<button class="btn setup-choice ${state.difficulty===d.id?"selected":""}" data-setup-difficulty="${d.id}" aria-pressed="${state.difficulty===d.id}">${d.label}</button>`).join("");
  const answerTimes=[10,15,20,30].map(s=>`<button class="btn setup-choice ${state.questionSeconds===s?"selected":""}" data-setup-seconds="${s}" aria-pressed="${state.questionSeconds===s}">${s} SEC</button>`).join("");
  const lengths=[5,10,15,20].map(m=>`<button class="btn setup-choice ${state.duration===m?"selected":""}" data-setup-minutes="${m}" aria-pressed="${state.duration===m}">${m} MIN</button>`).join("");
- app.innerHTML=shell("GAME SETUP",`<div class="unified-setup"><div class="unified-setup-heading">GAME SETUP</div><div id="setupError" class="setup-error" role="alert" aria-live="assertive"></div><div class="unified-setup-grid">${setupSection("GAME MODE",`<div class="setup-options setup-game-options">${modes}</div>`,"setup-game-row")}${setupSection("DIFFICULTY",`<div class="setup-options">${difficulties}</div>`,"setup-middle-row")}${setupSection("ANSWER TIME",`<div class="setup-options">${answerTimes}</div>`,"setup-middle-row")}${setupSection("GAME LENGTH",`<div class="setup-options">${lengths}</div>`,"setup-middle-row")}${setupSection("VOICE",`<div class="setup-options"><button id="setupVoiceOn" class="btn setup-choice ${state.voiceOn?"selected":""}" aria-pressed="${state.voiceOn}">ON</button><button id="setupVoiceOff" class="btn setup-choice ${!state.voiceOn?"selected":""}" aria-pressed="${!state.voiceOn}">OFF</button></div>`,"setup-bottom-row")}${setupSection("VOLUME",`<div class="volume-wrap"><input id="vol" type="range" min="0" max="1" step=".05" value="${state.volume}" aria-label="Game volume"><strong id="volPct">${Math.round(state.volume*100)}%</strong></div>`,"setup-bottom-row")}${setupSection("READ QUESTIONS",`<div class="setup-options"><button id="readQuestionsOn" class="btn setup-choice ${state.readQuestions?"selected":""}" aria-pressed="${state.readQuestions}">ON</button><button id="readQuestionsOff" class="btn setup-choice ${!state.readQuestions?"selected":""}" aria-pressed="${!state.readQuestions}">OFF</button></div>`,"setup-bottom-row")}</div></div>`,`<button id="startGame" class="btn primary large" data-voice="CONTINUE" data-voice-aliases="start game">CONTINUE</button>`);
+ app.innerHTML=shell("",`<div class="unified-setup"><div class="unified-setup-heading">GAME SETUP</div><div id="setupError" class="setup-error" role="alert" aria-live="assertive"></div><div class="unified-setup-grid">${setupSection("GAME MODE",`<div class="setup-options setup-game-options">${modes}</div>`,"setup-game-row")}${setupSection("DIFFICULTY",`<div class="setup-options">${difficulties}</div>`,"setup-middle-row")}${setupSection("ANSWER TIME",`<div class="setup-options">${answerTimes}</div>`,"setup-middle-row")}${setupSection("GAME LENGTH",`<div class="setup-options">${lengths}</div>`,"setup-middle-row")}${setupSection("VOICE",`<div class="setup-options"><button id="setupVoiceOn" class="btn setup-choice ${state.voiceOn?"selected":""}" aria-pressed="${state.voiceOn}">ON</button><button id="setupVoiceOff" class="btn setup-choice ${!state.voiceOn?"selected":""}" aria-pressed="${!state.voiceOn}">OFF</button></div>`,"setup-bottom-row")}${setupSection("VOLUME",`<div class="volume-wrap"><input id="vol" type="range" min="0" max="1" step=".05" value="${state.volume}" aria-label="Game volume"><strong id="volPct">${Math.round(state.volume*100)}%</strong></div>`,"setup-bottom-row")}${setupSection("READ QUESTIONS",`<div class="setup-options"><button id="readQuestionsOn" class="btn setup-choice ${state.readQuestions?"selected":""}" aria-pressed="${state.readQuestions}">ON</button><button id="readQuestionsOff" class="btn setup-choice ${!state.readQuestions?"selected":""}" aria-pressed="${!state.readQuestions}">OFF</button></div>`,"setup-bottom-row")}</div></div>`,`<button id="startGame" class="btn primary large" data-voice="CONTINUE" data-voice-aliases="start game">CONTINUE</button>`);
  document.querySelectorAll("[data-setup-mode]").forEach(b=>b.onclick=live(()=>setUnifiedMode(b.dataset.setupMode)));
- document.querySelectorAll("[data-setup-difficulty]").forEach(b=>b.onclick=live(()=>{state.difficulty=b.dataset.setupDifficulty;setup()}));
- document.querySelectorAll("[data-setup-seconds]").forEach(b=>b.onclick=live(()=>{state.questionSeconds=Number(b.dataset.setupSeconds);setup()}));
- document.querySelectorAll("[data-setup-minutes]").forEach(b=>b.onclick=live(()=>{state.duration=Number(b.dataset.setupMinutes);state.quick=false;setup()}));
+ document.querySelectorAll("[data-setup-difficulty]").forEach(b=>b.onclick=live(()=>setSetupDifficulty(b.dataset.setupDifficulty)));
+ document.querySelectorAll("[data-setup-seconds]").forEach(b=>b.onclick=live(()=>setSetupSeconds(b.dataset.setupSeconds)));
+ document.querySelectorAll("[data-setup-minutes]").forEach(b=>b.onclick=live(()=>setGameDuration(Number(b.dataset.setupMinutes))));
  document.getElementById("setupVoiceOn").onclick=()=>setSetupVoice(true);document.getElementById("setupVoiceOff").onclick=()=>setSetupVoice(false);
  document.getElementById("readQuestionsOn").onclick=()=>setReadQuestions(true);document.getElementById("readQuestionsOff").onclick=()=>setReadQuestions(false);
  document.getElementById("vol").oninput=e=>{if(renderId===setupRenderId){setVolume(Number(e.target.value));saveSetupState("setup")}};document.getElementById("startGame").onclick=live(startUnifiedGame);saveSetupState("setup");startVoice("setup")
 }
-function setUnifiedMode(mode){if(!["original","work","solo"].includes(mode))return;state.mode=mode;state.quick=false;state.categories=[];state.industry="";setup()}
-function setSetupVoice(on){state.voiceOn=!!on;voiceCore.permissionBlocked=on?false:voiceCore.permissionBlocked;voiceCore.retryAttempt=0;save();if(!on)stopVoice();setup()}
+function setUnifiedMode(mode){if(!["original","work","solo"].includes(mode))return;rerenderSetupPreservingViewport(()=>{state.mode=mode;state.quick=false;state.categories=[];state.industry=""},`[data-setup-mode="${mode}"]`)}
+function setSetupVoice(on){rerenderSetupPreservingViewport(()=>{state.voiceOn=!!on;voiceCore.permissionBlocked=on?false:voiceCore.permissionBlocked;voiceCore.retryAttempt=0;save();if(!on)stopVoice()},on?"#setupVoiceOn":"#setupVoiceOff")}
 function setupSettingDiagnostic(raw,matchedIntent,matchedSetting,oldValue,newValue,parserBranch,rejectedSecondaryMatches){voiceDiagnostic("setup-setting-command",{rawTranscript:String(raw||""),normalizedTranscript:norm(raw),matchedIntent,matchedSetting,oldValue,newValue,parserBranch,parserStopped:true,rejectedSecondaryMatches,screen:state.screen,session:runtimeSessionId})}
 function setSetupVoiceVoice(on,raw){const oldValue=state.voiceOn;setSetupVoice(on);setupSettingDiagnostic(raw,"voice", "voiceOn",oldValue,state.voiceOn,"named-voice-toggle",["volume","other-setup","navigation"])}
-function setReadQuestions(on){state.readQuestions=!!on;localStorage.setItem(STORAGE.readQuestions,String(state.readQuestions));saveSetupState("setup");setup()}
+function setReadQuestions(on){rerenderSetupPreservingViewport(()=>{state.readQuestions=!!on;localStorage.setItem(STORAGE.readQuestions,String(state.readQuestions));saveSetupState("setup")},on?"#readQuestionsOn":"#readQuestionsOff")}
 function setReadQuestionsVoice(on,raw){const oldValue=state.readQuestions;setReadQuestions(on);setupSettingDiagnostic(raw,"read-questions","readQuestions",oldValue,state.readQuestions,"named-read-questions-toggle",["voice","volume","other-setup","navigation"])}
 function setupError(message,section,selector){const box=document.getElementById("setupError");if(box)box.textContent=message;const target=document.querySelector(selector||`[data-setup-section="${section}"]`);target?.focus();target?.scrollIntoView?.({block:"nearest"});return false}
 function startUnifiedGame(){
@@ -1121,7 +1143,7 @@ function players(){
  document.getElementById("continue").onclick=()=>{if(state.screen==="players")playersContinue()};bindSetupShell();saveSetupState("players");startVoice("players")
 }
 function adjustGameVolume(delta){setVolume((state.volume??0.8)+delta,true)}
-function setGameDuration(minutes){state.quick=false;state.duration=minutes;if(state.screen==="setup")setup();else time()}
+function setGameDuration(minutes){minutes=Number(minutes);if(state.screen==="setup"){rerenderSetupPreservingViewport(()=>{state.quick=false;state.duration=minutes},`[data-setup-minutes="${minutes}"]`);return}state.quick=false;state.duration=minutes;time()}
 function applyVolume(){
  // Audio helpers read state.volume; keep any media elements synced too.
  document.querySelectorAll("audio,video").forEach(el=>{try{el.volume=state.volume??0.8}catch{}})
@@ -1133,7 +1155,7 @@ function time(){
 }
 function ready(){
  const ps=selectedPlayers(),names=ps.map(p=>p.name).filter(Boolean),spokenPlayers=names.length<=4?names.join(", "):names.slice(0,3).join(", ")+`, and ${names.length-3} more contenders`;
- app.innerHTML=shell("LAST ONE STANDING",`<div class="card center ready-card showtime-card"><div class="showtime-kicker">IT’S SHOWTIME</div><div class="ready-player-names">${names.map(esc).join(" · ")}</div><div class="compact-ready">${state.mode==="work"?"WORK EDITION":state.mode==="solo"?"SOLO":"ORIGINAL"} · ${state.difficulty.toUpperCase()} · ${state.questionSeconds} SEC · ${state.voiceOn?"VOICE ON":"VOICE OFF"} · READ ${state.readQuestions?"ON":"OFF"}</div><div class="ready-rule">3 STRIKES. ONE CHAMPION.</div><div id="showtimeStatus" class="subtle center">${state.voiceOn?"THE GAME BEGINS AFTER THE HOST INTRO.":"PRESS START WHEN EVERYBODY IS READY."}</div></div>`,`<button id="back" class="btn">BACK</button><button class="btn setup-exit-bottom" data-setup-exit data-voice="EXIT" data-voice-aliases="exit game|leave game|cancel game|quit setup|go home|back to home">EXIT</button><button id="showtimeStart" class="btn primary" data-voice="START" data-voice-aliases="start game|begin game">START</button>`);
+ app.innerHTML=shell("IT’S SHOWTIME",`<div class="card center ready-card showtime-card"><div class="ready-player-names">${names.map(esc).join(" · ")}</div><div class="compact-ready">${state.mode==="work"?"WORK EDITION":state.mode==="solo"?"SOLO":"ORIGINAL"} · ${state.difficulty.toUpperCase()} · ${state.questionSeconds} SEC · ${state.voiceOn?"VOICE ON":"VOICE OFF"} · READ ${state.readQuestions?"ON":"OFF"}</div><div class="ready-rule">3 STRIKES. ONE CHAMPION.</div><div id="showtimeStatus" class="subtle center">${state.voiceOn?"THE GAME BEGINS AFTER THE HOST INTRO.":"PRESS START WHEN EVERYBODY IS READY."}</div></div>`,`<button id="back" class="btn">BACK</button><button class="btn setup-exit-bottom" data-setup-exit data-voice="EXIT" data-voice-aliases="exit game|leave game|cancel game|quit setup|go home|back to home">EXIT</button><button id="showtimeStart" class="btn primary" data-voice="START" data-voice-aliases="start game|begin game">START</button>`);
  document.querySelector(".screen")?.classList.add("showtime-screen");
  document.getElementById("back").onclick=()=>{clearRuntime();back()};
  document.querySelector("[data-setup-exit]").onclick=()=>{clearRuntime();exitSetup()};startVoice("ready");
@@ -1171,8 +1193,8 @@ function handoff(){
  const advanceOnce=()=>{if(advanced)return;if(!valid()){transitionOwner("handoff",session,"transition","timer",{reason:"stale-player-countdown",callback:"advanceOnce",timerId:"handoff-countdown"});return}advanced=true;transition("question",()=>question(),"player-countdown-complete")};
  const beginCountdown=()=>{
   if(countdownStarted||!valid())return;countdownStarted=true;
-  const count=document.getElementById("handoffCount"),message=document.getElementById("playerUpMessage");if(!count)return;if(message){message.hidden=true;message.setAttribute("aria-hidden","true")}
-  const countdownDiagnostic={phase:"countdown",screen:"player-up",renderGeneration,runtimeSession:session,activePlayer:p.name,playerId:p.id,at:Date.now(),previousScreen:"player-up",domText:"3",playerUpVisible:!!message&&!message.hidden};playerUpDiagnostics.push(countdownDiagnostic);if(playerUpDiagnostics.length>150)playerUpDiagnostics.shift();
+  const count=document.getElementById("handoffCount"),message=document.getElementById("playerUpMessage");if(!count)return;
+  const countdownDiagnostic={phase:"countdown",screen:"player-up",renderGeneration,runtimeSession:session,activePlayer:p.name,playerId:p.id,at:Date.now(),previousScreen:"player-up",domText:"3",visibleName:document.querySelector(".handoff-player-name")?.textContent||"",visibleHype:document.querySelector(".handoff-hype")?.textContent||"",countdownVisible:true,playerUpVisible:!!message&&!message.hidden};playerUpDiagnostics.push(countdownDiagnostic);if(playerUpDiagnostics.length>150)playerUpDiagnostics.shift();
   const showDigit=value=>{count.textContent=String(value);count.classList.remove("countdown-punch");void count.offsetWidth;count.classList.add("countdown-punch");handoffTick(value)};
   showDigit(3);
   [2,1].forEach((value,index)=>handoffTimers.push(setTimeout(()=>{if(!valid())return;const current=document.getElementById("handoffCount");if(current){current.textContent=String(value);current.classList.remove("countdown-punch");void current.offsetWidth;current.classList.add("countdown-punch");handoffTick(value)}},(index+1)*1000)));
@@ -1190,8 +1212,8 @@ function handoff(){
 function transition(kind,done,reason="game-transition"){
  clearRuntime();const session=enterScreen("transition",reason,"internal-game-event"),enteredAt=Date.now(),map={question:["LOCK IN","QUESTION INCOMING"],elimination:["PLAYER ELIMINATED","THE GAME CONTINUES"],showdown:["FINAL SHOWDOWN","PLAYOFF MODE"]};const [a,b]=map[kind]||map.question;
  app.innerHTML=`<section class="screen transition-screen"><div class="transition-stage"><div class="transition-glow"></div><div class="transition-copy"><div class="transition-big">${a}</div><div class="transition-small">${b}</div></div></div></section>`;if(kind==="question")GameAudio.playSfx("lockIn",{eventId:`lock-in:${session}`});else sting();
- const complete=()=>{if(transitionOwner("transition",session,kind==="question"?"question":kind==="showdown"?"showdown":"handoff","timer-or-host",{reason:`${kind}-transition-complete`,callback:"complete"}))done()};
- if(kind==="question"){hostSystem?.emit("lockIn",{mode:state.mode});const afterHost=()=>{const remaining=Math.max(0,650-(Date.now()-enteredAt));flowTimer=setTimeout(complete,remaining)};if(hostSystem?.isSpeaking())hostSystem.whenIdle().then(afterHost);else afterHost()}else flowTimer=setTimeout(complete,kind==="elimination"?2200:1800)
+ const complete=()=>{if(transitionOwner("transition",session,kind==="question"?"question":kind==="showdown"?"showdown":"handoff","timer",{reason:`${kind}-transition-complete`,callback:"complete"}))done()};
+ if(kind==="question"){hostSystem?.emit("lockIn",{mode:state.mode});flowTimer=setTimeout(complete,1000)}else flowTimer=setTimeout(complete,kind==="elimination"?2200:1800)
 }
 function pickQuestion(){
  const g=state.game;
@@ -1235,8 +1257,8 @@ function question(resumeCurrent=false){
  }
 }
 function finish(outcome){
- const g=state.game;if(!g||g.answered)return;g.answered=true;clearRuntime();const p=g.players[g.idx];g.lastSpeechLog=[...g.speechLog];saveActiveGame();
- if(outcome==="correct"){p.correct++;p.hostCorrectStreak=(p.hostCorrectStreak||0)+1;p.hostMissStreak=0;good()}else{if(outcome==="timeout"){p.timeout++;buzzer()}else{p.wrong++;if(outcome==="pass")GameAudio.playSfx("pass",{eventId:`pass:${questionSessionId}`});else bad()}p.strikes++;p.hostMissStreak=(p.hostMissStreak||0)+1;p.hostCorrectStreak=0;if(p.strikes>=3)p.eliminated=true;if(p.eliminated)GameAudio.playSfx("elimination",{eventId:`elimination:${questionSessionId}`});else GameAudio.playSfx("strike",{eventId:`strike:${questionSessionId}`})}
+ const g=state.game;if(!g||g.answered)return;const p=g.players[g.idx];if(!p||p.eliminated||Number(p.strikes)>=3)return;g.answered=true;clearRuntime();g.lastSpeechLog=[...g.speechLog];
+ if(outcome==="correct"){p.correct++;p.hostCorrectStreak=(p.hostCorrectStreak||0)+1;p.hostMissStreak=0;good()}else{if(outcome==="timeout"){p.timeout++;buzzer()}else{p.wrong++;if(outcome==="pass")GameAudio.playSfx("pass",{eventId:`pass:${questionSessionId}`});else bad()}p.strikes=Math.min(3,(Number(p.strikes)||0)+1);p.hostMissStreak=(p.hostMissStreak||0)+1;p.hostCorrectStreak=0;p.eliminated=p.strikes===3;if(p.eliminated)GameAudio.playSfx("elimination",{eventId:`elimination:${questionSessionId}`});else GameAudio.playSfx("strike",{eventId:`strike:${questionSessionId}`})}
  const category=g.current?.cat||"General Knowledge",categoryKey=norm(category);p.hostCategoryStats=p.hostCategoryStats||{};const categoryStats=p.hostCategoryStats[categoryKey]||{correct:0,miss:0};if(outcome==="correct")categoryStats.correct++;else categoryStats.miss++;p.hostCategoryStats[categoryKey]=categoryStats;
  const context={name:p.name,mode:state.mode,difficulty:state.difficulty,category,remaining:g.questionRemaining,elapsed:Math.max(0,(g.questionStartedWith||state.questionSeconds)-(g.questionRemaining||0)),streak:p.hostCorrectStreak||p.hostMissStreak||0,categoryCorrect:categoryStats.correct,categoryMiss:categoryStats.miss};
  let event;
@@ -1245,7 +1267,7 @@ function finish(outcome){
   if(categoryStats.correct>=3&&categoryStats.correct%3===0)event="categoryRun";else if(p.hostCorrectStreak>=3)event="streak";else if((p.strikes||0)>=2&&p.hostCorrectStreak>=2)event="comeback";else if(!tied&&leader?.id===p.id&&g.hostLeaderId&&g.hostLeaderId!==p.id)event="lead";else if(tied)event="tie";else if(context.elapsed<=3)event="fastCorrect";else if(context.remaining<=2)event="slowCorrect";else if(state.difficulty==="hard"||state.difficulty==="savage")event="tough";else if(/hip-hop|r&b|funk|oldies|music|regional mexican|tejano|corrido|norte|ranchera/i.test(category))event="culturalCorrect";else event="correct";
   g.hostLeaderId=tied?null:leader?.id||null
  }else if(p.eliminated)event="elimination";else if(p.hostMissStreak>=2)event="misses";else if(state.difficulty==="kids"||state.difficulty==="easy"||g.current?.cat==="I Should Have Known That")event="easyMiss";else if(state.difficulty==="hard"||state.difficulty==="savage")event="tough";else event="wrong";
- if(outcome==="correct"){result(outcome);hostSystem?.emit(event,context)}else result(outcome,null,true)
+ saveActiveGame();if(outcome==="correct"){result(outcome);hostSystem?.emit(event,context)}else result(outcome,null,true)
 }
 function marks(p){
  return [0,1,2].map(i=>i<Math.min(3,p.strikes)
@@ -1396,7 +1418,7 @@ window.addEventListener("resize",viewport,{passive:true});window.visualViewport?
 window.addEventListener("pointerdown",()=>{ensureAudio();hostSystem?.provider?.activate?.();if(["home","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
 window.addEventListener("pointerdown",()=>{pendingTransitionCause={trigger:"click",reason:"pointer-control"}},{capture:true,passive:true});
 window.addEventListener("keydown",event=>{ensureAudio();hostSystem?.provider?.activate?.();pendingTransitionCause={trigger:"keyboard",reason:event.key||"key"};if(state.screen==="question"&&!event.repeat&&(event.key==="Escape"||String(event.key).toLowerCase()==="p")){event.preventDefault();pauseGame()}},{capture:true});
-document.documentElement.dataset.build="6.18";
+document.documentElement.dataset.build="6.19";
 try{hostSystem=createHostSystem();viewport();home();installLayoutBoundsDebug()}
 catch(err){
  console.error("LOS startup error",err);

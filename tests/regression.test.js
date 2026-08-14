@@ -475,8 +475,8 @@ test("fresh preferences never create Resume while explicitly abandoned setup doe
  const stale=createHarness({storage:{los5_setup_state:JSON.stringify({version:1,kind:"setup",screen:"setup",players:[]})}});try{assert.equal(stale.document.querySelector("#resumeSaved"),null,"obsolete setup records are not resumable")}finally{stale.close()}
 });
 
-test("Player-Up message disappears before the countdown and never returns",withHarness(h=>{
- const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];h.api.startGame();const message=h.document.getElementById("playerUpMessage");assert.ok(message);assert.equal(message.hidden,false);h.timers.advance(449);assert.equal(message.hidden,false);h.timers.advance(1);assert.equal(message.hidden,true);assert.equal(h.document.getElementById("handoffCount").textContent,"3");h.timers.advance(2000);assert.equal(message.hidden,true);const trace=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.playerUps();assert.equal(trace.filter(x=>x.phase==="message").length,1);assert.equal(trace.filter(x=>x.phase==="countdown").length,1);assert.equal(trace.at(-1).playerUpVisible,false)
+test("one Player-Up composition remains visible while its countdown begins",withHarness(h=>{
+ const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];h.api.startGame();const message=h.document.getElementById("playerUpMessage");assert.ok(message);assert.equal(message.hidden,false);h.timers.advance(450);assert.equal(message.hidden,false);assert.equal(h.document.getElementById("handoffCount").textContent,"3");h.timers.advance(2000);assert.equal(message.hidden,false);const trace=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.playerUps();assert.equal(trace.filter(x=>x.phase==="message").length,1);assert.equal(trace.filter(x=>x.phase==="countdown").length,1);assert.equal(trace.at(-1).playerUpVisible,true);assert.equal(trace.at(-1).visibleHype,"YOU’RE UP!")
 }));
 
 test("answer diagnostics explain exact, rejected, resumed, and near-timeout recognition",withHarness(h=>{
@@ -530,5 +530,41 @@ test("physical Read Questions controls persist and govern actual question narrat
 });
 
 test("Stage 6.15 production flow preserves every major screen in sequence",withHarness(h=>{
- const state=h.api.getState();state.mode="original";state.voiceOn=false;state.readQuestions=true;state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"},{id:"p3",name:"Casey"}];state.screen="players";h.api.go("ready","production-playthrough");h.timers.advance(220);assert.equal(state.screen,"ready");h.click("#showtimeStart");assert.equal(state.screen,"handoff");h.timers.advance(3450);assert.equal(state.screen,"transition");h.timers.advance(650);assert.equal(state.screen,"question");state.game.current={id:"flow-q",q:"What planet is red?",a:"Mars",cat:"Science"};state.game.answered=false;h.api.finish("correct");assert.equal(state.screen,"result");h.timers.advance(3200);assert.equal(state.screen,"handoff");state.game.players[2].eliminated=true;h.api.showdownIntro();assert.equal(state.screen,"showdown");h.timers.advance(3700);assert.equal(state.screen,"handoff");h.api.champion(state.game.players[0]);assert.equal(state.screen,"complete");const screens=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.lifetimes().map(x=>x.screen);for(const expected of ["ready","handoff","transition","question","result","showdown","complete"])assert.ok(screens.includes(expected),expected)
+ const state=h.api.getState();state.mode="original";state.voiceOn=false;state.readQuestions=true;state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"},{id:"p3",name:"Casey"}];state.screen="players";h.api.go("ready","production-playthrough");h.timers.advance(220);assert.equal(state.screen,"ready");h.click("#showtimeStart");assert.equal(state.screen,"handoff");h.timers.advance(3450);assert.equal(state.screen,"transition");h.timers.advance(1000);assert.equal(state.screen,"question");state.game.current={id:"flow-q",q:"What planet is red?",a:"Mars",cat:"Science"};state.game.answered=false;h.api.finish("correct");assert.equal(state.screen,"result");h.timers.advance(3200);assert.equal(state.screen,"handoff");state.game.players[2].eliminated=true;h.api.showdownIntro();assert.equal(state.screen,"showdown");h.timers.advance(3700);assert.equal(state.screen,"handoff");h.api.champion(state.game.players[0]);assert.equal(state.screen,"complete");const screens=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.lifetimes().map(x=>x.screen);for(const expected of ["ready","handoff","transition","question","result","showdown","complete"])assert.ok(screens.includes(expected),expected)
+}));
+
+test("Stage 6.19 strike awards are atomic, capped at three, and eliminate immediately",()=>{
+ for(const [before,after,eliminated] of [[0,1,false],[1,2,false],[2,3,true]]){const h=createHarness();try{const state=setupQuestion(h);state.game.players[0].strikes=before;h.api.finish("wrong");assert.equal(state.game.players[0].strikes,after);assert.equal(state.game.players[0].eliminated,eliminated);const saved=JSON.parse(h.window.localStorage.getItem("los5_active_game"));assert.equal(saved.game.players[0].strikes,after);assert.equal(saved.game.players[0].eliminated,eliminated)}finally{h.close()}}
+ const h=createHarness();try{const state=setupQuestion(h);const player=state.game.players[0];player.strikes=3;player.eliminated=true;h.api.finish("wrong");h.api.finish("timeout");assert.equal(player.strikes,3);assert.equal(player.wrong,0);assert.equal(player.timeout,0)}finally{h.close()}
+});
+
+test("eliminated players cannot receive another normal Player-Up turn",withHarness(h=>{
+ const state=setupQuestion(h);state.game.players.push({id:"p2",name:"Blair",correct:0,wrong:0,timeout:0,strikes:0,eliminated:false});state.game.startingCount=2;state.game.players[0].strikes=3;state.game.players[0].eliminated=true;state.game.idx=0;h.api.handoff();assert.equal(state.game.idx,1);assert.match(h.document.querySelector(".handoff-player-name").textContent,/Blair/)
+}));
+
+test("active-match Resume button and spoken Resume restore the same checkpoint",()=>{
+ for(const viaVoice of [false,true]){const h=createHarness();try{const state=activeTimedQuestion(h),original=state.game;original.players.push({id:"p2",name:"Blair",correct:3,wrong:0,timeout:0,strikes:1,eliminated:false});state.players=original.players.map(p=>({id:p.id,name:p.name}));original.startingCount=2;original.idx=1;original.qnum=7;original.used=["q1","q2"];original.players[0].strikes=2;h.api.pauseGame();h.click("#leave");assert.equal(state.screen,"home");assert.ok(h.document.querySelector("#resumeSaved"));if(viaVoice){h.speak("resume",{final:false});assert.equal(state.screen,"home");h.speak("resume",{final:true})}else h.click("#resumeSaved");assert.equal(state.screen,"handoff");assert.notEqual(state.game,original);assert.equal(state.game.idx,1);assert.equal(state.game.qnum,7);assert.deepEqual(Array.from(state.game.used),["q1","q2"]);assert.equal(state.game.players[0].strikes,2);assert.equal(state.game.players[1].strikes,1);assert.equal(state.game.current,null);assert.equal(state.game.answered,false)}finally{h.close()}}
+});
+
+test("completed matches clear active Resume and Play Again resets strikes",withHarness(h=>{
+ const state=setupQuestion(h);state.players=state.game.players.map(p=>({id:p.id,name:p.name}));state.game.players[0].strikes=2;h.api.champion(state.game.players[0]);assert.equal(h.window.localStorage.getItem("los5_active_game"),null);h.click("#playAgain");assert.equal(state.game,null);assert.equal(state.players[0].strikes,undefined);h.api.home();assert.equal(h.document.querySelector("#resumeSaved"),null)
+}));
+
+test("Final Showdown third strike reaches the correct Champion",withHarness(h=>{
+ const state=setupQuestion(h);state.game.players=[{id:"p1",name:"Alex",correct:2,wrong:0,timeout:0,strikes:2,eliminated:false},{id:"p2",name:"Blair",correct:3,wrong:0,timeout:0,strikes:0,eliminated:false}];state.game.startingCount=2;state.game.showdown=true;state.game.idx=0;state.game.current={q:"What planet?",a:"Mars",cat:"Science"};state.game.answered=false;h.api.finish("wrong");assert.equal(state.game.players[0].eliminated,true);h.timers.advance(5200);assert.equal(state.screen,"complete");assert.equal(h.document.querySelector(".champion-name").textContent,"Blair");assert.equal(h.window.localStorage.getItem("los5_active_game"),null)
+}));
+
+test("Game Setup voice repairs execute immediately once and preserve portrait scroll",withHarness(h=>{
+ const state=h.api.getState();state.screen="setup";h.api.setup();const content=h.document.querySelector(".content");content.scrollTop=173;h.speak("medium",{final:false,confidence:.01});assert.equal(state.difficulty,"medium");assert.equal(h.document.querySelector(".content").scrollTop,173);h.speak("medium",{final:true,confidence:.01});assert.equal(state.difficulty,"medium");h.speak("savage",{final:false,confidence:.01});assert.equal(state.difficulty,"savage");h.speak("20 sec",{final:false,confidence:.01});assert.equal(state.questionSeconds,20);const before=state.volume;h.speak("volume up",{final:false,confidence:.01});assert.equal(state.volume,Math.min(1,before+.1));h.speak("set volume to 50 percent",{final:false,confidence:.01});assert.equal(state.volume,.5);assert.equal(h.document.querySelector(".content").scrollTop,173)
+}));
+
+test("Showtime Start Back and Exit are final-only and use the visible controls",()=>{
+ const make=()=>{const h=createHarness();const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];state.screen="ready";h.api.ready();return{h,state}};
+ {const{h,state}=make();try{assert.equal(h.document.querySelector(".topbar-title").textContent,"IT’S SHOWTIME");h.speak("start",{final:false});assert.equal(state.screen,"ready");h.speak("start",{final:true});assert.equal(state.screen,"handoff")}finally{h.close()}}
+ {const{h,state}=make();try{h.speak("go back",{final:false});assert.equal(state.screen,"ready");h.speak("go back",{final:true});assert.equal(state.screen,"players")}finally{h.close()}}
+ {const{h,state}=make();try{h.speak("exit",{final:false});assert.equal(state.screen,"ready");h.speak("exit",{final:true});assert.equal(state.screen,"home")}finally{h.close()}}
+});
+
+test("Lock In remains visible for a full second without waiting for Host",withHarness(h=>{
+ const state=setupQuestion(h);h.api.transition("question",()=>h.api.question(),"lock-in-test");assert.equal(state.screen,"transition");h.timers.advance(999);assert.equal(state.screen,"transition");h.timers.advance(1);assert.equal(state.screen,"question")
 }));

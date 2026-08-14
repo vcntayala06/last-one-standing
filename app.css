@@ -1033,3 +1033,22 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
  .transition-copy,.transition-glow,.result-word,.showdown-title,.champion-name{opacity:1!important;transform:none!important}
  .confetti{display:none!important}
 }
+
+/* Stage 6.19 portrait-first live stability. */
+.shell:has(.unified-setup) .topbar{display:none}
+.shell:has(.unified-setup){grid-template-rows:minmax(0,1fr) auto}
+.setup-choice{display:inline-flex;align-items:center;justify-content:center;gap:.3em;min-width:0;max-width:100%;overflow:hidden;line-height:1.1}
+.setup-choice.selected::before{flex:0 0 auto;margin-right:0}
+.setup-game-options .setup-choice{white-space:nowrap}
+.game-topbar #pause{display:inline-flex;align-items:center;justify-content:center;min-width:76px;min-height:44px;line-height:1;text-align:center;padding-block:0}
+.handoff-player-name{width:100%;white-space:nowrap;overflow-wrap:normal;word-break:normal}
+.handoff-player-name.name-long{white-space:normal;overflow-wrap:anywhere}
+
+@media (orientation:portrait) and (max-width:430px){
+ .screen:has(.unified-setup){padding-top:max(4px,var(--los-safe-top))}
+ .content:has(.unified-setup){padding-top:0}
+ .unified-setup{gap:6px;padding-top:0}
+ .unified-setup-heading{font-size:clamp(1.35rem,6vw,1.8rem);line-height:1}
+ .handoff-player-name:not(.name-long){font-size:clamp(2rem,min(12vw,7vh),3.6rem)}
+ .handoff-intro{width:100%;padding-inline:8px}
+}
