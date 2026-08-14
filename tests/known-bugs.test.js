@@ -11,6 +11,6 @@ function withHarness(fn) {
   };
 }
 
-test("KNOWN BUG: alternate answer field used by the question bank should be honored", withHarness(h => {
+test("REGRESSION: alternate answer field used by the question bank is honored", withHarness(h => {
   assert.equal(h.api.accepted("three hundred and sixty six", { a: "366", alts: ["three hundred and sixty six"] }), true);
 }));

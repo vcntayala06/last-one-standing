@@ -121,16 +121,16 @@ function instrument(source) {
   if (at < 0) throw new Error("Unable to instrument app.js");
   const exposure = `\nObject.assign(globalThis.__LOS_TEST__, {\n` +
     ` getState:()=>state, setState:patch=>Object.assign(state,patch), getRecognition:()=>recognition, getVoiceDiagnostics:()=>voiceCore.diagnostics.slice(),\n` +
-    ` routeVoiceCentral, centralQuestionIntent, accepted, question, finish, startGame,\n` +
-    ` players, playersContinue, fun, time, pauseGame, resumeGame, confirmEnd, leaveGame,\n` +
-    ` setVolume, go, back, home, mode, industry, difficulty, ready, handoff, result,\n` +
-    ` startVoice, stopVoice, saveActiveGame, loadActiveGame, resumeSavedGame, clearActiveGame,\n` +
-    ` EXTRA_CATEGORIES, QUESTIONS\n` +
+    ` routeVoiceCentral, centralQuestionIntent, accepted, answerMatchTrace, question, finish, startGame,\n` +
+    ` setup, startUnifiedGame, players, playersContinue, fun, time, pauseGame, resumeGame, confirmEnd, leaveGame,\n` +
+    ` setVolume, go, back, home, mode, selectMode, industry, difficulty, ready, handoff, result, pickQuestion, showdownIntro, champion, replayGame, advance,\n` +
+    ` startVoice, stopVoice, saveActiveGame, loadActiveGame, resumeSavedGame, clearActiveGame, saveSetupState, loadSetupState, clearSetupState,\n` +
+    ` EXTRA_CATEGORIES, QUESTIONS, QUESTION_BANK, HOST_LINES, getHostSystem:()=>hostSystem\n` +
     `});\n`;
   return source.slice(0, at) + exposure + source.slice(at);
 }
 
-function createHarness({ storage = {}, voiceLatency = false } = {}) {
+function createHarness({ storage = {}, voiceLatency = false, hostProvider = null } = {}) {
   FakeSpeechRecognition.instances.length = 0;
   FakeSpeechRecognition.startFailures = 0;
   const timers = new FakeTimers();
@@ -154,6 +154,12 @@ function createHarness({ storage = {}, voiceLatency = false } = {}) {
     return { width: 100, height: 40, top: 0, left: 0, right: 100, bottom: 40 };
   };
   window.__LOS_TEST__ = {};
+  if(hostProvider)window.__LOS_HOST_PROVIDER__=hostProvider;
+
+  for(const filename of ["question-bank-data.js","question-bank-batch-1.js","question-bank-batch-2.js","question-bank-batch-3.js","question-bank.js"]){
+    const bankPath=path.resolve(__dirname,"..","..",filename);
+    vm.runInContext(fs.readFileSync(bankPath,"utf8"),dom.getInternalVMContext(),{filename:bankPath});
+  }
 
   const appPath = path.resolve(__dirname, "..", "..", "app.js");
   const source = instrument(fs.readFileSync(appPath, "utf8"));

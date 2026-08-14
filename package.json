@@ -2,7 +2,10 @@
   "name": "last-one-standing",
   "private": true,
   "scripts": {
-    "test": "node --test tests/regression.test.js tests/characterization.test.js",
+    "start": "node server.js",
+    "test": "node --test tests/regression.test.js tests/characterization.test.js tests/host.test.js tests/host-provider.test.js tests/host-server.test.js tests/question-bank.test.js",
+    "test:questions": "node --test tests/question-bank.test.js",
+    "test:provider": "node --test tests/host-provider.test.js tests/host-server.test.js",
     "test:responsive": "node --test tests/responsive.test.js",
     "test:known-bugs": "node --test tests/known-bugs.test.js",
     "test:all": "node --test tests/*.test.js"
