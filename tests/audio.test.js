@@ -122,9 +122,9 @@ test("Web Audio playback failure is diagnostic-only and never breaks gameplay fl
   assert.equal(h.api.getState().screen, "result");
 }));
 
-test("Stage 6.21 final five seconds produce one clear urgent cue per second then one buzzer", withHarness(h => {
+test("Stage 6.22 final five seconds schedule two urgent pressure cues per second then one buzzer", withHarness(h => {
   const state=gameState(h);state.game.questionRemaining=6;h.api.GameAudio.activate();h.api.question(true);h.timers.advance(6000);
-  const urgent=Array.from(events(h).filter(x=>x.type==="sfx"&&x.name==="urgentTick"));assert.deepEqual(urgent.map(x=>x.remaining),[5,4,3,2,1]);assert.equal(new Set(urgent.map(x=>x.eventId)).size,5);assert.ok(urgent.every(x=>x.urgency==="urgent"&&x.activated===true&&x.paused===false&&x.sfxGain>.5));assert.equal(count(h,"sfx","timeout"),1);assert.equal(state.screen,"result")
+  const urgent=Array.from(events(h).filter(x=>x.type==="sfx"&&x.name==="urgentTick"));assert.deepEqual(urgent.map(x=>x.remaining),[5,5,4,4,3,3,2,2,1,1]);assert.deepEqual(urgent.map(x=>x.eventId.split(":").at(-1)),["primary","pressure","primary","pressure","primary","pressure","primary","pressure","primary","pressure"]);assert.equal(new Set(urgent.map(x=>x.eventId)).size,10);assert.ok(urgent.every(x=>x.urgency==="urgent"&&x.activated===true&&x.paused===false&&x.sfxGain>.5));assert.equal(count(h,"sfx","timeout"),1);assert.equal(state.screen,"result")
 }));
 
 test("urgent tick dedupe rejects only the same second and records the reason", withHarness(h => {

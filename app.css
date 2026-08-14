@@ -1053,3 +1053,62 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
  .handoff-player-name:not(.name-long){font-size:clamp(2rem,min(12vw,7vh),3.6rem)}
  .handoff-intro{width:100%;padding-inline:8px}
 }
+
+/* Focused presentation repair: shared title/name language and collision-safe roster. */
+.shell:not(:has(.unified-setup)) .topbar-title{
+ font-size:clamp(2.1rem,min(7.5vw,9vh),5.8rem);line-height:.88;letter-spacing:.02em
+}
+.showtime-screen .topbar-title{display:grid;gap:0}
+.showtime-screen .topbar-title>span{display:block}
+.players-list .player-row{grid-template-columns:78px minmax(0,1fr) minmax(104px,124px) 44px;gap:8px}
+.content .players-list{grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr))}
+.players-list .player-num,.players-list input,.players-list .host-style-label,.players-list [data-remove]{min-width:0}
+.players-list .player-row>.player-num{display:block!important;white-space:nowrap}
+
+/* Focal contestant names inherit the Champion treatment everywhere. */
+.focal-player-name,.handoff-player-name,.game-player,.finalist-name,.champion-name{
+ color:var(--stage-gold-soft)!important;font-weight:1000;letter-spacing:.025em;
+ text-shadow:0 5px 0 rgba(0,0,0,.36),0 0 36px rgba(255,208,79,.16)
+}
+.lock-in-copy{gap:clamp(18px,4vh,42px)}
+.lock-in-player{max-width:min(94vw,1200px);font-size:clamp(2.6rem,min(11vw,15vh),8rem);line-height:.9;text-align:center;overflow-wrap:anywhere;text-wrap:balance}
+.lock-in-player.name-long{font-size:clamp(1.8rem,min(7.5vw,10vh),5rem)}
+.lock-in-command{color:#fff}
+
+/* The question clock is a dominant number, not a progress ring. */
+.question-area .timer{
+ width:auto;min-width:0;aspect-ratio:auto;border-radius:0;background:none!important;box-shadow:none;
+ color:#fff;-webkit-text-fill-color:#fff;font-size:clamp(5rem,min(18vw,20vh),10rem);line-height:.82
+}
+.question-area .timer::before{content:none;display:none;border:0;border-radius:0;background:none}
+.question-area .timer.urgent{
+ color:var(--stage-red)!important;-webkit-text-fill-color:var(--stage-red)!important;background:none!important;
+ animation:stageUrgency 420ms ease-in-out infinite alternate
+}
+
+/* Revealed answers use the requested classic display face. */
+.answer-big{font-family:"Times New Roman",Times,serif!important}
+
+/* Keep the wrong-state X prominent but bounded to the strike region. */
+.strike-box{position:relative}
+.strike-box .result-impact{left:clamp(42px,8vw,82px);top:50%;font-size:clamp(6rem,min(16vw,20vh),10rem)}
+
+@media (orientation:portrait) and (max-width:700px){
+ .players-list .player-row{grid-template-columns:72px minmax(0,1fr) 44px!important;grid-template-rows:44px 44px;gap:5px 7px;min-height:101px;padding:4px 6px}
+ .players-list .player-num{grid-column:1;grid-row:1;align-self:center;font-size:.72rem}
+ .players-list .player-row>input{grid-column:2;grid-row:1}
+ .players-list .host-style-label{grid-column:2;grid-row:2}
+ .players-list .host-style-label{max-width:130px}
+ .players-list .player-row [data-remove]{grid-column:3;grid-row:1}
+}
+
+@media (orientation:landscape) and (max-height:500px){
+ .content .players-list{grid-template-columns:repeat(auto-fit,minmax(min(100%,390px),1fr))!important}
+ .players-list .player-row{grid-template-columns:70px minmax(0,1fr) minmax(92px,112px) 44px!important;gap:5px}
+ .players-list .player-row>.player-num{grid-column:1;grid-row:1}
+ .players-list .player-row>input{grid-column:2;grid-row:1}
+ .players-list .host-style-label{grid-column:3;grid-row:1;max-width:none}
+ .players-list .player-row [data-remove]{grid-column:4;grid-row:1}
+ .shell:not(:has(.unified-setup)) .topbar-title{font-size:clamp(1.8rem,min(6vw,9vh),3.2rem)}
+ .question-area .timer{width:auto;font-size:clamp(4.2rem,min(12vw,19vh),7rem)}
+}

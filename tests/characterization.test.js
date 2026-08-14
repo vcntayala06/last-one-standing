@@ -19,7 +19,7 @@ test("setup voice routes Original, Work Edition, and Solo",()=>{
 
 test("Choose Your Game exposes exactly the three V1 editions",withHarness(h=>{
   h.api.mode();
-  assert.deepEqual([...h.document.querySelectorAll("[data-mode]")].map(x=>x.textContent.trim()),["ORIGINAL","WORK EDITION","SOLO"]);
+  assert.deepEqual([...h.document.querySelectorAll("[data-mode]")].map(x=>x.textContent.trim()),["ORIGINAL","WORK","SOLO"]);
 }));
 
 test("Stage 2 navigation bypasses Extra Categories and Solo bypasses Who's In",()=>{
@@ -137,4 +137,4 @@ test("Stage 6.21 recognition error watchdog recovers when mobile onend never arr
 
 test("Stage 6.21 exact interim answers are prevalidated but never scored before final",withHarness(h=>{const s=activeQuestion(h);s.game.current={q:"What planet?",a:"Mars"};s.game.answered=false;h.speak("Mars",{final:false,confidence:.2});assert.equal(s.screen,"question");assert.equal(s.game.players[0].correct,0);assert.ok(h.api.getVoiceDiagnostics().some(x=>x.stage==="answer-interim-prevalidated"));h.speak("Mars",{final:true,confidence:.2});assert.equal(s.screen,"result");assert.equal(s.game.players[0].correct,1)}));
 
-test("Stage 6.21 phone voice-health HUD exposes live lifecycle fields only in developer mode",()=>{const h=createHarness({voiceHealth:true});try{const panel=h.document.getElementById("voiceHealthPanel"),text=panel?.textContent||"";assert.ok(panel);for(const value of ["6.21/phone-voice-turnflow","screen home","state listening","owner home#0","lang en-US","restarts 0","interim:","final:","route:","reject:","error:","suppressed:"])assert.match(text,new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")))}finally{h.close()}});
+test("Stage 6.22 phone voice-health HUD exposes live lifecycle fields only in developer mode",()=>{const h=createHarness({voiceHealth:true});try{const panel=h.document.getElementById("voiceHealthPanel"),text=panel?.textContent||"";assert.ok(panel);for(const value of ["6.22/real-build-phone-verification","screen home","state listening","owner home#0","lang en-US","restarts 0","interim:","final:","route:","reject:","error:","suppressed:"])assert.match(text,new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")))}finally{h.close()}});

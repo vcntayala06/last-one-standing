@@ -476,7 +476,7 @@ test("fresh preferences never create Resume while explicitly abandoned setup doe
 });
 
 test("Lock In precedes one visible Player-Up presentation containing the countdown",withHarness(h=>{
- const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];h.api.startGame();assert.equal(state.screen,"transition");assert.match(h.document.querySelector(".transition-big").textContent,/LOCK IN, ALEX/);assert.equal(h.document.querySelector(".handoff"),null);h.timers.advance(1599);assert.equal(state.screen,"transition");h.timers.advance(1);const message=h.document.getElementById("playerUpMessage");assert.ok(message);assert.equal(message.hidden,false);assert.equal(h.document.querySelectorAll(".handoff").length,1);h.timers.advance(449);assert.equal(h.document.getElementById("handoffCount").textContent,"");h.timers.advance(1);assert.equal(h.document.getElementById("handoffCount").textContent,"3");const trace=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.playerUps();assert.equal(trace.filter(x=>x.phase==="message").length,1);assert.equal(trace.filter(x=>x.phase==="countdown").length,1);assert.equal(trace.find(x=>x.phase==="message").visible,true);assert.equal(trace.at(-1).playerUpVisible,true);assert.equal(trace.at(-1).visibleHype,"YOU’RE UP!")
+ const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];h.api.startGame();assert.equal(state.screen,"transition");assert.equal(h.document.querySelector(".transition-big").textContent,"LOCK IN");assert.equal(h.document.querySelector(".lock-in-player").textContent,"Alex");assert.equal(h.document.querySelector(".handoff"),null);h.timers.advance(1599);assert.equal(state.screen,"transition");h.timers.advance(1);const message=h.document.getElementById("playerUpMessage");assert.ok(message);assert.equal(message.hidden,false);assert.equal(h.document.querySelectorAll(".handoff").length,1);h.timers.advance(449);assert.equal(h.document.getElementById("handoffCount").textContent,"");h.timers.advance(1);assert.equal(h.document.getElementById("handoffCount").textContent,"3");const trace=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.playerUps();assert.equal(trace.filter(x=>x.phase==="message").length,1);assert.equal(trace.filter(x=>x.phase==="countdown").length,1);assert.equal(trace.find(x=>x.phase==="message").visible,true);assert.equal(trace.at(-1).playerUpVisible,true);assert.equal(trace.at(-1).visibleHype,"YOU’RE UP!")
 }));
 
 test("answer diagnostics explain exact, rejected, resumed, and near-timeout recognition",withHarness(h=>{
@@ -539,7 +539,7 @@ test("Stage 6.19 strike awards are atomic, capped at three, and eliminate immedi
 });
 
 test("eliminated players cannot receive another normal Player-Up turn",withHarness(h=>{
- const state=setupQuestion(h);state.game.players.push({id:"p2",name:"Blair",correct:0,wrong:0,timeout:0,strikes:0,eliminated:false});state.game.startingCount=2;state.game.players[0].strikes=3;state.game.players[0].eliminated=true;state.game.idx=0;h.api.handoff();assert.equal(state.game.idx,1);assert.match(h.document.querySelector(".transition-big").textContent,/BLAIR/);h.timers.advance(1600);assert.match(h.document.querySelector(".handoff-player-name").textContent,/Blair/)
+ const state=setupQuestion(h);state.game.players.push({id:"p2",name:"Blair",correct:0,wrong:0,timeout:0,strikes:0,eliminated:false});state.game.startingCount=2;state.game.players[0].strikes=3;state.game.players[0].eliminated=true;state.game.idx=0;h.api.handoff();assert.equal(state.game.idx,1);assert.equal(h.document.querySelector(".lock-in-player").textContent,"Blair");h.timers.advance(1600);assert.match(h.document.querySelector(".handoff-player-name").textContent,/Blair/)
 }));
 
 test("active-match Resume button and spoken Resume restore the same checkpoint",()=>{
@@ -560,7 +560,7 @@ test("Game Setup voice repairs execute immediately once and preserve portrait sc
 
 test("Showtime Start Back and Exit are final-only and use the visible controls",()=>{
  const make=()=>{const h=createHarness();const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];state.screen="ready";h.api.ready();return{h,state}};
- {const{h,state}=make();try{assert.equal(h.document.querySelector(".topbar-title").textContent,"IT’S SHOWTIME");h.speak("start",{final:false});assert.equal(state.screen,"ready");h.speak("start",{final:true});assert.equal(state.screen,"transition");h.timers.advance(1600);assert.equal(state.screen,"handoff")}finally{h.close()}}
+ {const{h,state}=make();try{assert.equal(h.document.querySelector(".topbar-title").textContent.replace(/\s+/g,""),"IT’SSHOWTIME");assert.deepEqual([...h.document.querySelectorAll(".topbar-title span")].map(e=>e.textContent),["IT’S","SHOWTIME"]);h.speak("start",{final:false});assert.equal(state.screen,"ready");h.speak("start",{final:true});assert.equal(state.screen,"transition");h.timers.advance(1600);assert.equal(state.screen,"handoff")}finally{h.close()}}
  {const{h,state}=make();try{h.speak("go back",{final:false});assert.equal(state.screen,"ready");h.speak("go back",{final:true});assert.equal(state.screen,"players")}finally{h.close()}}
  {const{h,state}=make();try{h.speak("exit",{final:false});assert.equal(state.screen,"ready");h.speak("exit",{final:true});assert.equal(state.screen,"home")}finally{h.close()}}
 });
@@ -591,4 +591,13 @@ test("Stage 6.20 spoken answers execute synchronously after the final callback",
 
 test("Stage 6.20 no-speech recovery is prompt and normal screen changes do not churn recognition",withHarness(h=>{
  const first=h.recognition(),initialCount=FakeSpeechRecognition.instances.length;h.api.go("setup");h.api.setup();assert.equal(h.recognition(),first);assert.equal(FakeSpeechRecognition.instances.length,initialCount);first.error("no-speech");first.end();h.timers.advance(24);assert.equal(FakeSpeechRecognition.instances.length,initialCount);h.timers.advance(1);assert.equal(FakeSpeechRecognition.instances.length,initialCount+1);const snapshot=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().recognition;assert.equal(snapshot.state,"listening");assert.equal(snapshot.restartCount,1);assert.equal(snapshot.lastError,"no-speech")
+}));
+
+test("focused presentation repair separates Lock In and title-cases lowercase answers",withHarness(h=>{
+ const state=setupQuestion(h);state.game.players[0].name="Alexandria Montgomery-Washington";h.api.transition("lockIn",()=>{});assert.equal(h.document.querySelector(".transition-big").textContent,"LOCK IN");assert.equal(h.document.querySelector(".lock-in-player").textContent,"Alexandria Montgomery-Washington");assert.equal(h.document.querySelector(".transition-big").textContent.includes(","),false);
+ state.game.current={id:"display-answer",q:"Name the book",a:"the old man and the sea"};state.game.answered=true;h.api.result("correct");assert.equal(h.document.querySelector(".answer-big").textContent,"The Old Man and the Sea")
+}));
+
+test("Champion confetti streams until navigation and then cleans up",withHarness(h=>{
+ const state=setupQuestion(h),player=state.game.players[0];h.api.champion(player);assert.ok([...h.timers.jobs.values()].some(job=>job.interval===900));h.timers.advance(2700);assert.ok(h.document.querySelectorAll(".confetti i").length>22);h.click("#home");assert.equal(state.screen,"home");assert.equal([...h.timers.jobs.values()].some(job=>job.interval===900),false)
 }));
