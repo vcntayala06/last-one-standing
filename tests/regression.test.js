@@ -58,13 +58,13 @@ test("accepted English, Spanish, and legacy alts are precise but transcription-s
  assert.equal(h.api.accepted("PACIFIC OCEAN!",{a:"Pacific Ocean",accept:["pacific"],es:["océano pacífico"],alts:["the pacific"]}),true);assert.equal(h.api.accepted("oceano pacifico",{a:"Pacific Ocean",es:["océano pacífico"]}),true);assert.equal(h.api.accepted("three hundred and sixty six",{a:"366",alts:["three hundred and sixty six"]}),true);assert.equal(h.api.accepted("Atlantic Ocean",{a:"Pacific Ocean",accept:["pacific"]}),false)
 }));
 
-test("protected question routing scores final answers only", withHarness(h => {
+test("protected question routing scores a high-confidence exact interim only once", withHarness(h => {
   const state = setupQuestion(h);
   state.game.current={q:"What planet?",a:"Mars"};h.api.question(true);
-  assert.equal(h.api.centralQuestionIntent("Mars", false, 1), false);
-  assert.equal(state.game.answered,false);
-  assert.equal(h.api.centralQuestionIntent("Mars", true, 0.5), true);
+  assert.equal(h.api.centralQuestionIntent("Mars", false, 1), true);
   assert.equal(state.game.answered, true);
+  assert.equal(state.game.players[0].correct, 1);
+  assert.equal(h.api.centralQuestionIntent("Mars", true, 0.5), false);
   assert.equal(state.game.players[0].correct, 1);
 }));
 
@@ -421,7 +421,7 @@ test("Unified Setup Voice Volume and Read Questions controls use canonical persi
 });
 
 test("Game Setup voice changes choices and Continue opens the correct next page",()=>{
- const h=createHarness();try{const state=h.api.getState();h.speak("start",{final:false});assert.equal(state.screen,"home");h.speak("start",{final:true});assert.equal(state.screen,"setup");h.timers.advance(220);h.speak("work edition");assert.equal(state.screen,"setup");assert.equal(state.mode,"work");h.speak("hard");assert.equal(state.difficulty,"hard");h.speak("20 seconds");assert.equal(state.questionSeconds,20);h.speak("5 minutes");assert.equal(state.duration,5);h.speak("read questions off");assert.equal(state.readQuestions,false);h.speak("continue",{final:false});assert.equal(state.screen,"setup");h.speak("continue",{final:true});assert.equal(state.screen,"players");h.timers.advance(220);assert.equal(state.screen,"players")}finally{h.close()}
+ const h=createHarness();try{const state=h.api.getState();h.speak("start",{final:false,confidence:.2});assert.equal(state.screen,"home");h.speak("start",{final:true});assert.equal(state.screen,"setup");h.timers.advance(220);h.speak("work edition");assert.equal(state.screen,"setup");assert.equal(state.mode,"work");h.speak("hard");assert.equal(state.difficulty,"hard");h.speak("20 seconds");assert.equal(state.questionSeconds,20);h.speak("5 minutes");assert.equal(state.duration,5);h.speak("read questions off");assert.equal(state.readQuestions,false);h.speak("continue",{final:false});assert.equal(state.screen,"setup");h.speak("continue",{final:true});assert.equal(state.screen,"players");h.timers.advance(220);assert.equal(state.screen,"players")}finally{h.close()}
 });
 
 test("detached legacy Continue cannot advance Game Setup and final Back returns Home once",()=>{
@@ -560,7 +560,7 @@ test("Game Setup voice repairs execute immediately once and preserve portrait sc
 
 test("Showtime Start Back and Exit are final-only and use the visible controls",()=>{
  const make=()=>{const h=createHarness();const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];state.screen="ready";h.api.ready();return{h,state}};
- {const{h,state}=make();try{assert.equal(h.document.querySelector(".topbar-title").textContent.replace(/\s+/g,""),"IT’SSHOWTIME");assert.deepEqual([...h.document.querySelectorAll(".topbar-title span")].map(e=>e.textContent),["IT’S","SHOWTIME"]);h.speak("start",{final:false});assert.equal(state.screen,"ready");h.speak("start",{final:true});assert.equal(state.screen,"transition");h.timers.advance(1600);assert.equal(state.screen,"handoff")}finally{h.close()}}
+ {const{h,state}=make();try{assert.equal(h.document.querySelector(".topbar-title").textContent.replace(/\s+/g,""),"IT’SSHOWTIME");assert.deepEqual([...h.document.querySelectorAll(".topbar-title span")].map(e=>e.textContent),["IT’S","SHOWTIME"]);h.speak("start",{final:false,confidence:.2});assert.equal(state.screen,"ready");h.speak("start",{final:true});assert.equal(state.screen,"transition");h.timers.advance(1600);assert.equal(state.screen,"handoff")}finally{h.close()}}
  {const{h,state}=make();try{h.speak("go back",{final:false});assert.equal(state.screen,"ready");h.speak("go back",{final:true});assert.equal(state.screen,"players")}finally{h.close()}}
  {const{h,state}=make();try{h.speak("exit",{final:false});assert.equal(state.screen,"ready");h.speak("exit",{final:true});assert.equal(state.screen,"home")}finally{h.close()}}
 });
@@ -592,6 +592,20 @@ test("Stage 6.20 spoken answers execute synchronously after the final callback",
 test("Stage 6.20 no-speech recovery is prompt and normal screen changes do not churn recognition",withHarness(h=>{
  const first=h.recognition(),initialCount=FakeSpeechRecognition.instances.length;h.api.go("setup");h.api.setup();assert.equal(h.recognition(),first);assert.equal(FakeSpeechRecognition.instances.length,initialCount);first.error("no-speech");first.end();h.timers.advance(24);assert.equal(FakeSpeechRecognition.instances.length,initialCount);h.timers.advance(1);assert.equal(FakeSpeechRecognition.instances.length,initialCount+1);const snapshot=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().recognition;assert.equal(snapshot.state,"listening");assert.equal(snapshot.restartCount,1);assert.equal(snapshot.lastError,"no-speech")
 }));
+
+test("Stage 6.23 controlled answer forgiveness accepts knowledge without accepting related concepts",withHarness(h=>{
+ const cases=[["Stop",{q:"What does a flashing red light mean?",a:"A complete stop"},"canonical-safe-descriptor"],["Five",{q:"How many pieces are required?",a:"Five pieces"},"question-context-unit-omission"],["the Pacific Ocean!",{q:"Which ocean?",a:"Pacific Ocean"},"exact-canonical"],["automobiles",{q:"What vehicles?",a:"automobile"},"safe-word-form"]];
+ for(const [heard,q,method] of cases){const match=h.api.answerMatchTrace(heard,q);assert.equal(match.accepted,true,heard);assert.equal(match.method,method,heard)}
+ for(const [heard,q] of [["slow down",{q:"What does a flashing red light mean?",a:"A complete stop"}],["Five",{q:"Name the card combination",a:"Five pieces"}],["Pacific",{q:"Which ocean?",a:"Pacific Ocean"}]])assert.equal(h.api.accepted(heard,q),false,heard)
+}));
+
+test("Stage 6.23 stable interim answer reacts early once and ignores the trailing final",withHarness(h=>{
+ const state=activeTimedQuestion(h);state.game.current={id:"red-light",q:"What does a flashing red light mean?",a:"A complete stop"};const r=h.recognition();r.speechStart();r.emit("stop",{final:false,confidence:.55});assert.equal(state.screen,"question");r.emit("stop",{final:false,confidence:.55});assert.equal(state.screen,"result");assert.equal(state.game.players[0].correct,1);r.emit("stop",{final:true,confidence:.9});assert.equal(state.screen,"result");assert.equal(state.game.players[0].correct,1);const rows=h.api.getVoiceDiagnostics();assert.equal(rows.filter(x=>x.stage==="answer-executed").length,1);assert.ok(rows.some(x=>x.stage==="answer-interim-evaluated"&&x.stable));assert.ok(rows.some(x=>x.stage==="ui-reaction-begins"));const attempt=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.answers().at(-1);assert.equal(attempt.isFinal,false)
+}));
+
+test("Stage 6.23 high-confidence exact commands can react on interim while destructive commands wait",()=>{
+ const h=createHarness();try{const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];state.screen="ready";h.api.ready();h.speak("start",{final:false,confidence:.95});assert.equal(state.screen,"transition")}finally{h.close()}
+});
 
 test("focused presentation repair separates Lock In and title-cases lowercase answers",withHarness(h=>{
  const state=setupQuestion(h);state.game.players[0].name="Alexandria Montgomery-Washington";h.api.transition("lockIn",()=>{});assert.equal(h.document.querySelector(".transition-big").textContent,"LOCK IN");assert.equal(h.document.querySelector(".lock-in-player").textContent,"Alexandria Montgomery-Washington");assert.equal(h.document.querySelector(".transition-big").textContent.includes(","),false);

@@ -1088,6 +1088,10 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
 
 /* Revealed answers use the requested classic display face. */
 .answer-big{font-family:"Times New Roman",Times,serif!important}
+.answer-big,.champion-name{word-break:normal!important;hyphens:none!important;max-width:100%}
+.focal-single-word{white-space:nowrap!important;overflow-wrap:normal!important;word-break:normal!important}
+.focal-multiline{white-space:normal!important;overflow-wrap:normal!important;word-break:normal!important;text-wrap:balance}
+.focal-emergency-break{white-space:normal!important;overflow-wrap:anywhere!important}
 
 /* Keep the wrong-state X prominent but bounded to the strike region. */
 .strike-box{position:relative}
