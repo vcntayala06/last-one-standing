@@ -130,7 +130,7 @@ function instrument(source) {
   return source.slice(0, at) + exposure + source.slice(at);
 }
 
-function createHarness({ storage = {}, voiceLatency = false, voiceHealth = false, hostProvider = null } = {}) {
+function createHarness({ storage = {}, voiceLatency = false, voiceHealth = false, hostProvider = null, speechApi = "standard", secureContext = true } = {}) {
   FakeSpeechRecognition.instances.length = 0;
   FakeSpeechRecognition.startFailures = 0;
   const timers = new FakeTimers();
@@ -142,8 +142,9 @@ function createHarness({ storage = {}, voiceLatency = false, voiceHealth = false
   const { window } = dom;
   for (const [key, value] of Object.entries(storage)) window.localStorage.setItem(key, value);
 
-  window.SpeechRecognition = FakeSpeechRecognition;
-  window.webkitSpeechRecognition = FakeSpeechRecognition;
+  if(speechApi==="standard")window.SpeechRecognition = FakeSpeechRecognition;
+  if(speechApi==="webkit")window.webkitSpeechRecognition = FakeSpeechRecognition;
+  Object.defineProperty(window,"isSecureContext",{configurable:true,value:secureContext});
   window.AudioContext = FakeAudioContext;
   window.webkitAudioContext = FakeAudioContext;
   window.setTimeout = timers.setTimeout.bind(timers);
