@@ -492,6 +492,61 @@ test("controlled same-meaning answers accept identity equivalents and reject rel
  for(const [heard,q] of [["animal",{a:"dog"}],["vehicle",{a:"car"}],["California",{a:"Los Angeles"}],["Aretha Franklin",{a:"Franklin D. Roosevelt"}],["singer",{a:"Respect"}],["sport",{a:"basketball"}],["planet",{a:"Mars"}]])assert.equal(trace(heard,q).accepted,false,`${heard} must not satisfy ${q.a}`)
 }));
 
+test("answer wrappers are removed only as anchored framing around an independently correct answer",withHarness(h=>{
+ const q={a:"Mars",es:["Marte"]};
+ for(const heard of ["it is Mars","it's Mars","I think it's Mars","I think it is Mars","my answer is Mars","the answer is Mars","I'm going with Mars"]){
+  const match=h.api.answerMatchTrace(heard,q);assert.equal(match.accepted,true,heard);assert.equal(match.method,"exact-canonical",heard)
+ }
+ for(const heard of ["it is Mars and Venus","I'm going with planet Mars","my answer is not Mars","Mars is my answer","I think Mars might be wrong"])assert.equal(h.api.accepted(heard,q),false,heard);
+ assert.equal(h.api.accepted("I think it's Marte",q),true,"Spanish metadata survives an English speech wrapper");
+ assert.equal(h.api.answerMatchTrace("I think it's Marte",q).method,"accepted-spanish")
+}));
+
+test("exact wrapper-like titles match before wrapper fallback",withHarness(h=>{
+ const titles=["It Is What It Is","It's a Wonderful Life","My Answer Is Love","The Answer Is Forty-Two","I'm Going With You"];
+ for(const title of titles){
+  const match=h.api.answerMatchTrace(title,{a:title,accept:["what it is","a wonderful life","love","forty two","you"]});
+  assert.equal(match.accepted,true,title);assert.equal(match.method,"exact-canonical",title);assert.equal(match.matched,title,title)
+ }
+ assert.equal(h.api.accepted("It Is What It Is",{a:"It Is What It Isn't"}),false);
+ assert.equal(h.api.accepted("my answer is not Mars",{a:"Mars"}),false);
+ assert.equal(h.api.accepted("it is Mars and Venus",{a:"Mars"}),false)
+}));
+
+test("United States equivalence stays explicit and narrowly bounded",withHarness(h=>{
+ const trace=(heard,q)=>h.api.answerMatchTrace(heard,q);
+ const match=trace("United States America",{a:"United States of America"});assert.equal(match.accepted,true);assert.equal(match.method,"generic-safe-equivalence");
+ for(const [heard,q] of [
+  ["United States Mexico",{a:"United States of America"}],
+  ["States America",{a:"United States of America"}]
+ ])assert.equal(trace(heard,q).accepted,false,heard)
+}));
+
+test("landmark designators never create global proper-name equivalences",withHarness(h=>{
+ const trace=(heard,q)=>h.api.answerMatchTrace(heard,q),collisions=[
+  ["Mount Everest",{a:"Everest"}],["Everest",{a:"Mount Everest"}],["Mount Kilimanjaro",{a:"Kilimanjaro"}],
+  ["Mount McKinley",{a:"McKinley"}],["Mount Rushmore",{a:"Rushmore"}],["Rushmore",{a:"Mount Rushmore"}],
+  ["Everest Street",{a:"Everest"}],["Everest County",{a:"Everest"}],["Lake Everest",{a:"Everest"}],
+  ["Michigan",{a:"Lake Michigan"}],["Lake Michigan",{a:"Michigan"}],["Mount Alexander",{a:"Alexander"}]
+ ];
+ for(const [heard,q] of collisions)assert.equal(trace(heard,q).accepted,false,`${heard} must not satisfy ${q.a}`);
+ const metadata=trace("Mount Everest",{a:"Everest",accept:["Mount Everest"]});assert.equal(metadata.accepted,true);assert.equal(metadata.method,"accepted-english")
+}));
+
+test("name shortening and descriptive shortening require question-specific accepted metadata",withHarness(h=>{
+ const cases=[
+  ["Alexander Graham Bell",{a:"Graham Bell"},{a:"Graham Bell",accept:["Alexander Graham Bell"]}],
+  ["natural selection",{a:"The theory of evolution by natural selection"},{a:"The theory of evolution by natural selection",accept:["natural selection"]}]
+ ];
+ for(const [heard,withoutMetadata,withMetadata] of cases){
+  assert.equal(h.api.accepted(heard,withoutMetadata),false,`${heard} must not be a global rule`);
+  const match=h.api.answerMatchTrace(heard,withMetadata);assert.equal(match.accepted,true,heard);assert.equal(match.method,"accepted-english",heard)
+ }
+ assert.equal(h.api.accepted("Kennedy John",{a:"John Kennedy"}),false,"proper-name token order remains significant");
+ assert.equal(h.api.accepted("Alexander Bell",{a:"Graham Bell",accept:["Alexander Graham Bell"]}),false);
+ assert.equal(h.api.accepted("evolution",{a:"The theory of evolution by natural selection",accept:["natural selection"]}),false)
+}));
+
 test("concept-equivalent answers score through fake recognition after an earlier guess",withHarness(h=>{
  const state=activeTimedQuestion(h);state.game.current={id:"equivalent-voice",q:"What common word means automobile?",a:"car",equivalents:["automobile"]};const remaining=state.game.questionRemaining;h.speak("vehicle",{final:true});assert.equal(state.screen,"question");assert.equal(state.game.questionRemaining,remaining);h.speak("automobile",{final:true});assert.equal(state.screen,"result");assert.equal(state.game.players[0].correct,1);assert.equal(h.window.__LOS_PLAYTEST_DIAGNOSTICS__.answers().at(-1).matchMethod,"concept-equivalent")
 }));

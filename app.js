@@ -958,7 +958,7 @@ function properNamePronunciationMatch(heard,target){
  return scores.every((score,i)=>score>=(i===scores.length-1 ? .8 : .72))&&editSimilarity(phoneticKey(heard),phoneticKey(target))>=.78
 }
 const SAFE_CONCEPT_EQUIVALENTS=[
- ["car","automobile"],["television","tv"],["united states","united states of america","usa","us","u s"],["world war two","world war 2","world war ii","second world war","wwii"],["new york city","nyc"]
+ ["car","automobile"],["television","tv"],["united states","united states of america","united states america","usa","us","u s"],["world war two","world war 2","world war ii","second world war","wwii"],["new york city","nyc"]
 ].map(group=>new Set(group.map(norm)));
 function genericConceptEquivalent(a,b){a=norm(a);b=norm(b);return SAFE_CONCEPT_EQUIVALENTS.some(group=>group.has(a)&&group.has(b))}
 function safeWordFormEquivalent(a,b){a=norm(a);b=norm(b);if(!a||!b||a.includes(" ")||b.includes(" "))return false;const singular=x=>x.length>4&&x.endsWith("ies")?x.slice(0,-3)+"y":x.length>4&&/(?:ches|shes|xes|zes|ses)$/.test(x)?x.slice(0,-2):x.length>3&&x.endsWith("s")&&!x.endsWith("ss")?x.slice(0,-1):x;return singular(a)===singular(b)&&Math.min(a.length,b.length)>=4}
@@ -972,8 +972,9 @@ function answerMatchTrace(h,q){
  if(!q)return{accepted:false,method:"no-question",reason:"no-current-question"};
  const answerNorm=value=>String(value||"").toLocaleLowerCase().normalize("NFKD").replace(/\p{M}/gu,"").replace(/[^\p{L}\p{N}\s]/gu," ").replace(/\s+/g," ").trim();
  const stripSafeArticle=value=>answerNorm(value).replace(/^(?:the|a|an|el|la|los|las|un|una)\s+/,"");
- const heard=answerNorm(h).replace(/^(?:the answer is|my answer is|i think it is|i think it s)\s+/,""),heardCore=stripSafeArticle(heard);
+ const rawHeard=answerNorm(h),heard=rawHeard.replace(/^(?:the answer is|my answer is|i think it is|i think it s|it is|it s|i m going with)\s+/,""),heardCore=stripSafeArticle(heard);
  const entries=[{value:q.a,source:"canonical"},...(q.accept||[]).map(value=>({value,source:"accepted-english"})),...(q.aliases||[]).map(value=>({value,source:"legacy-alias"})),...(q.alts||[]).map(value=>({value,source:"legacy-alt"})),...(q.es||[]).map(value=>({value,source:"accepted-spanish"})),...(q.equivalents||[]).map(value=>({value,source:"concept-equivalent"}))].filter(x=>x.value).map(entry=>({...entry,target:answerNorm(entry.value),targetCore:stripSafeArticle(entry.value)}));
+ for(const {value:ans,source,target,targetCore} of entries)if(rawHeard===target)return{accepted:true,method:source==="canonical"?"exact-canonical":source,matched:ans,heard:rawHeard,heardCore:stripSafeArticle(rawHeard),target,targetCore};
  for(const {value:ans,source,target,targetCore} of entries)if(heard===target||heardCore===targetCore)return{accepted:true,method:source==="canonical"?"exact-canonical":source,matched:ans,heard,heardCore,target,targetCore};
  for(const {value:ans,source,target,targetCore} of entries){
   if(genericConceptEquivalent(heardCore,targetCore))return{accepted:true,method:"generic-safe-equivalence",matched:ans,heard,heardCore,target,targetCore};
