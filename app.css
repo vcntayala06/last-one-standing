@@ -828,6 +828,7 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
 
 /* Stage 6.12 gameplay and flexible-roster stabilization. */
 .question-area .answer-attempt-feedback{min-height:1.15em;color:var(--gold);font-size:clamp(.72rem,1.7vw,.95rem);font-weight:1000;letter-spacing:.12em;line-height:1.15}
+.question-area .mic-retry{min-height:40px;padding:7px 14px;font-size:clamp(.72rem,1.5vw,.88rem);letter-spacing:.06em}
 .game-shell:has(.question-area) .game-player{font-size:clamp(2rem,min(5.5vw,6vh),3.15rem);line-height:1;max-width:min(68vw,780px)}
 .content:has(.players-list){justify-content:flex-start;overflow-y:auto;overflow-x:hidden}
 .players-list{width:min(1500px,100%);grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));align-content:start}

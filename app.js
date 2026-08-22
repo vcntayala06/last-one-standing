@@ -323,11 +323,19 @@ function ensurePlayers(){
  state.selectedIds=state.players.filter(p=>p.name.trim()).map(p=>p.id)
 }
 function speechSupported(){return !!(window.SpeechRecognition||window.webkitSpeechRecognition)}
+function detachRecognitionCallbacks(r){if(r)r.onstart=r.onresult=r.onerror=r.onend=r.onaudiostart=r.onsoundstart=r.onspeechstart=r.onspeechend=r.onsoundend=r.onaudioend=null}
+function updateRetryMicAvailability(){
+ let button;try{if(!document.defaultView)return;button=document.getElementById("retryMic")}catch{return}if(!button)return;
+ const reason=voiceCore.permissionBlocked?"permission":hostSystem?.isSpeaking()?"host":"";
+ button.disabled=!!reason;button.setAttribute("aria-disabled",String(!!reason));button.textContent=reason==="permission"?"MIC PERMISSION NEEDED":reason==="host"?"HOST SPEAKING":"TRY MIC AGAIN"
+}
 function temporarilySuspendRecognitionForHost(){
  if(!state.voiceOn||!recognition)return false;
  voiceCore.actualState="suppressed";voiceCore.suppressionReason="host-speech";voiceDiagnostic("recognition-suppressed",{reason:"host-speech"});
  clearTimeout(voiceCore.restart);voiceCore.restart=null;clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=null;voiceCore.generation++;
- const r=recognition;recognition=null;try{r.onstart=r.onresult=r.onerror=r.onend=null;r.abort()}catch{};return true
+ voiceCore.health={generation:voiceCore.generation,phase:"suppressed",events:{suppressed:performance.now()}};
+ updateRetryMicAvailability();
+ const r=recognition;recognition=null;try{detachRecognitionCallbacks(r);r.abort()}catch{};return true
 }
 function stopVoice(reason="voice-setting-off",detail={}){
  voiceCore.desired=false;voiceCore.lastDesiredDecision={desired:false,reason,screen:state.screen,session:runtimeSessionId,at:Date.now(),...detail};
@@ -335,8 +343,9 @@ function stopVoice(reason="voice-setting-off",detail={}){
  voiceCore.handledInterimSlots.clear();voiceCore.navQueued=null;
  clearTimeout(voiceCore.restart);voiceCore.restart=null;clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=null;
  voiceCore.generation++;
+ voiceCore.health={generation:voiceCore.generation,phase:"stopped",events:{stopped:performance.now()}};
  const r=recognition;recognition=null;
- try{if(r){r.onstart=r.onresult=r.onerror=r.onend=null;r.abort()}}catch{}
+ try{if(r){detachRecognitionCallbacks(r);r.abort()}}catch{}
 }
 
 let lastVoiceAction={key:"",at:0};
@@ -399,17 +408,36 @@ function fuzzyVisibleTarget(h){
  return false
 }
 const voicePageHidden=()=>{try{return !document.defaultView||document.visibilityState==="hidden"}catch{return true}};
-let voiceCore={ctx:null,owner:null,restart:null,errorWatchdog:null,generation:0,retryAttempt:0,restartCount:0,desired:false,lastDesiredDecision:{desired:false,reason:"initializing"},actualState:"stopped",lastKey:"",lastAt:0,lastHeard:"",lastTranscript:"",lastTranscriptFinal:null,lastInterim:"",lastFinal:"",lastRoute:"",lastRejection:"",lastError:"",suppressionReason:"",startRequestedAt:null,startedAt:null,listeningAt:null,lastSpeechAt:null,endedAt:null,permissionBlocked:false,handledInterimSlots:new Map(),interimCandidates:new Map(),navQueued:null,diagnostics:[],utterance:0,currentUtterance:null,latencySeen:new Set()},lastPlayerVoiceMutation={key:"",at:0},voiceLifecycleSuspended=voicePageHidden();
+let voiceCore={ctx:null,owner:null,restart:null,errorWatchdog:null,generation:0,retryAttempt:0,restartCount:0,desired:false,lastDesiredDecision:{desired:false,reason:"initializing"},actualState:"stopped",health:{generation:0,phase:"stopped",events:{}},lastManualRecoveryAt:-Infinity,lastKey:"",lastAt:0,lastHeard:"",lastTranscript:"",lastTranscriptFinal:null,lastInterim:"",lastFinal:"",lastRoute:"",lastRejection:"",lastError:"",suppressionReason:"",startRequestedAt:null,startedAt:null,listeningAt:null,lastSpeechAt:null,endedAt:null,permissionBlocked:false,handledInterimSlots:new Map(),interimCandidates:new Map(),navQueued:null,diagnostics:[],utterance:0,currentUtterance:null,latencySeen:new Set()},lastPlayerVoiceMutation={key:"",at:0},voiceLifecycleSuspended=voicePageHidden();
 const VOICE_LATENCY_MODE=new URLSearchParams(location.search).get("voiceLatency")==="1";
 const VOICE_HEALTH_MODE=VOICE_LATENCY_MODE||new URLSearchParams(location.search).get("voiceHealth")==="1"||localStorage.getItem("los_voice_health")==="1";
 function voiceTimelineSnapshot(){
  const rows=voiceCore.diagnostics,latest=stage=>[...rows].reverse().find(x=>x.stage===stage),speech=latest("speech-start")||latest("sound-start"),interim=latest("first-interim-transcript"),final=latest("first-final-transcript"),usable=[...rows].reverse().find(x=>x.stage==="answer-interim-evaluated"&&(x.stable||x.highConfidence))||final,matcher=latest("answer-matcher-invoked"),reaction=latest("ui-reaction-begins"),executed=latest("command-executed")||latest("answer-executed");
  const delta=(a,b)=>a&&b?Math.max(0,Math.round(b.monoAt-a.monoAt)):null;
- return{state:voiceCore.actualState,desired:voiceCore.desired,lastDesiredDecision:voiceCore.lastDesiredDecision,voiceSetting:state.voiceOn,storedVoiceSetting:localStorage.getItem(STORAGE.voice),speechSupported:speechSupported(),speechApi:window.SpeechRecognition?"SpeechRecognition":window.webkitSpeechRecognition?"webkitSpeechRecognition":"none",secureContext:window.isSecureContext===true,permissionBlocked:voiceCore.permissionBlocked,hostSpeaking:!!hostSystem?.isSpeaking(),owner:voiceCore.owner,generation:voiceCore.generation,restartCount:voiceCore.restartCount,lastTranscript:voiceCore.lastTranscript,lastTranscriptFinal:voiceCore.lastTranscriptFinal,lastInterim:voiceCore.lastInterim,lastFinal:voiceCore.lastFinal,lastRoute:voiceCore.lastRoute,lastRejection:voiceCore.lastRejection,lastError:voiceCore.lastError,suppressionReason:voiceCore.suppressionReason,screen:state.screen,session:runtimeSessionId,lang:recognition?.lang||"en-US",continuous:recognition?.continuous??null,interimResults:recognition?.interimResults??null,maxAlternatives:recognition?.maxAlternatives??null,timeSinceListeningMs:voiceCore.listeningAt==null?null:Math.max(0,Math.round(performance.now()-voiceCore.listeningAt)),lastSpeechAt:voiceCore.lastSpeechAt,startLatencyMs:delta(latest("recognition-start-requested"),latest("recognition-started")),speechToInterimMs:delta(speech,interim),interimToUsableMs:delta(interim,usable),usableToMatcherMs:delta(usable,matcher),matcherToUiMs:delta(matcher,reaction),speechToFinalMs:delta(speech,final),finalToExecutionMs:delta(final,executed),speechToActionMs:delta(speech,reaction||executed)}
+ return{state:voiceCore.actualState,healthPhase:voiceCore.health.phase,healthGeneration:voiceCore.health.generation,healthEvents:{...voiceCore.health.events},desired:voiceCore.desired,lastDesiredDecision:voiceCore.lastDesiredDecision,voiceSetting:state.voiceOn,storedVoiceSetting:localStorage.getItem(STORAGE.voice),speechSupported:speechSupported(),speechApi:window.SpeechRecognition?"SpeechRecognition":window.webkitSpeechRecognition?"webkitSpeechRecognition":"none",secureContext:window.isSecureContext===true,permissionBlocked:voiceCore.permissionBlocked,hostSpeaking:!!hostSystem?.isSpeaking(),owner:voiceCore.owner,generation:voiceCore.generation,restartCount:voiceCore.restartCount,lastTranscript:voiceCore.lastTranscript,lastTranscriptFinal:voiceCore.lastTranscriptFinal,lastInterim:voiceCore.lastInterim,lastFinal:voiceCore.lastFinal,lastRoute:voiceCore.lastRoute,lastRejection:voiceCore.lastRejection,lastError:voiceCore.lastError,suppressionReason:voiceCore.suppressionReason,screen:state.screen,session:runtimeSessionId,lang:recognition?.lang||"en-US",continuous:recognition?.continuous??null,interimResults:recognition?.interimResults??null,maxAlternatives:recognition?.maxAlternatives??null,timeSinceListeningMs:voiceCore.listeningAt==null?null:Math.max(0,Math.round(performance.now()-voiceCore.listeningAt)),lastSpeechAt:voiceCore.lastSpeechAt,startLatencyMs:delta(latest("recognition-start-requested"),latest("recognition-started")),speechToInterimMs:delta(speech,interim),interimToUsableMs:delta(interim,usable),usableToMatcherMs:delta(usable,matcher),matcherToUiMs:delta(matcher,reaction),speechToFinalMs:delta(speech,final),finalToExecutionMs:delta(final,executed),speechToActionMs:delta(speech,reaction||executed)}
+}
+
+function setVoiceHealth(generation,phase,detail={}){
+ if(generation!==voiceCore.generation)return false;
+ const prior=voiceCore.health?.generation===generation?voiceCore.health:{generation,phase:"start-requested",events:{}};
+ voiceCore.health={...prior,phase,events:{...prior.events,[phase]:performance.now()},...detail};
+ if(VOICE_HEALTH_MODE)renderVoiceHealthPanel();return true
+}
+function voiceHealthLabel(s){
+ if(s.permissionBlocked)return"PERMISSION BLOCKED";
+ if(s.healthPhase==="start-requested")return"STARTING";
+ if(s.healthPhase==="recognition-started")return"LISTENING · NO AUDIO YET";
+ if(s.healthPhase==="audio-detected"||s.healthPhase==="sound-detected")return"AUDIO DETECTED";
+ if(s.healthPhase==="waiting-for-transcript")return"SPEECH DETECTED · WAITING FOR TRANSCRIPT";
+ if(s.healthPhase==="transcript-received")return"TRANSCRIPT RECEIVED";
+ if(s.healthPhase==="error")return"ERROR";
+ if(s.healthPhase==="ended")return"STOPPED";
+ return String(s.state||"stopped").toUpperCase()
 }
 
 function renderVoiceHealthPanel(){
  if(!VOICE_HEALTH_MODE)return;let panel=document.getElementById("voiceHealthPanel");if(!panel){panel=document.createElement("pre");panel.id="voiceHealthPanel";panel.style.cssText="position:fixed;right:6px;top:6px;z-index:10000;width:min(92vw,430px);max-height:52vh;overflow:auto;margin:0;padding:7px 9px;border:1px solid #4de1ff;border-radius:7px;background:rgba(0,8,18,.9);color:#eafcff;font:10px/1.3 monospace;white-space:pre-wrap;pointer-events:none";document.body.appendChild(panel)}const s=voiceTimelineSnapshot(),owner=s.owner?`${s.owner.screen}#${s.owner.session}`:"none",ms=value=>value==null?"—":value+"ms",decision=s.lastDesiredDecision||{};panel.textContent=[`VOICE HEALTH · ${BUILD_INFO.stage}/${BUILD_INFO.version}`,`screen ${s.screen}#${s.session} · desired ${s.desired} · state ${s.state}`,`decision ${decision.desired} · ${decision.reason||"—"}`,`setting ${s.voiceSetting} · stored ${s.storedVoiceSetting??"unset"}`,`API ${s.speechApi} · supported ${s.speechSupported} · secure ${s.secureContext}`,`permissionBlocked ${s.permissionBlocked} · hostSpeaking ${s.hostSpeaking}`,`owner ${owner} · gen ${s.generation} · restarts ${s.restartCount}`,`lang ${s.lang} · continuous ${s.continuous} · interim ${s.interimResults} · alts ${s.maxAlternatives}`,`start→interim ${ms(s.speechToInterimMs)} · interim→usable ${ms(s.interimToUsableMs)}`,`usable→matcher ${ms(s.usableToMatcherMs)} · matcher→UI ${ms(s.matcherToUiMs)}`,`speech→final ${ms(s.speechToFinalMs)} · speech→reaction ${ms(s.speechToActionMs)}`,`interim: ${s.lastInterim||"—"}`,`final: ${s.lastFinal||"—"}`,`route: ${s.lastRoute||"—"}`,`reject: ${s.lastRejection||"—"}`,`error: ${s.lastError||"—"} · suppressed: ${s.suppressionReason||"—"}`].join("\n")
+ panel.textContent+=`\nphase: ${voiceHealthLabel(s)} · health generation ${s.healthGeneration}`
 }
 
 function renderVoiceLatencyPanel(){
@@ -828,6 +856,7 @@ function scheduleVoiceRestart(){
 }
 function startVoice(ctx){
  voiceCore.ctx=ctx;voiceCore.owner={screen:ctx,session:runtimeSessionId};
+ updateRetryMicAvailability();
  if(hostSystem?.isSpeaking()){voiceCore.desired=!!state.voiceOn;voiceCore.lastDesiredDecision={desired:voiceCore.desired,reason:"host-speaking",screen:state.screen,session:runtimeSessionId,at:Date.now()};voiceDiagnostic("voice-start-suppressed",voiceCore.lastDesiredDecision);return}
  if(!state.voiceOn){stopVoice("voice-setting-off",{storedVoiceSetting:localStorage.getItem(STORAGE.voice)});return}
  if(!speechSupported()){stopVoice("speech-api-unavailable",{secureContext:window.isSecureContext===true,speechRecognition:!!window.SpeechRecognition,webkitSpeechRecognition:!!window.webkitSpeechRecognition,userAgent:navigator.userAgent});return}
@@ -843,6 +872,7 @@ function startVoice(ctx){
 
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  const generation=++voiceCore.generation;
+ voiceCore.health={generation,phase:"start-requested",events:{"start-requested":performance.now()}};
  voiceCore.actualState="starting";voiceCore.startRequestedAt=performance.now();voiceDiagnostic("recognition-start-requested",{generation,owner:voiceCore.owner});
  voiceCore.handledInterimSlots.clear();
  try{
@@ -854,14 +884,14 @@ function startVoice(ctx){
 
   r.onstart=()=>{
    if(voiceCore.generation!==generation||recognition!==r)return;
-   voiceCore.retryAttempt=0;voiceCore.currentUtterance=null;voiceCore.actualState="listening";voiceCore.startedAt=performance.now();voiceCore.listeningAt=performance.now();voiceCore.suppressionReason="";voiceDiagnostic("recognition-started",{generation,owner:voiceCore.owner});voiceStatus("MIC LISTENING","listening")
+   voiceCore.retryAttempt=0;voiceCore.currentUtterance=null;voiceCore.actualState="listening";voiceCore.startedAt=performance.now();voiceCore.listeningAt=performance.now();voiceCore.suppressionReason="";setVoiceHealth(generation,"recognition-started");voiceDiagnostic("recognition-started",{generation,owner:voiceCore.owner});voiceStatus("MIC LISTENING","listening")
   };
-  r.onaudiostart=()=>voiceDiagnostic("audio-start",{generation});
-  r.onsoundstart=()=>beginVoiceLatencyUtterance("sound-start");
-  r.onspeechstart=()=>{if(!voiceCore.currentUtterance)beginVoiceLatencyUtterance("speech-start");else voiceDiagnostic("speech-start")};
-  r.onspeechend=()=>voiceDiagnostic("speech-end");
-  r.onsoundend=()=>voiceDiagnostic("sound-end");
-  r.onaudioend=()=>voiceDiagnostic("audio-end",{generation});
+  r.onaudiostart=()=>{if(voiceCore.generation!==generation||recognition!==r)return;setVoiceHealth(generation,"audio-detected");voiceDiagnostic("audio-start",{generation})};
+  r.onsoundstart=()=>{if(voiceCore.generation!==generation||recognition!==r)return;setVoiceHealth(generation,"sound-detected");beginVoiceLatencyUtterance("sound-start")};
+  r.onspeechstart=()=>{if(voiceCore.generation!==generation||recognition!==r)return;setVoiceHealth(generation,"waiting-for-transcript");if(!voiceCore.currentUtterance)beginVoiceLatencyUtterance("speech-start");else voiceDiagnostic("speech-start")};
+  r.onspeechend=()=>{if(voiceCore.generation!==generation||recognition!==r)return;voiceDiagnostic("speech-end")};
+  r.onsoundend=()=>{if(voiceCore.generation!==generation||recognition!==r)return;voiceDiagnostic("sound-end")};
+  r.onaudioend=()=>{if(voiceCore.generation!==generation||recognition!==r)return;voiceDiagnostic("audio-end",{generation})};
 
   r.onresult=e=>{
    if(voiceCore.generation!==generation||recognition!==r)return;
@@ -883,6 +913,7 @@ function startVoice(ctx){
      const alt=res[a],text=(alt?.transcript||"").trim();
      if(!text)continue;
      const confidence=Number.isFinite(alt.confidence)?alt.confidence:0;
+     setVoiceHealth(generation,"transcript-received",{lastTranscript:text});
      voiceCore.lastTranscript=text;voiceCore.lastTranscriptFinal=!!res.isFinal;
      voiceDiagnostic("transcript-received",{text,normalizedText:norm(text),confidence,isFinal:!!res.isFinal,resultIndex:i,alternative:a});
      const firstStage=res.isFinal?"first-final-transcript":"first-interim-transcript";
@@ -911,33 +942,48 @@ function startVoice(ctx){
    if(voiceCore.generation!==generation||recognition!==r)return;
    const err=e?.error||"";
    voiceCore.lastError=err;voiceCore.actualState="error";voiceCore.suppressionReason=err;
+   setVoiceHealth(generation,"error",{error:err});
    voiceDiagnostic("recognition-error",{generation,error:err});
    if(err==="not-allowed"||err==="service-not-allowed"){
     voiceCore.permissionBlocked=true;voiceCore.desired=false;voiceCore.lastDesiredDecision={desired:false,reason:"permission-error",screen:state.screen,session:runtimeSessionId,at:Date.now(),error:err};voiceDiagnostic("voice-desired-changed",voiceCore.lastDesiredDecision);
+    updateRetryMicAvailability();
     clearTimeout(voiceCore.restart);voiceCore.restart=null;
     voiceStatus("MIC PERMISSION NEEDED","error")
    }
    else if(err!=="aborted"&&err!=="no-speech")voiceStatus("MIC LISTENING","listening")
-   clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=setTimeout(()=>{voiceCore.errorWatchdog=null;if(voiceCore.generation!==generation||recognition!==r||voiceCore.actualState!=="error")return;voiceDiagnostic("recognition-error-end-timeout",{generation,error:err});r.onstart=r.onresult=r.onerror=r.onend=null;try{r.abort()}catch{}recognition=null;voiceCore.actualState="stopped";if(!voiceCore.permissionBlocked)scheduleVoiceRestart()},200)
+   clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=setTimeout(()=>{voiceCore.errorWatchdog=null;if(voiceCore.generation!==generation||recognition!==r||voiceCore.actualState!=="error")return;voiceDiagnostic("recognition-error-end-timeout",{generation,error:err});detachRecognitionCallbacks(r);try{r.abort()}catch{}recognition=null;voiceCore.actualState="stopped";if(!voiceCore.permissionBlocked)scheduleVoiceRestart()},200)
   };
 
   r.onend=()=>{
    if(voiceCore.generation!==generation||recognition!==r)return;
-   clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=null;voiceCore.actualState="stopped";voiceCore.endedAt=performance.now();voiceDiagnostic("recognition-ended",{generation,error:voiceCore.lastError});recognition=null;scheduleVoiceRestart()
+   clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=null;voiceCore.actualState="stopped";voiceCore.endedAt=performance.now();setVoiceHealth(generation,"ended");voiceDiagnostic("recognition-ended",{generation,error:voiceCore.lastError});recognition=null;scheduleVoiceRestart()
   };
 
   r.start()
  }catch(error){
   if(voiceCore.generation!==generation)return;
-  voiceCore.actualState="error";voiceCore.lastError=String(error?.message||error);voiceDiagnostic("recognition-start-failed",{generation,error:voiceCore.lastError});recognition=null;scheduleVoiceRestart()
+  voiceCore.actualState="error";voiceCore.lastError=String(error?.message||error);setVoiceHealth(generation,"error",{error:voiceCore.lastError});voiceDiagnostic("recognition-start-failed",{generation,error:voiceCore.lastError});recognition=null;scheduleVoiceRestart()
  }
+}
+function manualRecoverVoice(){
+ const reject=reason=>{voiceDiagnostic("manual-recovery-blocked",{reason,generation:voiceCore.generation});return false};
+ if(!state.voiceOn)return reject("voice-setting-off");
+ if(!speechSupported())return reject("speech-api-unavailable");
+ if(voiceCore.permissionBlocked)return reject("permission-blocked");
+ if(voiceLifecycleSuspended||voicePageHidden())return reject("lifecycle-hidden");
+ if(hostSystem?.isSpeaking())return reject("host-speaking");
+ const now=performance.now();if(now-voiceCore.lastManualRecoveryAt<750)return reject("duplicate-request");voiceCore.lastManualRecoveryAt=now;
+ clearTimeout(voiceCore.restart);voiceCore.restart=null;clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=null;voiceCore.generation++;
+ const r=recognition;recognition=null;try{if(r){detachRecognitionCallbacks(r);r.abort()}}catch{}
+ voiceCore.actualState="stopped";voiceCore.currentUtterance=null;voiceCore.handledInterimSlots.clear();voiceCore.interimCandidates.clear();voiceDiagnostic("manual-recovery-requested",{screen:state.screen,session:runtimeSessionId});startVoice(state.screen);return true
 }
 function suspendVoiceForLifecycle(reason="visibility-hidden"){
  if(voiceLifecycleSuspended)return;
  voiceLifecycleSuspended=true;clearTimeout(voiceCore.restart);voiceCore.restart=null;clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=null;voiceCore.generation++;
+ voiceCore.health={generation:voiceCore.generation,phase:"suppressed",events:{suppressed:performance.now()}};
  voiceCore.desired=!!state.voiceOn&&!voiceCore.permissionBlocked;voiceCore.actualState="suppressed";voiceCore.suppressionReason="lifecycle-hidden";voiceCore.lastDesiredDecision={desired:voiceCore.desired,reason:"lifecycle-hidden",event:reason,screen:state.screen,session:runtimeSessionId,at:Date.now()};voiceDiagnostic("voice-lifecycle-suspended",voiceCore.lastDesiredDecision);
  voiceCore.handledInterimSlots.clear();voiceCore.interimCandidates.clear();voiceCore.navQueued=null;const r=recognition;recognition=null;
- try{if(r){r.onstart=r.onresult=r.onerror=r.onend=r.onaudiostart=r.onsoundstart=r.onspeechstart=r.onspeechend=r.onsoundend=r.onaudioend=null;r.abort()}}catch{}
+ try{if(r){detachRecognitionCallbacks(r);r.abort()}}catch{}
 }
 function resumeVoiceForLifecycle(reason="visibility-visible"){
  if(!voiceLifecycleSuspended)return;
@@ -1297,8 +1343,9 @@ function question(resumeCurrent=false){
  g.questionRemaining=rem;g.questionStartedWith=remStart;
  const questionSize=g.current.q.length>90?"question-long":g.current.q.length>55?"question-medium":"question-short";
  app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(true)}<div class="question-area"><div class="question-text ${questionSize}">${esc(g.current.q)}</div>
-     ${!state.voiceOn?`<div class="keyboard-answer"><input id="typedAnswer" disabled autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="TYPE YOUR ANSWER"><button id="lockAnswer" disabled class="btn primary">LOCK IN</button></div>`:""}<div id="answerAttemptFeedback" class="answer-attempt-feedback" aria-live="polite"></div><div id="timer" class="timer ${rem<=5?"urgent":""}" style="--timer-progress:${rem/remStart}" aria-label="${rem} seconds remaining">${rem}</div></div></div></section>`;
+     ${!state.voiceOn?`<div class="keyboard-answer"><input id="typedAnswer" disabled autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="TYPE YOUR ANSWER"><button id="lockAnswer" disabled class="btn primary">LOCK IN</button></div>`:speechSupported()?`<button id="retryMic" class="btn mic-retry" type="button">TRY MIC AGAIN</button>`:""}<div id="answerAttemptFeedback" class="answer-attempt-feedback" aria-live="polite"></div><div id="timer" class="timer ${rem<=5?"urgent":""}" style="--timer-progress:${rem/remStart}" aria-label="${rem} seconds remaining">${rem}</div></div></div></section>`;
  bindGamebar();
+ const retryMic=document.getElementById("retryMic");if(retryMic){retryMic.onclick=manualRecoverVoice;updateRetryMicAvailability()}
  const startClock=()=>{
   if(state.screen!=="question"||runtimeSessionId!==session||g.answered)return;questionReading=false;answerListening=true;audioDiagnostics.buzzerFired=false;const input=document.getElementById("typedAnswer"),lock=document.getElementById("lockAnswer");if(input)input.disabled=false;if(lock)lock.disabled=false;startVoice("question");GameAudio.playSfx("questionStart",{eventId:`question-start:${questionSessionId}`});tickSound(rem);
   questionTimer=setInterval(()=>{
