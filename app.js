@@ -398,7 +398,8 @@ function fuzzyVisibleTarget(h){
  }
  return false
 }
-let voiceCore={ctx:null,owner:null,restart:null,errorWatchdog:null,generation:0,retryAttempt:0,restartCount:0,desired:false,lastDesiredDecision:{desired:false,reason:"initializing"},actualState:"stopped",lastKey:"",lastAt:0,lastHeard:"",lastTranscript:"",lastTranscriptFinal:null,lastInterim:"",lastFinal:"",lastRoute:"",lastRejection:"",lastError:"",suppressionReason:"",startRequestedAt:null,startedAt:null,listeningAt:null,lastSpeechAt:null,endedAt:null,permissionBlocked:false,handledInterimSlots:new Map(),interimCandidates:new Map(),navQueued:null,diagnostics:[],utterance:0,currentUtterance:null,latencySeen:new Set()},lastPlayerVoiceMutation={key:"",at:0};
+const voicePageHidden=()=>{try{return !document.defaultView||document.visibilityState==="hidden"}catch{return true}};
+let voiceCore={ctx:null,owner:null,restart:null,errorWatchdog:null,generation:0,retryAttempt:0,restartCount:0,desired:false,lastDesiredDecision:{desired:false,reason:"initializing"},actualState:"stopped",lastKey:"",lastAt:0,lastHeard:"",lastTranscript:"",lastTranscriptFinal:null,lastInterim:"",lastFinal:"",lastRoute:"",lastRejection:"",lastError:"",suppressionReason:"",startRequestedAt:null,startedAt:null,listeningAt:null,lastSpeechAt:null,endedAt:null,permissionBlocked:false,handledInterimSlots:new Map(),interimCandidates:new Map(),navQueued:null,diagnostics:[],utterance:0,currentUtterance:null,latencySeen:new Set()},lastPlayerVoiceMutation={key:"",at:0},voiceLifecycleSuspended=voicePageHidden();
 const VOICE_LATENCY_MODE=new URLSearchParams(location.search).get("voiceLatency")==="1";
 const VOICE_HEALTH_MODE=VOICE_LATENCY_MODE||new URLSearchParams(location.search).get("voiceHealth")==="1"||localStorage.getItem("los_voice_health")==="1";
 function voiceTimelineSnapshot(){
@@ -817,12 +818,12 @@ function routeVoiceCentral(h,{isFinal=false,confidence=0,resultIndex=-1}={}){
  return false
 }
 function scheduleVoiceRestart(){
- if(!voiceCore.desired||!state.voiceOn||voiceCore.permissionBlocked||recognition||voiceCore.restart)return;
+ if(voiceLifecycleSuspended||voicePageHidden()||!voiceCore.desired||!state.voiceOn||voiceCore.permissionBlocked||recognition||voiceCore.restart)return;
  const delays=[25,100,250,500,1000],delay=delays[Math.min(voiceCore.retryAttempt++,delays.length-1)];
  voiceDiagnostic("recognition-restart-scheduled",{delay,attempt:voiceCore.retryAttempt});
  voiceCore.restart=setTimeout(()=>{
   voiceCore.restart=null;
-  if(voiceCore.desired&&state.voiceOn&&!voiceCore.permissionBlocked&&!recognition){voiceCore.restartCount++;startVoice(voiceCore.ctx||state.screen)}
+  if(!voiceLifecycleSuspended&&!voicePageHidden()&&voiceCore.desired&&state.voiceOn&&!voiceCore.permissionBlocked&&!recognition){voiceCore.restartCount++;startVoice(voiceCore.ctx||state.screen)}
  },delay)
 }
 function startVoice(ctx){
@@ -831,6 +832,7 @@ function startVoice(ctx){
  if(!state.voiceOn){stopVoice("voice-setting-off",{storedVoiceSetting:localStorage.getItem(STORAGE.voice)});return}
  if(!speechSupported()){stopVoice("speech-api-unavailable",{secureContext:window.isSecureContext===true,speechRecognition:!!window.SpeechRecognition,webkitSpeechRecognition:!!window.webkitSpeechRecognition,userAgent:navigator.userAgent});return}
  if(voiceCore.permissionBlocked){voiceCore.desired=false;voiceCore.lastDesiredDecision={desired:false,reason:"permission-blocked",screen:state.screen,session:runtimeSessionId,at:Date.now(),lastError:voiceCore.lastError};voiceCore.suppressionReason="permission-blocked";voiceDiagnostic("voice-start-suppressed",voiceCore.lastDesiredDecision);return}
+ if(voiceLifecycleSuspended||voicePageHidden()){voiceCore.desired=true;voiceCore.actualState="suppressed";voiceCore.lastDesiredDecision={desired:true,reason:"lifecycle-hidden",screen:state.screen,session:runtimeSessionId,at:Date.now()};voiceCore.suppressionReason="lifecycle-hidden";voiceDiagnostic("voice-start-suppressed",voiceCore.lastDesiredDecision);return}
  voiceCore.desired=true;voiceCore.lastDesiredDecision={desired:true,reason:"start-requested",screen:state.screen,session:runtimeSessionId,at:Date.now(),secureContext:window.isSecureContext===true,speechApi:window.SpeechRecognition?"SpeechRecognition":"webkitSpeechRecognition"};voiceDiagnostic("voice-desired-changed",voiceCore.lastDesiredDecision);
 
  if(recognition){
@@ -929,6 +931,20 @@ function startVoice(ctx){
   if(voiceCore.generation!==generation)return;
   voiceCore.actualState="error";voiceCore.lastError=String(error?.message||error);voiceDiagnostic("recognition-start-failed",{generation,error:voiceCore.lastError});recognition=null;scheduleVoiceRestart()
  }
+}
+function suspendVoiceForLifecycle(reason="visibility-hidden"){
+ if(voiceLifecycleSuspended)return;
+ voiceLifecycleSuspended=true;clearTimeout(voiceCore.restart);voiceCore.restart=null;clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=null;voiceCore.generation++;
+ voiceCore.desired=!!state.voiceOn&&!voiceCore.permissionBlocked;voiceCore.actualState="suppressed";voiceCore.suppressionReason="lifecycle-hidden";voiceCore.lastDesiredDecision={desired:voiceCore.desired,reason:"lifecycle-hidden",event:reason,screen:state.screen,session:runtimeSessionId,at:Date.now()};voiceDiagnostic("voice-lifecycle-suspended",voiceCore.lastDesiredDecision);
+ voiceCore.handledInterimSlots.clear();voiceCore.interimCandidates.clear();voiceCore.navQueued=null;const r=recognition;recognition=null;
+ try{if(r){r.onstart=r.onresult=r.onerror=r.onend=r.onaudiostart=r.onsoundstart=r.onspeechstart=r.onspeechend=r.onsoundend=r.onaudioend=null;r.abort()}}catch{}
+}
+function resumeVoiceForLifecycle(reason="visibility-visible"){
+ if(!voiceLifecycleSuspended)return;
+ voiceLifecycleSuspended=false;voiceDiagnostic("voice-lifecycle-resumed",{reason,screen:state.screen,session:runtimeSessionId,voiceOn:state.voiceOn,permissionBlocked:voiceCore.permissionBlocked,hostSpeaking:!!hostSystem?.isSpeaking()});
+ if(!state.voiceOn){voiceCore.desired=false;voiceCore.actualState="stopped";voiceCore.suppressionReason="voice-setting-off";return}
+ if(voiceCore.permissionBlocked){voiceCore.desired=false;voiceCore.actualState="stopped";voiceCore.suppressionReason="permission-blocked";return}
+ startVoice(state.screen)
 }
 function phoneticKey(s){
  return norm(String(s||"").normalize("NFKD").replace(/\p{M}/gu,"")).replace(/[^a-z0-9 ]/g,"").split(/\s+/).map(w=>w
@@ -1468,6 +1484,9 @@ function installLayoutBoundsDebug(){
 }
 function viewport(){document.documentElement.style.setProperty("--app-h",Math.max(document.documentElement.clientHeight||0,window.innerHeight||0)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
+document.addEventListener("visibilitychange",()=>{if(!document.defaultView)return;if(document.visibilityState==="hidden")suspendVoiceForLifecycle("visibilitychange");else resumeVoiceForLifecycle("visibilitychange")});
+window.addEventListener("pagehide",event=>{if(document.defaultView&&event.persisted)suspendVoiceForLifecycle("pagehide")});
+window.addEventListener("pageshow",event=>{if(document.defaultView&&event.persisted&&voiceLifecycleSuspended)resumeVoiceForLifecycle("pageshow")});
 window.addEventListener("pointerdown",()=>{ensureAudio();hostSystem?.provider?.activate?.();if(["home","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen))startMusic()},{passive:true});
 window.addEventListener("pointerdown",()=>{pendingTransitionCause={trigger:"click",reason:"pointer-control"}},{capture:true,passive:true});
 window.addEventListener("keydown",event=>{ensureAudio();hostSystem?.provider?.activate?.();pendingTransitionCause={trigger:"keyboard",reason:event.key||"key"};if(state.screen==="question"&&!event.repeat&&(event.key==="Escape"||String(event.key).toLowerCase()==="p")){event.preventDefault();pauseGame()}},{capture:true});
