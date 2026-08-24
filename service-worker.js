@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_VERSION="6.24";
+const CACHE_VERSION="6.24-23defa9b7f9f";
 const CACHE_NAME=`last-one-standing-shell-${CACHE_VERSION}`;
 const APP_SHELL=[
  "./",
@@ -34,8 +34,8 @@ self.addEventListener("fetch",event=>{
  const url=new URL(request.url);
  if(url.origin!==self.location.origin||url.pathname.includes("/api/"))return;
  if(request.mode==="navigate"){
-  event.respondWith(fetch(request).catch(()=>caches.match("./index.html")));
+  event.respondWith(fetch(request).catch(()=>caches.open(CACHE_NAME).then(cache=>cache.match("./index.html"))));
   return;
  }
- event.respondWith(caches.match(request,{ignoreSearch:true}).then(cached=>cached||fetch(request)));
+ event.respondWith(caches.open(CACHE_NAME).then(cache=>cache.match(request,{ignoreSearch:true})).then(cached=>cached||fetch(request)));
 });
