@@ -1008,6 +1008,15 @@ const SAFE_CONCEPT_EQUIVALENTS=[
 ].map(group=>new Set(group.map(norm)));
 function genericConceptEquivalent(a,b){a=norm(a);b=norm(b);return SAFE_CONCEPT_EQUIVALENTS.some(group=>group.has(a)&&group.has(b))}
 function safeWordFormEquivalent(a,b){a=norm(a);b=norm(b);if(!a||!b||a.includes(" ")||b.includes(" "))return false;const singular=x=>x.length>4&&x.endsWith("ies")?x.slice(0,-3)+"y":x.length>4&&/(?:ches|shes|xes|zes|ses)$/.test(x)?x.slice(0,-2):x.length>3&&x.endsWith("s")&&!x.endsWith("ss")?x.slice(0,-1):x;return singular(a)===singular(b)&&Math.min(a.length,b.length)>=4}
+const GENERIC_PARTIAL_ANSWER_WORDS=new Set(["animal","author","book","bridge","capital","city","color","country","element","film","food","game","instrument","language","movie","number","ocean","person","planet","president","river","scientist","singer","song","sport","state","team","theory","vehicle","war"]);
+function meaningfulPartialAnswer(heard,target,question=""){
+ const words=value=>norm(value).split(" ").filter(word=>word&&!['a','an','the','of','and','or','by','in','on','at','to','for'].includes(word));
+ const hs=words(heard),ts=words(target);if(!hs.length||ts.length<2||hs.length>=ts.length)return false;
+ if(!hs.every(word=>ts.includes(word)))return false;
+ const meaningful=hs.filter(word=>word.length>=4&&!GENERIC_PARTIAL_ANSWER_WORDS.has(word));if(!meaningful.length)return false;
+ if(hs.length===1){if(/\bwho\b/.test(norm(question))&&hs[0]!==ts.at(-1))return false;return meaningful[0].length>=5}
+ return meaningful.join("").length>=7||hs.length/ts.length>=.5
+}
 function editSimilarity(a,b){
  a=norm(a);b=norm(b);if(a===b)return 1;if(!a||!b)return 0;
  const dp=Array.from({length:b.length+1},(_,j)=>j);
@@ -1030,6 +1039,7 @@ function answerMatchTrace(h,q){
   if(targetCore.length>=7&&hp===tp)return{accepted:true,method:"phonetic-exact",matched:ans,heard,heardCore,target,targetCore,heardPhonetic:hp,targetPhonetic:tp};
   if(properNamePronunciationMatch(heardCore,targetCore))return{accepted:true,method:"proper-name-phonetic",matched:ans,heard,heardCore,target,targetCore,heardPhonetic:hp,targetPhonetic:tp};
  }
+ const canonical=entries[0];if(q.q&&canonical&&meaningfulPartialAnswer(heardCore,canonical.targetCore,q.q))return{accepted:true,method:"meaningful-partial",matched:q.a,heard,heardCore,target:canonical.target,targetCore:canonical.targetCore};
  const safeDescriptors=new Set(["complete","full","total","entire","single"]),tokens=answerNorm(q.a).split(" ").filter(Boolean),concept=tokens.filter(token=>!safeDescriptors.has(token)&&!["a","an","the"].includes(token)).join(" ");
  if(concept&&heardCore===concept&&tokens.some(token=>safeDescriptors.has(token)))return{accepted:true,method:"canonical-safe-descriptor",matched:q.a,heard,heardCore,target:answerNorm(q.a),targetCore:concept};
  const countQuestion=/\b(?:how many|what number|number of)\b/.test(answerNorm(q.q)),numberWords=/^(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|\d+)$/;

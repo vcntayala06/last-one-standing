@@ -51,7 +51,7 @@ test("protected answer matcher accepts exact, contained, fuzzy, and phonetic ans
 }));
 
 test("Stanley Cup and canonical accepted-answer metadata reach gameplay scoring",withHarness(h=>{
- const source=h.api.QUESTION_BANK.byId.get("los-b2-sports-418"),q=h.api.QUESTION_BANK.toGameplay(source);assert.equal(q.a,"Stanley Cup");assert.ok(q.accept.includes("stanley cup"));assert.equal(h.api.accepted("The Stanley Cup.",q),true);assert.equal(h.api.accepted("Stanley",q),false);assert.equal(h.api.accepted("Stanford Cup",q),false)
+ const source=h.api.QUESTION_BANK.byId.get("los-b2-sports-418"),q=h.api.QUESTION_BANK.toGameplay(source);assert.equal(q.a,"Stanley Cup");assert.ok(q.accept.includes("stanley cup"));assert.equal(h.api.accepted("The Stanley Cup.",q),true);assert.equal(h.api.accepted("Stanley",q),true);assert.equal(h.api.accepted("Stanford Cup",q),false)
 }));
 
 test("accepted English, Spanish, and legacy alts are precise but transcription-safe",withHarness(h=>{
@@ -651,7 +651,25 @@ test("Stage 6.20 no-speech recovery is prompt and normal screen changes do not c
 test("Stage 6.23 controlled answer forgiveness accepts knowledge without accepting related concepts",withHarness(h=>{
  const cases=[["Stop",{q:"What does a flashing red light mean?",a:"A complete stop"},"canonical-safe-descriptor"],["Five",{q:"How many pieces are required?",a:"Five pieces"},"question-context-unit-omission"],["the Pacific Ocean!",{q:"Which ocean?",a:"Pacific Ocean"},"exact-canonical"],["automobiles",{q:"What vehicles?",a:"automobile"},"safe-word-form"]];
  for(const [heard,q,method] of cases){const match=h.api.answerMatchTrace(heard,q);assert.equal(match.accepted,true,heard);assert.equal(match.method,method,heard)}
- for(const [heard,q] of [["slow down",{q:"What does a flashing red light mean?",a:"A complete stop"}],["Five",{q:"Name the card combination",a:"Five pieces"}],["Pacific",{q:"Which ocean?",a:"Pacific Ocean"}]])assert.equal(h.api.accepted(heard,q),false,heard)
+ for(const [heard,q] of [["slow down",{q:"What does a flashing red light mean?",a:"A complete stop"}],["Five",{q:"Name the card combination",a:"Five pieces"}],["ocean",{q:"Which ocean?",a:"Pacific Ocean"}]])assert.equal(h.api.accepted(heard,q),false,heard)
+}));
+
+test("meaningful partial answers preserve player intent without accepting generic fragments",withHarness(h=>{
+ const accepted=[
+  ["Pacific",{q:"Which ocean is the largest?",a:"Pacific Ocean"}],
+  ["natural selection",{q:"What mechanism did Darwin describe?",a:"The theory of evolution by natural selection"}],
+  ["Graham Bell",{q:"Who invented the telephone?",a:"Alexander Graham Bell"}],
+  ["Roosevelt",{q:"Who was the 26th U.S. president?",a:"Theodore Roosevelt"}],
+  ["Golden Gate",{q:"Name the famous San Francisco bridge",a:"Golden Gate Bridge"}]
+ ];
+ for(const [heard,q] of accepted){const match=h.api.answerMatchTrace(heard,q);assert.equal(match.accepted,true,heard);assert.equal(match.method,"meaningful-partial",heard)}
+ for(const [heard,q] of [
+  ["ocean",{q:"Which ocean is the largest?",a:"Pacific Ocean"}],
+  ["theory",{q:"What mechanism did Darwin describe?",a:"The theory of evolution by natural selection"}],
+  ["president",{q:"Who was the 26th U.S. president?",a:"Theodore Roosevelt"}],
+  ["bridge",{q:"Name the famous San Francisco bridge",a:"Golden Gate Bridge"}],
+  ["Alexander",{q:"Who invented the telephone?",a:"Alexander Graham Bell"}]
+ ])assert.equal(h.api.accepted(heard,q),false,heard)
 }));
 
 test("Stage 6.23 stable interim answer reacts early once and ignores the trailing final",withHarness(h=>{
