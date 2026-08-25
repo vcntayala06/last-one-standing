@@ -411,9 +411,18 @@ test("multiplayer Continue opens content packs before the dedicated roster page"
  const h=createHarness();try{const state=h.api.getState();state.mode="original";h.api.go("setup");h.timers.advance(220);h.click("#startGame");assert.equal(state.screen,"packs");h.timers.advance(220);h.click("#continuePacks");assert.equal(state.screen,"players");const before=state.players.length;h.click("#add");assert.equal(state.screen,"players");assert.equal(state.players.length,before+1);const input=[...h.document.querySelectorAll("[data-p]")].at(-1);input.value="Jordan";input.dispatchEvent(new h.window.Event("input",{bubbles:true}));assert.equal(state.players.at(-1).name,"Jordan")}finally{h.close()}
 });
 
-test("Who’s In voice Continue is intentional final-only and cannot advance twice",withHarness(h=>{
- const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];state.screen="players";h.api.players();h.speak("continue",{final:false,confidence:.99});assert.equal(state.screen,"players");h.speak("continue",{final:true,confidence:.99});assert.equal(state.screen,"ready");h.speak("continue",{final:true,confidence:.99});assert.equal(state.screen,"ready");assert.equal(state.game,null)
-}));
+test("Who’s In real setup lifecycle owns a listening recognizer and final navigation advances once",()=>{
+ for(const phrase of ["continue","next","start"]){const h=createHarness();try{const state=h.api.getState(),recognizer=h.recognition();h.click("#start");h.timers.advance(220);h.click("#startGame");h.timers.advance(220);h.click("#continuePacks");h.timers.advance(220);assert.equal(state.screen,"players",phrase);const voice=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().recognition;assert.equal(voice.state,"listening",phrase);assert.equal(voice.owner.screen,"players",phrase);assert.equal(h.recognition(),recognizer,phrase);recognizer.emit(phrase,{final:false,confidence:.99,resultIndex:0});assert.equal(state.screen,"players",phrase+" interim");recognizer.emit(phrase,{final:true,confidence:.99,resultIndex:0});assert.equal(state.screen,"ready",phrase);recognizer.emit(phrase,{final:true,confidence:.99,resultIndex:0});assert.equal(state.screen,"ready",phrase+" duplicate final");assert.equal(state.game,null)}finally{h.close()}}
+});
+
+test("Who’s In finalizes an exact interim command when WebKit ends speech without a final result",()=>{
+ for(const phrase of ["continue","next","start"]){const h=createHarness();try{const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];state.screen="players";h.api.players();const recognition=h.recognition();recognition.emit(phrase,{final:false,confidence:.8,resultIndex:0});assert.equal(state.screen,"players",phrase);recognition.speechEnd();h.timers.advance(239);assert.equal(state.screen,"players",phrase+" before finalization");h.timers.advance(1);assert.equal(state.screen,"ready",phrase);assert.ok(h.api.getVoiceDiagnostics().some(row=>row.stage==="players-navigation-finalized"&&row.command===phrase))}finally{h.close()}}
+});
+
+test("numbered defaults apply only to automatically generated players",()=>{
+ const fresh=createHarness();try{const state=fresh.api.getState();state.mode="original";state.players=[];state.screen="players";fresh.api.players();assert.deepEqual(Array.from(state.players,p=>p.name),["Player 1","Player 2","Player 3"]);fresh.click("#add");assert.equal(state.players.at(-1).name,"Player 4");fresh.speak("6 players",{final:true});assert.deepEqual(Array.from(state.players,p=>p.name),["Player 1","Player 2","Player 3","Player 4","Player 5","Player 6"])}finally{fresh.close()}
+ const custom=createHarness();try{const state=custom.api.getState();state.mode="original";state.players=[{id:"p1",name:"Vicente"},{id:"p2",name:"T"}];state.screen="players";custom.api.players();custom.click("#add");assert.deepEqual(Array.from(state.players,p=>p.name),["Vicente","T","Player 3"]);const input=custom.document.querySelector('[data-p="p2"]');input.value="Teemoney";input.dispatchEvent(new custom.window.Event("input",{bubbles:true}));custom.api.players();assert.deepEqual(Array.from(state.players,p=>p.name),["Vicente","Teemoney","Player 3"])}finally{custom.close()}
+});
 
 test("used question IDs survive save/resume and remain ineligible",withHarness(h=>{
  const state=h.api.getState();state.mode="original";state.contentPacks=["street","movies","music"];state.difficulty="medium";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];h.api.startGame();const first=h.api.pickQuestion();assert.ok(first?.id);h.api.saveActiveGame();state.game=null;h.api.resumeSavedGame();assert.ok(state.game.used.includes(first.id));const second=h.api.pickQuestion();assert.ok(second?.id);assert.notEqual(second.id,first.id);assert.equal(new Set(state.game.used).size,state.game.used.length)
@@ -445,7 +454,7 @@ test("Who’s In voice player totals create practical editable rosters without a
 });
 
 test("player-count commands use total semantics and protect meaningful trailing names",withHarness(h=>{
- const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];state.screen="players";h.api.players();h.speak("Add 13 players");assert.equal(state.players.length,13);h.speak("Make it 20 players");assert.equal(state.players.length,20);state.players[19].name="Jordan";h.api.players();h.speak("Set 6 players");assert.equal(state.players.length,20);assert.ok(h.api.getVoiceDiagnostics().some(x=>x.reason==="roster-count-would-remove-names"));state.players.slice(6).forEach(p=>p.name="");h.api.players();h.speak("6 players");assert.equal(state.players.length,6)
+ const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];state.screen="players";h.api.players();h.speak("Add 13 players");assert.equal(state.players.length,13);h.speak("Make it 20 players");assert.equal(state.players.length,20);state.players[19].name="Jordan";state.players[19].autoName=false;h.api.players();h.speak("Set 6 players");assert.equal(state.players.length,20);assert.ok(h.api.getVoiceDiagnostics().some(x=>x.reason==="roster-count-would-remove-names"));state.players.slice(6).forEach(p=>p.name="");h.api.players();h.speak("6 players");assert.equal(state.players.length,6)
 }));
 
 test("unfinished Game Setup and Who’s In sessions resume as setup data, never fake games",()=>{
@@ -697,10 +706,19 @@ test("Family-Feud-style judging accepts safe equivalents and category examples",
   ["taco",{q:"Name a food",a:"food"}],
   ["car",{q:"Name a vehicle",a:"vehicle"}],
   ["truck",{q:"Name a vehicle",a:"vehicle"}],
-  ["bus",{q:"Name a vehicle",a:"vehicle"}]
+ ["bus",{q:"Name a vehicle",a:"vehicle"}]
+  ,["so it doesn't move",{q:"Why should cargo be secured?",a:"so the cargo does not shift"}]
+  ,["wheelchair ramp",{q:"What can help a wheelchair enter the bus?",a:"ramp or lift"}]
+  ,["Pacific",{q:"Which ocean borders California?",a:"Pacific Ocean"}]
+  ,["Graham Bell",{q:"Who invented the telephone?",a:"Alexander Graham Bell"}]
+  ,["natural selection",{q:"What idea did Darwin develop?",a:"the theory of evolution by natural selection"}]
  ];
  for(const [heard,q] of accepted)assert.equal(h.api.accepted(heard,q),true,heard);
  for(const heard of ["plot","character","setting"])assert.equal(h.api.accepted(heard,{q:"What is the struggle in a story called?",a:"conflict"}),false,heard)
+}));
+
+test("rejected answer diagnostics expose normalized input concepts aliases rules and reason",withHarness(h=>{
+ const state=activeTimedQuestion(h);state.game.current={id:"diagnostic-conflict",q:"What is the struggle in a story called?",a:"conflict",accept:["central conflict"]};h.speak("plot",{final:true});const attempt=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.answers().at(-1),match=h.api.getVoiceDiagnostics().filter(row=>row.stage==="answer-match-produced").at(-1);assert.equal(state.screen,"question");assert.equal(attempt.normalizedTranscript,"plot");assert.equal(attempt.canonicalAnswer,"conflict");assert.equal(attempt.rejectionReason,"no-controlled-concept-or-identity-match");assert.ok(attempt.semanticRulesAttempted.includes("safe-concept-equivalence"));assert.ok(attempt.aliasesConsidered.some(entry=>entry.value==="central conflict"));assert.equal(match.expectedAnswer,"conflict");assert.equal(match.reason,"no-controlled-concept-or-identity-match")
 }));
 
 test("speech begun before zero can finalize after zero exactly once",withHarness(h=>{

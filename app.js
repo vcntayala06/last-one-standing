@@ -22,7 +22,7 @@ const EXTRA_CATEGORIES=[
  "Science & Nature","Geography","Pop Culture","90s & 2000s","Transportation","Word Play"
 ];
 if(!window.LOS_QUESTION_BANK_DATA||!window.LOS_QUESTION_BANK_BATCH_1||!window.LOS_QUESTION_BANK_BATCH_2||!window.LOS_QUESTION_BANK_BATCH_3||!window.LOSQuestionBank)throw new Error("Question bank failed to load");
-const QUESTION_BANK_SOURCE={...window.LOS_QUESTION_BANK_DATA,bankVersion:"stage-6.27-no-repeat",questions:[...window.LOS_QUESTION_BANK_DATA.questions,...window.LOS_QUESTION_BANK_BATCH_1.questions,...window.LOS_QUESTION_BANK_BATCH_2.questions,...window.LOS_QUESTION_BANK_BATCH_3.questions]};
+const QUESTION_BANK_SOURCE={...window.LOS_QUESTION_BANK_DATA,bankVersion:"stage-6.28-semantic-judge",questions:[...window.LOS_QUESTION_BANK_DATA.questions,...window.LOS_QUESTION_BANK_BATCH_1.questions,...window.LOS_QUESTION_BANK_BATCH_2.questions,...window.LOS_QUESTION_BANK_BATCH_3.questions]};
 const QUESTION_BANK=window.LOSQuestionBank.createQuestionBank(QUESTION_BANK_SOURCE);
 const QUESTIONS=QUESTION_BANK.questions.map(QUESTION_BANK.toGameplay);
 let state={
@@ -123,7 +123,7 @@ const HOST_LINE_TUNING={
 let hostSystem=null;
 let recognition=null,questionTimer=null,answerGraceTimer=null,flowTimer=null,pausedRemaining=null,pausedFrom=null,pausedResultDelay=null,resultDelayRemaining=null,renamePending=null,lastVolume=state.volume>0?state.volume:.65,questionSoundTimers=[],celebrationTimers=[],handoffTimers=[];
 let runtimeSessionId=0,renderGeneration=0,setupRenderId=0,pendingTransitionCause={trigger:"internal",reason:"runtime"},questionReading=false,questionSessionId=0,answerListening=false,playerUpRenderGeneration=0;
-const BUILD_INFO={stage:"6.27",version:"voice-no-repeat-visible-reactions-fit",builtAt:"2026-08-25"},transitionDiagnostics=[],screenLifetimeDiagnostics=[],answerDiagnostics=[],playerUpDiagnostics=[],audioDiagnostics={tick:"off",buzzerFired:false},transitionDebugEnabled=new URLSearchParams(location.search).get("playtestDebug")==="1"||localStorage.getItem("los_playtest_debug")==="1";
+const BUILD_INFO={stage:"6.28",version:"live-whos-in-voice-numbered-defaults-semantic-judge",builtAt:"2026-08-25"},transitionDiagnostics=[],screenLifetimeDiagnostics=[],answerDiagnostics=[],playerUpDiagnostics=[],audioDiagnostics={tick:"off",buzzerFired:false},transitionDebugEnabled=new URLSearchParams(location.search).get("playtestDebug")==="1"||localStorage.getItem("los_playtest_debug")==="1";
 function enterScreen(next,reason="render",trigger=pendingTransitionCause.trigger||"internal"){
  const from=state.screen,sourceSession=runtimeSessionId,validScreens=new Set(["home","setup","packs","mode","industry","difficulty","fun","players","time","ready","handoff","transition","question","result","showdown","complete","paused"]),valid=validScreens.has(next);
  if(!valid){const rejected={accepted:false,from,to:next,reason,trigger,command:trigger==="voice"?pendingTransitionCause.reason:null,callback:trigger==="internal-game-event"?reason:null,at:Date.now(),sourceSession,session:runtimeSessionId,renderGeneration};transitionDiagnostics.push(rejected);return runtimeSessionId}
@@ -308,7 +308,7 @@ function createHostSystem(provider=defaultHostProvider()){
 }
 function startMusic(){if(isSetupScreen()||state.screen==="home")GameAudio.playMusic("setup",{owner:"setup"})}
 function stopMusic(){GameAudio.stopMusic()}
-function clearRuntime(){hostSystem?.cancel("runtime-change");questionReading=false;answerListening=false;audioDiagnostics.tick="off";GameAudio.restore();GameAudio.stopPending();clearInterval(questionTimer);questionTimer=null;clearTimeout(answerGraceTimer);answerGraceTimer=null;clearTimeout(flowTimer);flowTimer=null;questionSoundTimers.forEach(clearTimeout);questionSoundTimers=[];handoffTimers.forEach(clearTimeout);handoffTimers=[];celebrationTimers.forEach(id=>{clearTimeout(id);clearInterval(id)});celebrationTimers=[]}
+function clearRuntime(){clearPendingPlayersNavigation();hostSystem?.cancel("runtime-change");questionReading=false;answerListening=false;audioDiagnostics.tick="off";GameAudio.restore();GameAudio.stopPending();clearInterval(questionTimer);questionTimer=null;clearTimeout(answerGraceTimer);answerGraceTimer=null;clearTimeout(flowTimer);flowTimer=null;questionSoundTimers.forEach(clearTimeout);questionSoundTimers=[];handoffTimers.forEach(clearTimeout);handoffTimers=[];celebrationTimers.forEach(id=>{clearTimeout(id);clearInterval(id)});celebrationTimers=[]}
 function isSetupScreen(){return ["setup","packs","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen)}
 function exitSetup(){if(state.game)return;markSetupAbandoned(state.screen);state.game=null;home()}
 function bindSetupShell(){document.querySelectorAll("[data-setup-exit]").forEach(button=>button.onclick=exitSetup)}
@@ -322,8 +322,10 @@ function displayAnswer(value){
 }
 function remembered(){try{return JSON.parse(localStorage.getItem(STORAGE.names)||"[]")}catch{return[]}}
 function rememberNames(){const ns=state.players.map(p=>p.name.trim()).filter(Boolean);localStorage.setItem(STORAGE.names,JSON.stringify([...new Set([...remembered(),...ns])].slice(-50)))}
+function defaultPlayer(index){return{id:uid(),name:`Player ${index+1}`,autoName:true}}
+function syncDefaultPlayerNames(){state.players.forEach((p,index)=>{if(p.autoName)p.name=`Player ${index+1}`})}
 function ensurePlayers(){
- if(!state.players.length)state.players=[{id:uid(),name:"Vicente"},{id:uid(),name:"Todd"},{id:uid(),name:"Maria"}];
+ if(!state.players.length)state.players=[defaultPlayer(0),defaultPlayer(1),defaultPlayer(2)];
  if(state.mode==="solo")state.players=state.players.slice(0,1);
  state.players=state.players.map(p=>({...p,hostStyle:["masculine","feminine","neutral"].includes(p.hostStyle)?p.hostStyle:"neutral"}));
  state.selectedIds=state.players.filter(p=>p.name.trim()).map(p=>p.id)
@@ -337,6 +339,7 @@ function updateRetryMicAvailability(){
 }
 function temporarilySuspendRecognitionForHost(){
  if(!state.voiceOn||!recognition)return false;
+ clearPendingPlayersNavigation();
  voiceCore.actualState="suppressed";voiceCore.suppressionReason="host-speech";voiceDiagnostic("recognition-suppressed",{reason:"host-speech"});
  clearTimeout(voiceCore.restart);voiceCore.restart=null;clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=null;voiceCore.generation++;
  voiceCore.health={generation:voiceCore.generation,phase:"suppressed",events:{suppressed:performance.now()}};
@@ -344,6 +347,7 @@ function temporarilySuspendRecognitionForHost(){
  const r=recognition;recognition=null;try{detachRecognitionCallbacks(r);r.abort()}catch{};return true
 }
 function stopVoice(reason="voice-setting-off",detail={}){
+ clearPendingPlayersNavigation();
  voiceCore.desired=false;voiceCore.lastDesiredDecision={desired:false,reason,screen:state.screen,session:runtimeSessionId,at:Date.now(),...detail};
  voiceCore.actualState="stopped";voiceCore.suppressionReason=reason;voiceDiagnostic("voice-desired-changed",voiceCore.lastDesiredDecision);voiceDiagnostic("recognition-stop-requested",{reason,...detail});
  voiceCore.handledInterimSlots.clear();voiceCore.navQueued=null;
@@ -414,7 +418,7 @@ function fuzzyVisibleTarget(h){
  return false
 }
 const voicePageHidden=()=>{try{return !document.defaultView||document.visibilityState==="hidden"}catch{return true}};
-let voiceCore={ctx:null,owner:null,restart:null,errorWatchdog:null,generation:0,retryAttempt:0,restartCount:0,desired:false,lastDesiredDecision:{desired:false,reason:"initializing"},actualState:"stopped",health:{generation:0,phase:"stopped",events:{}},lastManualRecoveryAt:-Infinity,lastKey:"",lastAt:0,lastHeard:"",lastTranscript:"",lastTranscriptFinal:null,lastInterim:"",lastFinal:"",lastRoute:"",lastRejection:"",lastError:"",suppressionReason:"",startRequestedAt:null,startedAt:null,listeningAt:null,lastSpeechAt:null,endedAt:null,permissionBlocked:false,handledInterimSlots:new Map(),interimCandidates:new Map(),navQueued:null,diagnostics:[],utterance:0,currentUtterance:null,answerUtterance:null,latencySeen:new Set()},lastPlayerVoiceMutation={key:"",at:0},voiceLifecycleSuspended=voicePageHidden();
+let voiceCore={ctx:null,owner:null,restart:null,errorWatchdog:null,generation:0,retryAttempt:0,restartCount:0,desired:false,lastDesiredDecision:{desired:false,reason:"initializing"},actualState:"stopped",health:{generation:0,phase:"stopped",events:{}},lastManualRecoveryAt:-Infinity,lastKey:"",lastAt:0,lastHeard:"",lastTranscript:"",lastTranscriptFinal:null,lastInterim:"",lastFinal:"",lastRoute:"",lastRejection:"",lastError:"",suppressionReason:"",startRequestedAt:null,startedAt:null,listeningAt:null,lastSpeechAt:null,endedAt:null,permissionBlocked:false,handledInterimSlots:new Map(),handledFinalSlots:new Map(),interimCandidates:new Map(),navQueued:null,pendingPlayersNav:null,pendingPlayersNavTimer:null,diagnostics:[],utterance:0,currentUtterance:null,answerUtterance:null,latencySeen:new Set()},lastPlayerVoiceMutation={key:"",at:0},voiceLifecycleSuspended=voicePageHidden();
 const VOICE_LATENCY_MODE=new URLSearchParams(location.search).get("voiceLatency")==="1";
 const VOICE_HEALTH_MODE=VOICE_LATENCY_MODE||new URLSearchParams(location.search).get("voiceHealth")==="1"||localStorage.getItem("los_voice_health")==="1";
 function voiceTimelineSnapshot(){
@@ -499,6 +503,16 @@ function queueVoiceNavigation(h,isFinal,confidence){
  voiceCore.navQueued={h,isFinal,confidence,screen:state.screen,session:runtimeSessionId};
  voiceDiagnostic("command-matched",{command:commandKey(h),result:"queued-navigation-lock"});
  return true
+}
+function clearPendingPlayersNavigation(){clearTimeout(voiceCore?.pendingPlayersNavTimer);if(voiceCore){voiceCore.pendingPlayersNavTimer=null;voiceCore.pendingPlayersNav=null}}
+function rememberPlayersNavigationCandidate(text,confidence,resultIndex,generation){
+ const command=norm(text);if(state.screen!=="players"||!/^(continue|next|start)$/.test(command))return false;
+ clearPendingPlayersNavigation();voiceCore.pendingPlayersNav={text,command,confidence,resultIndex,generation,screen:state.screen,session:runtimeSessionId};voiceDiagnostic("players-navigation-candidate",{command,resultIndex,confidence,generation});return true
+}
+function finalizePlayersNavigationCandidate(reason="speech-ended"){
+ const candidate=voiceCore.pendingPlayersNav;clearPendingPlayersNavigation();
+ if(!candidate||candidate.generation!==voiceCore.generation||candidate.screen!=="players"||state.screen!=="players"||candidate.session!==runtimeSessionId){if(candidate)voiceDiagnostic("command-rejected",{command:candidate.command,reason:"stale-players-navigation-candidate"});return false}
+ voiceDiagnostic("players-navigation-finalized",{command:candidate.command,reason,resultIndex:candidate.resultIndex});return routeVoiceCentral(candidate.text,{isFinal:true,confidence:candidate.confidence,resultIndex:candidate.resultIndex})
 }
 function centralNavIntent(h,isFinal=false,confidence=0){
  const n=norm(h);
@@ -654,15 +668,15 @@ function playersVoiceController(h){
   if(/^(cancel|never mind|nevermind)$/.test(n)){renamePending=null;voiceFeedback("✓ CANCEL","action");return true}
   if(/^(done|save|save name|finished)$/.test(n)){renamePending=null;rerenderPlayerContext();return true}
   if(/^(clear|clear name)$/.test(n)){
-   const p=state.players.find(x=>x.id===renamePending.id);if(p){p.name="";rerenderPlayerContext()}return true
+   const p=state.players.find(x=>x.id===renamePending.id);if(p){p.name="";p.autoName=false;rerenderPlayerContext()}return true
   }
   if(/^(backspace|delete letter)$/.test(n)){
-   const p=state.players.find(x=>x.id===renamePending.id);if(p){p.name=(p.name||"").slice(0,-1);rerenderPlayerContext()}return true
+   const p=state.players.find(x=>x.id===renamePending.id);if(p){p.name=(p.name||"").slice(0,-1);p.autoName=false;rerenderPlayerContext()}return true
   }
   const letters=spokenLetters(raw);
   if(letters){
    const p=state.players.find(x=>x.id===renamePending.id);
-   if(p){p.name=((p.name||"")+letters).replace(/\s+/g,"");rerenderPlayerContext()}
+   if(p){p.name=((p.name||"")+letters).replace(/\s+/g,"");p.autoName=false;rerenderPlayerContext()}
    return true
   }
  }
@@ -676,9 +690,10 @@ function playersVoiceController(h){
  m=raw.match(/^(?:(?:make it|set|add)\s+)?(\d{1,4}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty(?:\s+(?:one|two|three|four|five|six|seven|eight|nine))?|thirty)\s+players?$/i);
  if(m){
   const total=spokenNumber(m[1]);if(total<1)return false;
-  if(total<state.players.length&&state.players.slice(total).some(p=>(p.name||"").trim())){voiceFeedback("CLEAR TRAILING PLAYER NAMES FIRST","error");voiceDiagnostic("command-rejected",{reason:"roster-count-would-remove-names",requestedRosterCount:total});return true}
-  while(state.players.length<total)state.players.push({id:uid(),name:""});
+  if(total<state.players.length&&state.players.slice(total).some(p=>!p.autoName&&(p.name||"").trim())){voiceFeedback("CLEAR TRAILING PLAYER NAMES FIRST","error");voiceDiagnostic("command-rejected",{reason:"roster-count-would-remove-names",requestedRosterCount:total});return true}
+  while(state.players.length<total)state.players.push(defaultPlayer(state.players.length));
   if(state.players.length>total)state.players.length=total;
+  syncDefaultPlayerNames();
   voiceDiagnostic("roster-count",{requestedRosterCount:total,actualRosterCount:state.players.length});voiceFeedback(`✓ ${total} PLAYERS`,"action");rerenderPlayerContext();return true
  }
 
@@ -688,12 +703,12 @@ function playersVoiceController(h){
   const token=m[1].trim(),num=spokenNumber(token);
   if(num){
    const i=num-1;
-   if(i>=0&&i<state.players.length){state.players.splice(i,1);voiceFeedback("✓ PLAYER REMOVED","action");rerenderPlayerContext();return true}
+   if(i>=0&&i<state.players.length){state.players.splice(i,1);syncDefaultPlayerNames();voiceFeedback("✓ PLAYER REMOVED","action");rerenderPlayerContext();return true}
   }
   const key=nameKey(token);
   let i=state.players.findIndex(p=>nameKey(p.name)===key);
   if(i<0)i=state.players.findIndex(p=>{const pk=nameKey(p.name);return pk&&key&&(pk.startsWith(key)||key.startsWith(pk))});
-  if(i>=0){state.players.splice(i,1);voiceFeedback("✓ PLAYER REMOVED","action");rerenderPlayerContext();return true}
+  if(i>=0){state.players.splice(i,1);syncDefaultPlayerNames();voiceFeedback("✓ PLAYER REMOVED","action");rerenderPlayerContext();return true}
   return false
  }
 
@@ -702,8 +717,8 @@ function playersVoiceController(h){
  if(m){
   const i=spokenNumber(m[1])-1,name=m[2].trim();
   if(i>=0&&name){
-   while(state.players.length<=i)state.players.push({id:uid(),name:""});
-   state.players[i].name=name;voiceFeedback("✓ "+name.toUpperCase(),"action");rerenderPlayerContext();return true
+   while(state.players.length<=i)state.players.push(defaultPlayer(state.players.length));
+   state.players[i].name=name;state.players[i].autoName=false;voiceFeedback("✓ "+name.toUpperCase(),"action");rerenderPlayerContext();return true
   }
  }
 
@@ -712,7 +727,7 @@ function playersVoiceController(h){
  if(m){
   const from=nameKey(m[1]),to=m[2].trim();
   const p=state.players.find(x=>nameKey(x.name)===from);
-  if(p&&to){p.name=to;voiceFeedback("✓ "+to.toUpperCase(),"action");rerenderPlayerContext();return true}
+  if(p&&to){p.name=to;p.autoName=false;voiceFeedback("✓ "+to.toUpperCase(),"action");rerenderPlayerContext();return true}
  }
 
  // Assign by number
@@ -720,8 +735,8 @@ function playersVoiceController(h){
  if(m){
   const i=spokenNumber(m[1])-1,name=m[2].trim();
   if(i>=0&&name){
-   while(state.players.length<=i)state.players.push({id:uid(),name:""});
-   state.players[i].name=name;voiceFeedback("✓ "+name.toUpperCase(),"action");rerenderPlayerContext();return true
+   while(state.players.length<=i)state.players.push(defaultPlayer(state.players.length));
+   state.players[i].name=name;state.players[i].autoName=false;voiceFeedback("✓ "+name.toUpperCase(),"action");rerenderPlayerContext();return true
   }
  }
 
@@ -745,7 +760,7 @@ function playersVoiceController(h){
  if(m){
   let name=(m[1]||"").trim();
   if(/^player$/i.test(name))name="";
-  state.players.push({id:uid(),name});
+  state.players.push(name?{id:uid(),name,autoName:false}:defaultPlayer(state.players.length));
   voiceFeedback(name?`✓ ${name.toUpperCase()}`:"✓ PLAYER ADDED","action");
   rerenderPlayerContext();return true
  }
@@ -781,7 +796,7 @@ function centralQuestionIntent(h,isFinal=false,confidence=0,resultIndex=-1){
  if(Number(state.game.questionRemaining)<=0&&(!voiceCore.answerUtterance?.startedBeforeDeadline||voiceCore.answerUtterance.questionSessionId!==questionSessionId)){voiceDiagnostic("answer-attempt-rejected",{rawTranscript:h,isFinal,reason:"speech-started-after-deadline",questionSessionId});return false}
  const n=norm(h);
  if(!isFinal){
-  voiceDiagnostic("answer-matcher-invoked",{text:h,normalizedText:n,isFinal:false,resultIndex,questionSessionId});const match=answerMatchTrace(h,state.game.current);voiceDiagnostic("answer-match-produced",{text:h,accepted:match.accepted,method:match.method,isFinal:false,resultIndex,questionSessionId});const key=`${questionSessionId}:${resultIndex}`,prior=voiceCore.interimCandidates.get(key),stable=!!(match.accepted&&prior?.normalized===n),highConfidence=match.accepted&&confidence>=.9;
+  voiceDiagnostic("answer-matcher-invoked",{text:h,normalizedText:n,isFinal:false,resultIndex,questionSessionId});const match=answerMatchTrace(h,state.game.current);voiceDiagnostic("answer-match-produced",{text:h,normalizedText:n,expectedAnswer:state.game.current.a,accepted:match.accepted,method:match.method,reason:match.reason||null,aliasesConsidered:match.aliasesConsidered||[],attemptedRules:match.attemptedRules||[],isFinal:false,resultIndex,questionSessionId});const key=`${questionSessionId}:${resultIndex}`,prior=voiceCore.interimCandidates.get(key),stable=!!(match.accepted&&prior?.normalized===n),highConfidence=match.accepted&&confidence>=.9;
   voiceCore.interimCandidates.set(key,{normalized:n,accepted:match.accepted,at:performance.now()});
   if(!match.accepted){if(n)voiceDiagnostic("answer-attempt-rejected",{rawTranscript:h,isFinal:false,reason:"interim-not-accepted",questionSessionId,remaining:state.game.questionRemaining});return false}
   voiceDiagnostic("answer-interim-evaluated",{text:h,normalizedText:n,confidence,resultIndex,stable,highConfidence,matchMethod:match.method,questionSessionId});
@@ -794,7 +809,7 @@ function centralQuestionIntent(h,isFinal=false,confidence=0,resultIndex=-1){
  if(/^(pass|i pass|pass this|ill pass|i ll pass|im passing|i m passing)$/.test(n)){
   return voiceOnce("pass",()=>{state.game.lastOutcomeDetail="pass";voiceFeedback("✓ PASS","action");finish("pass")})
  }
- voiceDiagnostic("answer-matcher-invoked",{text:h,normalizedText:n,isFinal:true,resultIndex,questionSessionId});const match=answerMatchTrace(h,state.game.current);voiceDiagnostic("answer-match-produced",{text:h,accepted:match.accepted,method:match.method,isFinal:true,resultIndex,questionSessionId});
+ voiceDiagnostic("answer-matcher-invoked",{text:h,normalizedText:n,isFinal:true,resultIndex,questionSessionId});const match=answerMatchTrace(h,state.game.current);voiceDiagnostic("answer-match-produced",{text:h,normalizedText:n,expectedAnswer:state.game.current.a,accepted:match.accepted,method:match.method,reason:match.reason||null,aliasesConsidered:match.aliasesConsidered||[],attemptedRules:match.attemptedRules||[],isFinal:true,resultIndex,questionSessionId});
  if(match.accepted){
   const canonical=norm(state.game.current.a||"");
   return voiceOnce("answer:"+questionSessionId+":"+canonical,()=>{recordAnswerAttempt(h,true,confidence);voiceFeedback("✓ ANSWER","action");finish("correct")})
@@ -802,7 +817,7 @@ function centralQuestionIntent(h,isFinal=false,confidence=0,resultIndex=-1){
  if(n&&n.split(" ").length<=16)return voiceOnce("attempt:"+questionSessionId+":"+n,()=>recordAnswerAttempt(h,false,confidence));
  voiceDiagnostic("answer-attempt-rejected",{rawTranscript:h,isFinal:true,reason:"non-answer-noise",questionSessionId,remaining:state.game.questionRemaining});return true
 }
-function recordAnswerAttempt(raw,correct,confidence=0,isFinal=true){const g=state.game;if(state.screen!=="question"||!g||g.answered||!answerListening)return false;g.speechLog=g.speechLog||[];const q=g.current,match=answerMatchTrace(raw,q),attempt={rawTranscript:String(raw||""),normalizedTranscript:norm(raw),isFinal:!!isFinal,attempt:g.speechLog.length+1,correct:!!correct,accepted:!!match.accepted,matchMethod:match.method,rejectionReason:match.reason||null,questionId:q?.id||null,canonicalAnswer:q?.a||"",acceptedEnglish:[...(q?.accept||[]),...(q?.aliases||[])],acceptedSpanish:[...(q?.es||[])],legacyAlts:[...(q?.alts||[])],heardPhonetic:match.heardPhonetic||phoneticKey(raw),canonicalPhonetic:match.canonicalPhonetic||phoneticKey(q?.a),remaining:g.questionRemaining,questionSessionId,listeningSessionId:runtimeSessionId,recognitionGeneration:voiceCore.generation,playerId:g.players[g.idx]?.id||null,confidence};g.speechLog.push(attempt);answerDiagnostics.push(attempt);if(answerDiagnostics.length>150)answerDiagnostics.shift();if(!correct){const feedback=document.getElementById("answerAttemptFeedback");if(feedback)feedback.textContent="TRY AGAIN"}return true}
+function recordAnswerAttempt(raw,correct,confidence=0,isFinal=true){const g=state.game;if(state.screen!=="question"||!g||g.answered||!answerListening)return false;g.speechLog=g.speechLog||[];const q=g.current,match=answerMatchTrace(raw,q),attempt={rawTranscript:String(raw||""),normalizedTranscript:norm(raw),isFinal:!!isFinal,attempt:g.speechLog.length+1,correct:!!correct,accepted:!!match.accepted,matchMethod:match.method,rejectionReason:match.reason||null,semanticRulesAttempted:match.attemptedRules||[],aliasesConsidered:match.aliasesConsidered||[],questionId:q?.id||null,canonicalAnswer:q?.a||"",acceptedEnglish:[...(q?.accept||[]),...(q?.aliases||[])],acceptedSpanish:[...(q?.es||[])],legacyAlts:[...(q?.alts||[])],heardPhonetic:match.heardPhonetic||phoneticKey(raw),canonicalPhonetic:match.canonicalPhonetic||phoneticKey(q?.a),remaining:g.questionRemaining,questionSessionId,listeningSessionId:runtimeSessionId,recognitionGeneration:voiceCore.generation,playerId:g.players[g.idx]?.id||null,confidence};g.speechLog.push(attempt);answerDiagnostics.push(attempt);if(answerDiagnostics.length>150)answerDiagnostics.shift();if(!correct){if(transitionDebugEnabled)console.debug("[LOS answer rejected]",attempt);const feedback=document.getElementById("answerAttemptFeedback");if(feedback)feedback.textContent="TRY AGAIN"}return true}
 function endConfirmIntent(h){
  const n=norm(h);
  const modal=document.querySelector(".modal,.confirm,.overlay");
@@ -887,6 +902,7 @@ function startVoice(ctx){
  voiceCore.health={generation,phase:"start-requested",events:{"start-requested":performance.now()}};
  voiceCore.actualState="starting";voiceCore.startRequestedAt=performance.now();voiceDiagnostic("recognition-start-requested",{generation,owner:voiceCore.owner});
  voiceCore.handledInterimSlots.clear();
+ voiceCore.handledFinalSlots.clear();
  try{
   const r=new SR();recognition=r;
   r.lang="en-US";
@@ -901,7 +917,7 @@ function startVoice(ctx){
   r.onaudiostart=()=>{if(voiceCore.generation!==generation||recognition!==r)return;setVoiceHealth(generation,"audio-detected");voiceDiagnostic("audio-start",{generation})};
   r.onsoundstart=()=>{if(voiceCore.generation!==generation||recognition!==r)return;setVoiceHealth(generation,"sound-detected");beginVoiceLatencyUtterance("sound-start")};
   r.onspeechstart=()=>{if(voiceCore.generation!==generation||recognition!==r)return;setVoiceHealth(generation,"waiting-for-transcript");if(!voiceCore.currentUtterance)beginVoiceLatencyUtterance("speech-start");else voiceDiagnostic("speech-start");voiceCore.answerUtterance={id:voiceCore.currentUtterance,questionSessionId,startedBeforeDeadline:state.screen==="question"&&answerListening&&Number(state.game?.questionRemaining)>0}}
-  r.onspeechend=()=>{if(voiceCore.generation!==generation||recognition!==r)return;voiceDiagnostic("speech-end")};
+  r.onspeechend=()=>{if(voiceCore.generation!==generation||recognition!==r)return;voiceDiagnostic("speech-end");if(voiceCore.pendingPlayersNav){clearTimeout(voiceCore.pendingPlayersNavTimer);voiceCore.pendingPlayersNavTimer=setTimeout(()=>finalizePlayersNavigationCandidate("speech-ended-without-final-result"),240)}};
   r.onsoundend=()=>{if(voiceCore.generation!==generation||recognition!==r)return;voiceDiagnostic("sound-end")};
   r.onaudioend=()=>{if(voiceCore.generation!==generation||recognition!==r)return;voiceDiagnostic("audio-end",{generation})};
 
@@ -913,11 +929,14 @@ function startVoice(ctx){
     const res=e.results[i];
     if(!res)continue;
     let handled=false;
+    const finalSlot=`${generation}:${i}`,primaryText=norm(res[0]?.transcript||"");
+    if(res.isFinal&&voiceCore.handledFinalSlots.get(finalSlot)===primaryText){voiceDiagnostic("command-rejected",{reason:"duplicate-final-result-callback",resultIndex:i,command:primaryText});voiceCore.currentUtterance=null;continue}
 
     if(res.isFinal&&voiceCore.handledInterimSlots.has(i)){
      const prior=voiceCore.handledInterimSlots.get(i),finalText=norm(res[0]?.transcript||"");voiceCore.handledInterimSlots.delete(i);
      if(prior.transcript===finalText&&prior.screen===state.screen&&prior.session===runtimeSessionId){voiceDiagnostic("command-rejected",{reason:"final-after-handled-interim",resultIndex:i,command:finalText});voiceCore.currentUtterance=null;continue}
     }
+    if(res.isFinal)clearPendingPlayersNavigation();
 
     const alternativeOrder=[...Array(Math.min(res.length,5)).keys()];
     if(res.isFinal&&state.screen==="question"&&state.game?.current){const acceptedIndex=alternativeOrder.find(a=>accepted((res[a]?.transcript||"").trim(),state.game.current));if(acceptedIndex>0){alternativeOrder.splice(acceptedIndex,1);alternativeOrder.unshift(acceptedIndex);voiceDiagnostic("answer-alternative-promoted",{resultIndex:i,alternative:acceptedIndex})}}
@@ -933,6 +952,7 @@ function startVoice(ctx){
 
      if(!res.isFinal){
       const n=norm(text);
+      rememberPlayersNavigationCandidate(text,confidence,i,generation);
       if(state.screen==="question"&&state.game?.current&&accepted(text,state.game.current))voiceDiagnostic("answer-interim-prevalidated",{text,normalizedText:n,confidence,resultIndex:i,alternative:a,questionSessionId});
       const fastControl=/^(continue|next|done|go ahead|go on|move on|lets go|let s go|im ready|i m ready|start|begin|back|go back|exit|exit game|leave game|cancel game|quit setup|go home|pause|resume|quit|quit game|end game|stop game|pass|skip|select all|clear all|kids|easy|medium|hard|savage)$/;
       const setupFast=["home","setup","mode","industry","difficulty","fun","players","time","ready","paused"].includes(state.screen);
@@ -944,6 +964,7 @@ function startVoice(ctx){
      }
     }
     if(handled&&!res.isFinal)voiceCore.handledInterimSlots.set(i,{transcript:norm(res[0]?.transcript||""),screen:state.screen,session:runtimeSessionId,generation});
+    if(handled&&res.isFinal)voiceCore.handledFinalSlots.set(finalSlot,primaryText);
     if(!handled&&res.isFinal)voiceDiagnostic("command-rejected",{reason:"no-command-match",resultIndex:i});
     if(res.isFinal)voiceCore.currentUtterance=null;
     if(handled)break
@@ -968,6 +989,7 @@ function startVoice(ctx){
 
   r.onend=()=>{
    if(voiceCore.generation!==generation||recognition!==r)return;
+   finalizePlayersNavigationCandidate("recognition-ended-without-final-result");
    clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=null;voiceCore.actualState="stopped";voiceCore.endedAt=performance.now();setVoiceHealth(generation,"ended");voiceDiagnostic("recognition-ended",{generation,error:voiceCore.lastError});recognition=null;scheduleVoiceRestart()
   };
 
@@ -985,7 +1007,7 @@ function manualRecoverVoice(){
  if(voiceLifecycleSuspended||voicePageHidden())return reject("lifecycle-hidden");
  if(hostSystem?.isSpeaking())return reject("host-speaking");
  const now=performance.now();if(now-voiceCore.lastManualRecoveryAt<750)return reject("duplicate-request");voiceCore.lastManualRecoveryAt=now;
- clearTimeout(voiceCore.restart);voiceCore.restart=null;clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=null;voiceCore.generation++;
+ clearPendingPlayersNavigation();clearTimeout(voiceCore.restart);voiceCore.restart=null;clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=null;voiceCore.generation++;
  const r=recognition;recognition=null;try{if(r){detachRecognitionCallbacks(r);r.abort()}}catch{}
  voiceCore.actualState="stopped";voiceCore.currentUtterance=null;voiceCore.handledInterimSlots.clear();voiceCore.interimCandidates.clear();voiceDiagnostic("manual-recovery-requested",{screen:state.screen,session:runtimeSessionId});startVoice(state.screen);return true
 }
@@ -994,7 +1016,7 @@ function suspendVoiceForLifecycle(reason="visibility-hidden"){
  voiceLifecycleSuspended=true;clearTimeout(voiceCore.restart);voiceCore.restart=null;clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=null;voiceCore.generation++;
  voiceCore.health={generation:voiceCore.generation,phase:"suppressed",events:{suppressed:performance.now()}};
  voiceCore.desired=!!state.voiceOn&&!voiceCore.permissionBlocked;voiceCore.actualState="suppressed";voiceCore.suppressionReason="lifecycle-hidden";voiceCore.lastDesiredDecision={desired:voiceCore.desired,reason:"lifecycle-hidden",event:reason,screen:state.screen,session:runtimeSessionId,at:Date.now()};voiceDiagnostic("voice-lifecycle-suspended",voiceCore.lastDesiredDecision);
- voiceCore.handledInterimSlots.clear();voiceCore.interimCandidates.clear();voiceCore.navQueued=null;const r=recognition;recognition=null;
+ clearPendingPlayersNavigation();voiceCore.handledInterimSlots.clear();voiceCore.interimCandidates.clear();voiceCore.navQueued=null;const r=recognition;recognition=null;
  try{if(r){detachRecognitionCallbacks(r);r.abort()}}catch{}
 }
 function resumeVoiceForLifecycle(reason="visibility-visible"){
@@ -1021,6 +1043,16 @@ const SAFE_CONCEPT_EQUIVALENTS=[
 function genericConceptEquivalent(a,b){a=norm(a);b=norm(b);return SAFE_CONCEPT_EQUIVALENTS.some(group=>group.has(a)&&group.has(b))}
 const SAFE_CATEGORY_EXAMPLES={food:new Set(["apple","banana","bread","burger","pizza","rice","salad","sandwich","taco"]),vehicle:new Set(["bus","car","motorcycle","truck","van"])};
 function safeCategoryExample(heard,target){return SAFE_CATEGORY_EXAMPLES[norm(target)]?.has(norm(heard))===true}
+function safeActionEquivalent(heard,target){
+ const clean=value=>norm(value).replace(/\b(?:doesn t|don t|didn t|cannot|can t|won t)\b/g,"not");
+ const h=clean(heard),t=clean(target),negative=value=>/\b(?:not|prevent|prevents|preventing|stop|stops|stopping|avoid|avoids|avoiding)\b/.test(value),movement=value=>/\b(?:move|moves|moving|shift|shifts|shifting|slide|slides|sliding)\b/.test(value);
+ return negative(h)&&negative(t)&&movement(h)&&movement(t)
+}
+function safeAlternativeSpecificity(heard,target){
+ const h=norm(heard).split(" ").filter(Boolean),options=norm(target).split(/\s+or\s+/).map(value=>value.split(" ").filter(Boolean));
+ if(options.length<2||options.some(option=>!option.length||option.length>2)||h.length>4)return false;
+ return options.some(option=>option.every(token=>h.includes(token)))
+}
 function safeWordFormEquivalent(a,b){a=norm(a);b=norm(b);if(!a||!b||a.includes(" ")||b.includes(" "))return false;const singular=x=>x.length>4&&x.endsWith("ies")?x.slice(0,-3)+"y":x.length>4&&/(?:ches|shes|xes|zes|ses)$/.test(x)?x.slice(0,-2):x.length>3&&x.endsWith("s")&&!x.endsWith("ss")?x.slice(0,-1):x;return singular(a)===singular(b)&&Math.min(a.length,b.length)>=4}
 const GENERIC_PARTIAL_ANSWER_WORDS=new Set(["animal","author","book","bridge","capital","city","color","country","element","film","food","game","instrument","language","movie","number","ocean","person","planet","president","river","scientist","singer","song","sport","state","team","theory","vehicle","war"]);
 function meaningfulPartialAnswer(heard,target,question=""){
@@ -1041,13 +1073,15 @@ function answerMatchTrace(h,q){
  if(!q)return{accepted:false,method:"no-question",reason:"no-current-question"};
  const answerNorm=value=>String(value||"").toLocaleLowerCase().normalize("NFKD").replace(/\p{M}/gu,"").replace(/[^\p{L}\p{N}\s]/gu," ").replace(/\s+/g," ").trim();
  const stripSafeArticle=value=>answerNorm(value).replace(/^(?:the|a|an|el|la|los|las|un|una)\s+/,"");
- const rawHeard=answerNorm(h),heard=rawHeard.replace(/^(?:the answer is|my answer is|i think it is|i think it s|it is|it s|i m going with)\s+/,""),heardCore=stripSafeArticle(heard);
+ const rawHeard=answerNorm(h),heard=rawHeard.replace(/^(?:so|well|okay|ok|the answer is|my answer is|i think it is|i think it s|i believe it is|i believe it s|it is|it s|i m going with|i would say)\s+/,""),heardCore=stripSafeArticle(heard),attemptedRules=["exact-or-approved-alias","safe-concept-equivalence","safe-category-example","safe-action-equivalence","safe-alternative-specificity","safe-word-form","bounded-edit","phonetic-identity","meaningful-partial","question-context"];
  const entries=[{value:q.a,source:"canonical"},...(q.accept||[]).map(value=>({value,source:"accepted-english"})),...(q.aliases||[]).map(value=>({value,source:"legacy-alias"})),...(q.alts||[]).map(value=>({value,source:"legacy-alt"})),...(q.es||[]).map(value=>({value,source:"accepted-spanish"})),...(q.equivalents||[]).map(value=>({value,source:"concept-equivalent"}))].filter(x=>x.value).map(entry=>({...entry,target:answerNorm(entry.value),targetCore:stripSafeArticle(entry.value)}));
  for(const {value:ans,source,target,targetCore} of entries)if(rawHeard===target)return{accepted:true,method:source==="canonical"?"exact-canonical":source,matched:ans,heard:rawHeard,heardCore:stripSafeArticle(rawHeard),target,targetCore};
  for(const {value:ans,source,target,targetCore} of entries)if(heard===target||heardCore===targetCore)return{accepted:true,method:source==="canonical"?"exact-canonical":source,matched:ans,heard,heardCore,target,targetCore};
  for(const {value:ans,source,target,targetCore} of entries){
   if(genericConceptEquivalent(heardCore,targetCore))return{accepted:true,method:"generic-safe-equivalence",matched:ans,heard,heardCore,target,targetCore};
   if(safeCategoryExample(heardCore,targetCore))return{accepted:true,method:"safe-category-example",matched:ans,heard,heardCore,target,targetCore};
+  if(safeActionEquivalent(heardCore,targetCore))return{accepted:true,method:"safe-action-equivalence",matched:ans,heard,heardCore,target,targetCore};
+  if(safeAlternativeSpecificity(heardCore,targetCore))return{accepted:true,method:"safe-alternative-specificity",matched:ans,heard,heardCore,target,targetCore};
   if(safeWordFormEquivalent(heardCore,targetCore))return{accepted:true,method:"safe-word-form",matched:ans,heard,heardCore,target,targetCore};
   if(targetCore.length>=7&&Math.abs(heardCore.length-targetCore.length)<=1&&editSimilarity(heardCore,targetCore)>=.88)return{accepted:true,method:"normalization-edit",matched:ans,heard,heardCore,target,targetCore};
   const hp=phoneticKey(heardCore),tp=phoneticKey(targetCore);
@@ -1059,7 +1093,7 @@ function answerMatchTrace(h,q){
  if(concept&&heardCore===concept&&tokens.some(token=>safeDescriptors.has(token)))return{accepted:true,method:"canonical-safe-descriptor",matched:q.a,heard,heardCore,target:answerNorm(q.a),targetCore:concept};
  const countQuestion=/\b(?:how many|what number|number of)\b/.test(answerNorm(q.q)),numberWords=/^(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|\d+)$/;
  if(countQuestion&&numberWords.test(heardCore)&&tokens[0]===heardCore&&tokens.length===2)return{accepted:true,method:"question-context-unit-omission",matched:q.a,heard,heardCore,target:answerNorm(q.a),targetCore:tokens[0]};
- return{accepted:false,method:"rejected",reason:"no-controlled-concept-or-identity-match",heard,heardCore,heardPhonetic:phoneticKey(heardCore),canonical:answerNorm(q.a),canonicalPhonetic:phoneticKey(q.a),acceptedEnglish:[...(q.accept||[]),...(q.aliases||[])],acceptedSpanish:[...(q.es||[])],conceptEquivalents:[...(q.equivalents||[])],legacyAlts:[...(q.alts||[])]}
+ return{accepted:false,method:"rejected",reason:"no-controlled-concept-or-identity-match",heard,heardCore,heardPhonetic:phoneticKey(heardCore),canonical:answerNorm(q.a),canonicalPhonetic:phoneticKey(q.a),acceptedEnglish:[...(q.accept||[]),...(q.aliases||[])],acceptedSpanish:[...(q.es||[])],conceptEquivalents:[...(q.equivalents||[])],legacyAlts:[...(q.alts||[])],aliasesConsidered:entries.map(entry=>({source:entry.source,value:entry.targetCore})),attemptedRules}
 }
 function accepted(h,q){return answerMatchTrace(h,q).accepted}
 function spokenLetters(s){
@@ -1080,7 +1114,7 @@ function saveActiveGame(){
   localStorage.setItem(STORAGE.activeGame,JSON.stringify(payload))
  }catch{}
 }
-function setupPayload(screen=state.screen,resumable=false){return{version:2,kind:"setup",resumable:!!resumable,savedAt:Date.now(),screen:["setup","players"].includes(screen)?screen:"setup",mode:state.mode,contentPacks:state.contentPacks||["original"],quick:!!state.quick,duration:state.duration,questionSeconds:state.questionSeconds,categories:state.categories||[],industry:state.industry||"",difficulty:state.difficulty||"medium",answerLanguage:state.answerLanguage||"en",voiceOn:!!state.voiceOn,volume:state.volume,readQuestions:state.readQuestions!==false,players:state.players.map(p=>({id:p.id||uid(),name:String(p.name||""),hostStyle:["masculine","feminine","neutral"].includes(p.hostStyle)?p.hostStyle:"neutral"}))}}
+function setupPayload(screen=state.screen,resumable=false){return{version:2,kind:"setup",resumable:!!resumable,savedAt:Date.now(),screen:["setup","players"].includes(screen)?screen:"setup",mode:state.mode,contentPacks:state.contentPacks||["original"],quick:!!state.quick,duration:state.duration,questionSeconds:state.questionSeconds,categories:state.categories||[],industry:state.industry||"",difficulty:state.difficulty||"medium",answerLanguage:state.answerLanguage||"en",voiceOn:!!state.voiceOn,volume:state.volume,readQuestions:state.readQuestions!==false,players:state.players.map(p=>({id:p.id||uid(),name:String(p.name||""),autoName:p.autoName===true,hostStyle:["masculine","feminine","neutral"].includes(p.hostStyle)?p.hostStyle:"neutral"}))}}
 function saveSetupState(screen=state.screen){if(state.game||!["setup","players"].includes(screen))return;try{const previous=loadSetupState();localStorage.setItem(STORAGE.setup,JSON.stringify(setupPayload(screen,previous?.resumable===true)))}catch{}}
 function markSetupAbandoned(screen=state.screen){if(state.game||!["setup","players"].includes(screen))return;try{localStorage.setItem(STORAGE.setup,JSON.stringify(setupPayload(screen,true)))}catch{}}
 function loadSetupState(){try{const x=JSON.parse(localStorage.getItem(STORAGE.setup)||"null");if(x?.kind==="setup"&&x.resumable&&state.screen==="home"&&Array.isArray(x.contentPacks))state.contentPacks=[...x.contentPacks];return x?.kind==="setup"?x:null}catch{return null}}
@@ -1142,8 +1176,8 @@ function home(){
 }
 function chooseGame(){ensureAudio();clearSetupState();go("setup","home-start")}
 function ensureUnifiedRoster(){
- if(!state.players.length)state.players=[{id:uid(),name:"Vicente"},{id:uid(),name:"Todd"},{id:uid(),name:"Maria"}];
- state.players=state.players.map(p=>({id:p.id||uid(),name:String(p.name||""),hostStyle:["masculine","feminine","neutral"].includes(p.hostStyle)?p.hostStyle:"neutral"}));state.selectedIds=state.players.filter(p=>p.name.trim()).map(p=>p.id)
+ if(!state.players.length)state.players=[defaultPlayer(0),defaultPlayer(1),defaultPlayer(2)];
+ state.players=state.players.map(p=>({id:p.id||uid(),name:String(p.name||""),autoName:p.autoName===true,hostStyle:["masculine","feminine","neutral"].includes(p.hostStyle)?p.hostStyle:"neutral"}));state.selectedIds=state.players.filter(p=>p.name.trim()).map(p=>p.id)
 }
 function setupSection(title,body,extra=""){return `<section class="setup-card card ${extra}" data-setup-section="${title.toLowerCase().replace(/\s+/g,"-")}" tabindex="-1"><div class="setup-label">${title}</div>${body}</section>`}
 function rerenderSetupPreservingViewport(mutator,focusSelector=""){
@@ -1277,10 +1311,10 @@ function playersContinue(){
 function players(){
  ensurePlayers();const list=state.players.map((p,i)=>`<div class="player-row"><div class="player-num">PLAYER ${i+1}</div><input data-p="${p.id}" value="${esc(p.name)}" placeholder="Name" aria-label="Player ${i+1} name"><button class="btn" data-remove="${p.id}" aria-label="Delete contestant ${i+1}">×</button></div>`).join("");
  app.innerHTML=shell("WHO’S IN?",`<div class="players-list">${list}</div><div id="rosterError" class="roster-error"></div><button id="add" class="btn">ADD PLAYER</button><div class="subtle center">Try: “Player 1 Joe,” “Change player 2 to Tom,” “Spell player 2,” or “Add player Maria.”</div>`,`<button id="back" class="btn">BACK</button><button class="btn setup-exit-bottom" data-setup-exit data-voice="EXIT" data-voice-aliases="exit game|leave game|cancel game|quit setup|go home|back to home">EXIT</button><button id="continue" class="btn primary">CONTINUE</button>`);
- document.querySelectorAll("[data-p]").forEach(e=>{const p=state.players.find(x=>x.id===e.dataset.p),row=e.closest(".player-row"),label=document.createElement("label");label.className="host-style-label";label.innerHTML=`<span>HOST STYLE</span><select data-host-style="${p.id}" aria-label="Player ${state.players.indexOf(p)+1} Host style"><option value="neutral">NEUTRAL</option><option value="masculine">MASCULINE</option><option value="feminine">FEMININE</option></select>`;const select=label.querySelector("select");select.value=p.hostStyle||"neutral";row.insertBefore(label,row.querySelector("[data-remove]"));e.oninput=()=>{p.name=e.value;saveSetupState("players")}});
+ document.querySelectorAll("[data-p]").forEach(e=>{const p=state.players.find(x=>x.id===e.dataset.p),row=e.closest(".player-row"),label=document.createElement("label");label.className="host-style-label";label.innerHTML=`<span>HOST STYLE</span><select data-host-style="${p.id}" aria-label="Player ${state.players.indexOf(p)+1} Host style"><option value="neutral">NEUTRAL</option><option value="masculine">MASCULINE</option><option value="feminine">FEMININE</option></select>`;const select=label.querySelector("select");select.value=p.hostStyle||"neutral";row.insertBefore(label,row.querySelector("[data-remove]"));e.oninput=()=>{p.name=e.value;p.autoName=false;saveSetupState("players")}});
  document.querySelectorAll("[data-host-style]").forEach(e=>e.onchange=()=>{const p=state.players.find(x=>x.id===e.dataset.hostStyle);if(p)p.hostStyle=e.value;saveSetupState("players")});
- document.querySelectorAll("[data-remove]").forEach(b=>b.onclick=()=>{state.players=state.players.filter(p=>p.id!==b.dataset.remove);players()});
- document.getElementById("add").onclick=e=>{e.currentTarget.onclick=null;state.players.push({id:uid(),name:""});players()};document.getElementById("back").onclick=back;
+ document.querySelectorAll("[data-remove]").forEach(b=>b.onclick=()=>{state.players=state.players.filter(p=>p.id!==b.dataset.remove);syncDefaultPlayerNames();players()});
+ document.getElementById("add").onclick=e=>{e.currentTarget.onclick=null;state.players.push(defaultPlayer(state.players.length));players()};document.getElementById("back").onclick=back;
  document.getElementById("continue").onclick=()=>{if(state.screen==="players")playersContinue()};bindSetupShell();saveSetupState("players");startVoice("players")
 }
 function adjustGameVolume(delta){setVolume((state.volume??0.8)+delta,true)}

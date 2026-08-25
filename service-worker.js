@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_VERSION="6.27-a04d987f00c8";
+const CACHE_VERSION="6.28-6f4b7cd2037d";
 const CACHE_NAME=`last-one-standing-shell-${CACHE_VERSION}`;
 const APP_SHELL=[
  "./",
