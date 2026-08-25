@@ -106,6 +106,17 @@ test("content packs combine pools while preserving Kids safety",()=>{
  for(const random of [()=>0,()=>.25,()=>.5,()=>.75,()=>.99]){const child=bank.select({packs:["kids","music","movies"],difficulty:"medium",random});assert.ok(child);assert.equal(child.kidsSafe,true)}
 });
 
+test("Street identity is substantial and receives a strong share in mixed vibe games",()=>{
+ const bank=api.createQuestionBank(data),street=bank.questions.filter(q=>bank.packsFor(q).includes("street"));assert.ok(street.length>=100,`Street pool only has ${street.length} questions`);for(const difficulty of ["easy","medium","hard","savage"])assert.ok(street.some(q=>q.difficulty===difficulty),difficulty);
+ let call=0,selection=0,streetPicks=0;const random=()=>call++%2===0?(selection++%100)/100:0;
+ for(let i=0;i<100;i++){const q=bank.select({packs:["street","movies","music"],difficulty:"medium",random});if(bank.packsFor(q).includes("street"))streetPicks++}
+ assert.ok(streetPicks>=60&&streetPicks<=65,`Street weighting was ${streetPicks}%`)
+});
+
+test("Street weighting never overrides Kids or Work safety",()=>{
+ const bank=api.createQuestionBank(data);for(let i=0;i<100;i++){const child=bank.select({packs:["kids","street","music"],difficulty:"medium",random:()=>i/101});assert.ok(child);assert.equal(child.kidsSafe,true);const workplace=bank.select({packs:["work","street","movies"],difficulty:"medium",random:()=>i/101});assert.ok(workplace);assert.equal(workplace.workSafe,true)}
+});
+
 test("SunLine remains isolated until verified agency questions are supplied",()=>{
  const bank=api.createQuestionBank(data);assert.equal(bank.select({packs:["sunline"],difficulty:"medium",random:()=>0}),null);assert.ok(bank.questions.filter(q=>bank.packsFor(q).includes("sunline")).every(q=>q.contentPacks?.includes("sunline")))
 });

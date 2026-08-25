@@ -69,12 +69,13 @@ function createQuestionBank(bank){
  const byId=new Map(selectable.map(q=>[q.id,q]));
  const ordered=DIFFICULTIES;
  const packsFor=q=>{
-  const packs=new Set(q.contentPacks||[]),subject=normalize(q.subject),prompt=normalize(q.prompt);
+  const packs=new Set(q.contentPacks||[]),subject=normalize(q.subject),prompt=normalize(q.prompt),answer=normalize(q.answer?.canonical),identity=`${prompt} ${answer}`;
   if(q.editions.includes("original")&&q.workTrack!=="dedicated")packs.add("original");
   if(q.kidsSafe)packs.add("kids");if(q.workSafe&&q.editions.includes("work"))packs.add("work");
   if(/transit|transport|vehicle|road/.test(subject))packs.add("transit");
   if(/movies|film|tv|pop culture/.test(subject)){packs.add("movies");if(/disney|pixar|frozen|encanto|coco|zombies|descendants|camp rock/.test(prompt))packs.add("disney")}
-  if(/music/.test(subject)){packs.add("music");if(/hip hop|rap|kendrick|jay z|beyonce|tupac|snoop|funk|oldies|lowrider|chicano|selena|reggaeton|corrido/.test(prompt))packs.add("street")}
+  if(/music/.test(subject))packs.add("music");
+  if(/hip hop|rap\b|r&b|rhythm and blues|funk|soul|oldies|lowrider|chicano|reggaeton|djing|mcing|breakdancing|graffiti|dr dre|the chronic|snoop|doggystyle|tupac|2pac|all eyez on me|ice cube|amerikkka|n w a|warren g|nate dogg|cypress hill|kendrick|jay z|nas\b|eminem|50 cent|ll cool j|run dmc|public enemy|outkast|wu tang|beyonce|mary j blige|tlc\b|aaliyah|lauryn hill|george clinton|parliament funkadelic|destiny s child|aretha franklin|marvin gaye|earth wind fire|prince|alicia keys|en vogue|too short|nicki minaj|cardi b|a tribe called quest|queen of hip hop soul|princess of r&b|boyz n the hood|friday\b|menace ii society|blood in blood out|colors\b|la bamba|chicano movement|south central|watts|east los angeles/.test(identity))packs.add("street");
   return [...packs]
  };
  const difficultyPool=(pool,visible)=>{
@@ -94,6 +95,11 @@ function createQuestionBank(bank){
   if(edition==="work"){
    const dedicated=pool.filter(q=>q.workTrack==="dedicated"),broad=pool.filter(q=>q.workTrack==="broad"),preferred=random()<.7?dedicated:broad;
    pool=preferred.length?preferred:(dedicated.length?dedicated:broad)
+  }
+  if(selected.includes("street")&&selected.length>1){
+   const identity=pool.filter(q=>packsFor(q).includes("street"));
+   const supporting=pool.filter(q=>!packsFor(q).includes("street"));
+   if(identity.length&&supporting.length)pool=random()<.62?identity:supporting
   }
   return choose(pool,usedIds,recentCategories,random)
  }
