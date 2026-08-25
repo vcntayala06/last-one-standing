@@ -3,8 +3,8 @@ const fs=require("node:fs"),path=require("node:path");
 const {chromium}=require("playwright");
 const ROOT=path.resolve(__dirname,"..","..");
 const VIEWPORTS=[[320,568,"small-phone-portrait"],[430,932,"large-phone-portrait"],[568,320,"small-phone-landscape"],[932,430,"large-phone-landscape"],[768,1024,"small-tablet-portrait"],[1024,768,"small-tablet-landscape"],[1024,1366,"large-tablet-portrait"],[1366,1024,"large-tablet-landscape"],[1366,768,"laptop"],[1920,1080,"desktop"],[2560,1440,"large-desktop"],[3840,2160,"tv-4k"]].map(([width,height,name])=>({width,height,name}));
-const SCREENS=["home","setup","mode","industry","difficulty","fun","players","time","ready","handoff","lock-in","question-ordinary","question","result-ordinary","result","result-unbroken","paused","quit","showdown","champion"];
-function instrument(source){const marker="})();",at=source.lastIndexOf(marker),expose=`\nObject.assign(globalThis.__RESPONSIVE__,{state,home,setup,mode,industry,difficulty,fun,players,time,ready,handoff,playerUpCountdown,transition,question,result,pauseGame,confirmEnd,showdownIntro,champion,stopVoice,clearRuntime});\n`;return source.slice(0,at)+expose+source.slice(at)}
+const SCREENS=["home","setup","packs","mode","industry","difficulty","fun","players","time","ready","handoff","lock-in","question-ordinary","question","result-ordinary","result","result-unbroken","paused","quit","showdown","champion"];
+function instrument(source){const marker="})();",at=source.lastIndexOf(marker),expose=`\nObject.assign(globalThis.__RESPONSIVE__,{state,home,setup,packs,mode,industry,difficulty,fun,players,time,ready,handoff,playerUpCountdown,transition,question,result,pauseGame,confirmEnd,showdownIntro,champion,stopVoice,clearRuntime});\n`;return source.slice(0,at)+expose+source.slice(at)}
 async function launch(){
  const bundled=path.join(process.env.LOCALAPPDATA||"","ms-playwright","chromium-1234","chrome-win64","chrome.exe");
  return chromium.launch({headless:true,...(fs.existsSync(bundled)?{executablePath:bundled}:{})})

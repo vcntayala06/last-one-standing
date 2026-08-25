@@ -344,7 +344,7 @@ test("mouse/touch controls start Original, Work Edition, and Solo through Unifie
     const h=createHarness();
     try{
       const state=h.api.getState();h.click("#start");h.timers.advance(220);assert.equal(state.screen,"setup");h.click(`[data-setup-mode="${mode}"]`);
-      h.click('[data-setup-difficulty="hard"]');h.click('[data-setup-seconds="20"]');h.click('[data-setup-minutes="10"]');h.click("#startGame");h.timers.advance(220);if(mode!=="solo"){assert.equal(state.screen,"players");h.click("#continue");h.timers.advance(220)}
+      h.click('[data-setup-difficulty="hard"]');h.click('[data-setup-seconds="20"]');h.click('[data-setup-minutes="10"]');h.click("#startGame");h.timers.advance(220);assert.equal(state.screen,"packs");h.click("#continuePacks");h.timers.advance(220);if(mode!=="solo"){assert.equal(state.screen,"players");h.click("#continue");h.timers.advance(220)}
       assert.equal(state.screen,"ready");h.timers.advance(30000);assert.equal(state.screen,"ready");h.click("#showtimeStart");assert.equal(state.screen,"transition");h.timers.advance(1600);assert.equal(state.screen,"handoff");assert.equal(state.mode,mode);assert.equal(state.game.players.length,mode==="solo"?1:3)
     }finally{h.close()}
   }
@@ -381,7 +381,7 @@ test("manual-control selected states expose accessible semantics", withHarness(h
 }));
 
 test("manual Back and Exit controls follow setup state without corrupting selections", () => {
-  for(const screen of ["difficulty","players","time","ready"]){const h=createHarness();try{const state=h.api.getState();state.mode="original";state.difficulty="hard";state.questionSeconds=20;state.duration=10;state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];state.screen=screen;h.api[screen]();h.click("#back");assert.equal(state.screen,{difficulty:"mode",players:"setup",time:"players",ready:"players"}[screen]);assert.equal(state.difficulty,"hard");assert.equal(state.questionSeconds,20);assert.equal(state.duration,10);assert.equal(state.players.length,2)}finally{h.close()}}
+  for(const screen of ["difficulty","players","time","ready"]){const h=createHarness();try{const state=h.api.getState();state.mode="original";state.difficulty="hard";state.questionSeconds=20;state.duration=10;state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];state.screen=screen;h.api[screen]();h.click("#back");assert.equal(state.screen,{difficulty:"mode",players:"packs",time:"players",ready:"players"}[screen]);assert.equal(state.difficulty,"hard");assert.equal(state.questionSeconds,20);assert.equal(state.duration,10);assert.equal(state.players.length,2)}finally{h.close()}}
   for(const screen of ["difficulty","players","time","ready"]){const h=createHarness();try{const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];state.screen=screen;h.api[screen]();h.click("[data-setup-exit]");assert.equal(state.screen,"home");assert.equal(state.game,null)}finally{h.close()}}
 });
 
@@ -407,12 +407,12 @@ test("Home opens Game Setup with settings only and no roster fields",()=>{
  const h=createHarness();try{const state=h.api.getState();h.click("#start");h.timers.advance(220);assert.equal(state.screen,"setup");assert.equal(h.document.querySelector("[data-setup-player]"),null);assert.equal(h.document.querySelector("#setupAddPlayer"),null);assert.equal(h.document.querySelector('[data-difficulty="easy"]'),null);assert.equal(h.document.querySelector("#startGame").textContent,"CONTINUE");const names=state.players.map(p=>p.name);for(const mode of ["work","solo","original"]){h.click(`[data-setup-mode="${mode}"]`);assert.equal(state.screen,"setup");assert.equal(state.mode,mode);assert.equal(h.document.querySelector(".unified-players"),null)}assert.deepEqual(state.players.map(p=>p.name),names);for(const selector of ['[data-setup-difficulty="hard"]','[data-setup-seconds="20"]','[data-setup-minutes="10"]']){h.click(selector);assert.equal(state.screen,"setup")}assert.equal(state.difficulty,"hard");assert.equal(state.questionSeconds,20);assert.equal(state.duration,10)}finally{h.close()}
 });
 
-test("multiplayer Continue opens the dedicated roster page and roster edits remain there",()=>{
- const h=createHarness();try{const state=h.api.getState();state.mode="original";h.api.go("setup");h.timers.advance(220);h.click("#startGame");assert.equal(state.screen,"players");const before=state.players.length;h.click("#add");assert.equal(state.screen,"players");assert.equal(state.players.length,before+1);const input=[...h.document.querySelectorAll("[data-p]")].at(-1);input.value="Jordan";input.dispatchEvent(new h.window.Event("input",{bubbles:true}));assert.equal(state.players.at(-1).name,"Jordan")}finally{h.close()}
+test("multiplayer Continue opens content packs before the dedicated roster page",()=>{
+ const h=createHarness();try{const state=h.api.getState();state.mode="original";h.api.go("setup");h.timers.advance(220);h.click("#startGame");assert.equal(state.screen,"packs");h.timers.advance(220);h.click("#continuePacks");assert.equal(state.screen,"players");const before=state.players.length;h.click("#add");assert.equal(state.screen,"players");assert.equal(state.players.length,before+1);const input=[...h.document.querySelectorAll("[data-p]")].at(-1);input.value="Jordan";input.dispatchEvent(new h.window.Event("input",{bubbles:true}));assert.equal(state.players.at(-1).name,"Jordan")}finally{h.close()}
 });
 
 test("roster validation occurs on Who's In and valid Continue reaches Showtime",()=>{
- const h=createHarness();try{const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:""}];state.screen="setup";h.api.setup();h.click("#startGame");assert.equal(state.screen,"players");h.timers.advance(220);h.click("#continue");assert.equal(state.screen,"players");assert.match(h.document.getElementById("rosterError").textContent,/two named/i);state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Alex"}];h.api.players();h.click("#continue");assert.equal(state.screen,"players");assert.match(h.document.getElementById("rosterError").textContent,/unique/i);state.players[1].name="Blair";h.api.players();h.click("#continue");assert.equal(state.screen,"ready");assert.match(h.document.querySelector(".compact-ready").textContent,/ORIGINAL.*MEDIUM.*15 SEC.*READ ON/)}finally{h.close()}
+ const h=createHarness();try{const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:""}];state.screen="setup";h.api.setup();h.click("#startGame");h.timers.advance(220);assert.equal(state.screen,"packs");h.click("#continuePacks");assert.equal(state.screen,"players");h.timers.advance(220);h.click("#continue");assert.equal(state.screen,"players");assert.match(h.document.getElementById("rosterError").textContent,/two named/i);state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Alex"}];h.api.players();h.click("#continue");assert.equal(state.screen,"players");assert.match(h.document.getElementById("rosterError").textContent,/unique/i);state.players[1].name="Blair";h.api.players();h.click("#continue");assert.equal(state.screen,"ready");assert.match(h.document.querySelector(".compact-ready").textContent,/ORIGINAL.*MEDIUM.*15 SEC.*READ ON/)}finally{h.close()}
 });
 
 test("Unified Setup Voice Volume and Read Questions controls use canonical persistence",()=>{
@@ -421,7 +421,7 @@ test("Unified Setup Voice Volume and Read Questions controls use canonical persi
 });
 
 test("Game Setup voice changes choices and Continue opens the correct next page",()=>{
- const h=createHarness();try{const state=h.api.getState();h.speak("start",{final:false,confidence:.2});assert.equal(state.screen,"home");h.speak("start",{final:true});assert.equal(state.screen,"setup");h.timers.advance(220);h.speak("work edition");assert.equal(state.screen,"setup");assert.equal(state.mode,"work");h.speak("hard");assert.equal(state.difficulty,"hard");h.speak("20 seconds");assert.equal(state.questionSeconds,20);h.speak("5 minutes");assert.equal(state.duration,5);h.speak("read questions off");assert.equal(state.readQuestions,false);h.speak("continue",{final:false});assert.equal(state.screen,"setup");h.speak("continue",{final:true});assert.equal(state.screen,"players");h.timers.advance(220);assert.equal(state.screen,"players")}finally{h.close()}
+ const h=createHarness();try{const state=h.api.getState();h.speak("start",{final:false,confidence:.2});assert.equal(state.screen,"home");h.speak("start",{final:true});assert.equal(state.screen,"setup");h.timers.advance(220);h.speak("work edition");assert.equal(state.screen,"setup");assert.equal(state.mode,"work");h.speak("hard");assert.equal(state.difficulty,"hard");h.speak("20 seconds");assert.equal(state.questionSeconds,20);h.speak("5 minutes");assert.equal(state.duration,5);h.speak("read questions off");assert.equal(state.readQuestions,false);h.speak("continue",{final:false});assert.equal(state.screen,"setup");h.speak("continue",{final:true});assert.equal(state.screen,"packs");h.timers.advance(220);assert.equal(state.screen,"packs")}finally{h.close()}
 });
 
 test("detached legacy Continue cannot advance Game Setup and final Back returns Home once",()=>{
@@ -467,7 +467,7 @@ test("Player-Up diagnostics prove one render generation for each turn",withHarne
 }));
 
 test("Stage 6.13 Back is final-only and moves exactly one setup screen",()=>{
- for(const [mode,screen,target] of [["original","players","setup"],["original","ready","players"],["solo","ready","setup"]]){const h=createHarness();try{const state=h.api.getState();state.mode=mode;state.screen=screen;h.api[screen]();h.speak("back",{final:false});assert.equal(state.screen,screen);h.speak("back",{final:true});assert.equal(state.screen,target);h.timers.advance(1000);assert.equal(state.screen,target);assert.notEqual(state.screen,"home")}finally{h.close()}}
+ for(const [mode,screen,target] of [["original","players","packs"],["original","ready","players"],["solo","ready","packs"]]){const h=createHarness();try{const state=h.api.getState();state.mode=mode;state.screen=screen;h.api[screen]();h.speak("back",{final:false});assert.equal(state.screen,screen);h.speak("back",{final:true});assert.equal(state.screen,target);h.timers.advance(1000);assert.equal(state.screen,target);assert.notEqual(state.screen,"home")}finally{h.close()}}
 });
 
 test("fresh preferences never create Resume while explicitly abandoned setup does",()=>{
@@ -699,8 +699,8 @@ test("speech begun after zero cannot use another utterance's grace window",withH
  const state=activeTimedQuestion(h),r=h.recognition();state.game.current={id:"late-start",q:"What comes next: 4, 8, 12, 16?",a:"20"};h.timers.advance(14000);r.speechStart();h.timers.advance(1000);r.speechStart();r.emit("20",{final:true});assert.equal(state.screen,"question");assert.equal(state.game.players[0].correct,0);h.timers.advance(1200);assert.equal(state.screen,"result");assert.equal(state.game.players[0].timeout,1);assert.equal(state.game.players[0].correct,0)
 }));
 
-test("Game Setup content packs are multi-select and clearly selected",withHarness(h=>{
- const state=h.api.getState();state.screen="setup";state.contentPacks=["original"];h.api.setup();h.click('[data-content-pack="street"]');h.click('[data-content-pack="movies"]');assert.deepEqual(Array.from(state.contentPacks),["original","street","movies"]);for(const id of state.contentPacks)assert.equal(h.document.querySelector(`[data-content-pack="${id}"]`).getAttribute("aria-pressed"),"true")
+test("normal setup visibly requires the dedicated multi-select content-pack step",withHarness(h=>{
+ const state=h.api.getState();state.screen="setup";state.contentPacks=["original"];h.api.setup();assert.equal(h.document.querySelector("[data-content-pack]"),null);h.click("#startGame");assert.equal(state.screen,"packs");assert.match(h.document.querySelector(".topbar-title").textContent,/GAME VIBE \/ CONTENT PACKS/);for(const id of ["original","street","kids","work","transit","sunline","movies","music","disney"])assert.ok(h.document.querySelector(`[data-content-pack="${id}"]`),id);h.click('[data-content-pack="street"]');h.click('[data-content-pack="movies"]');assert.deepEqual(Array.from(state.contentPacks),["original","street","movies"]);for(const id of state.contentPacks)assert.equal(h.document.querySelector(`[data-content-pack="${id}"]`).getAttribute("aria-pressed"),"true")
 }));
 
 test("Stage 6.23 stable interim answer reacts early once and ignores the trailing final",withHarness(h=>{
