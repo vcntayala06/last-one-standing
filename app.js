@@ -22,7 +22,7 @@ const EXTRA_CATEGORIES=[
  "Science & Nature","Geography","Pop Culture","90s & 2000s","Transportation","Word Play"
 ];
 if(!window.LOS_QUESTION_BANK_DATA||!window.LOS_QUESTION_BANK_BATCH_1||!window.LOS_QUESTION_BANK_BATCH_2||!window.LOS_QUESTION_BANK_BATCH_3||!window.LOSQuestionBank)throw new Error("Question bank failed to load");
-const QUESTION_BANK_SOURCE={...window.LOS_QUESTION_BANK_DATA,bankVersion:"stage-6.26-street-curation",questions:[...window.LOS_QUESTION_BANK_DATA.questions,...window.LOS_QUESTION_BANK_BATCH_1.questions,...window.LOS_QUESTION_BANK_BATCH_2.questions,...window.LOS_QUESTION_BANK_BATCH_3.questions]};
+const QUESTION_BANK_SOURCE={...window.LOS_QUESTION_BANK_DATA,bankVersion:"stage-6.27-no-repeat",questions:[...window.LOS_QUESTION_BANK_DATA.questions,...window.LOS_QUESTION_BANK_BATCH_1.questions,...window.LOS_QUESTION_BANK_BATCH_2.questions,...window.LOS_QUESTION_BANK_BATCH_3.questions]};
 const QUESTION_BANK=window.LOSQuestionBank.createQuestionBank(QUESTION_BANK_SOURCE);
 const QUESTIONS=QUESTION_BANK.questions.map(QUESTION_BANK.toGameplay);
 let state={
@@ -123,7 +123,7 @@ const HOST_LINE_TUNING={
 let hostSystem=null;
 let recognition=null,questionTimer=null,answerGraceTimer=null,flowTimer=null,pausedRemaining=null,pausedFrom=null,pausedResultDelay=null,resultDelayRemaining=null,renamePending=null,lastVolume=state.volume>0?state.volume:.65,questionSoundTimers=[],celebrationTimers=[],handoffTimers=[];
 let runtimeSessionId=0,renderGeneration=0,setupRenderId=0,pendingTransitionCause={trigger:"internal",reason:"runtime"},questionReading=false,questionSessionId=0,answerListening=false,playerUpRenderGeneration=0;
-const BUILD_INFO={stage:"6.26",version:"game-type-street-identity-reactions",builtAt:"2026-08-24"},transitionDiagnostics=[],screenLifetimeDiagnostics=[],answerDiagnostics=[],playerUpDiagnostics=[],audioDiagnostics={tick:"off",buzzerFired:false},transitionDebugEnabled=new URLSearchParams(location.search).get("playtestDebug")==="1"||localStorage.getItem("los_playtest_debug")==="1";
+const BUILD_INFO={stage:"6.27",version:"voice-no-repeat-visible-reactions-fit",builtAt:"2026-08-25"},transitionDiagnostics=[],screenLifetimeDiagnostics=[],answerDiagnostics=[],playerUpDiagnostics=[],audioDiagnostics={tick:"off",buzzerFired:false},transitionDebugEnabled=new URLSearchParams(location.search).get("playtestDebug")==="1"||localStorage.getItem("los_playtest_debug")==="1";
 function enterScreen(next,reason="render",trigger=pendingTransitionCause.trigger||"internal"){
  const from=state.screen,sourceSession=runtimeSessionId,validScreens=new Set(["home","setup","packs","mode","industry","difficulty","fun","players","time","ready","handoff","transition","question","result","showdown","complete","paused"]),valid=validScreens.has(next);
  if(!valid){const rejected={accepted:false,from,to:next,reason,trigger,command:trigger==="voice"?pendingTransitionCause.reason:null,callback:trigger==="internal-game-event"?reason:null,at:Date.now(),sourceSession,session:runtimeSessionId,renderGeneration};transitionDiagnostics.push(rejected);return runtimeSessionId}
@@ -289,12 +289,12 @@ function createHostSystem(provider=defaultHostProvider()){
   lastIds=[...lastIds,id].slice(-5);lastFamilies=[...lastFamilies,phraseFamily(line)].slice(-4);return {...line,id,text:line.text.replace(/\{(name|players|seconds|question|answer)\}/g,(_,key)=>String(replacements[key]))}
  };
  const emit=(event,context={})=>{
-  if(!state.voiceOn){history.push({hostEventId:`host-${++eventSequence}`,event,result:"voice-disabled",screen:state.screen,session:runtimeSessionId,at:Date.now(),context});return false}
   const explicitPlayer=[...(state.game?.players||[]),...(state.players||[])].find(p=>p.name===context.name);context={...context,hostStyle:context.hostStyle||explicitPlayer?.hostStyle||"neutral"};
   const [level="optional",chance=0]=HOST_EVENT_POLICY[event]||[],priority=HOST_PRIORITY[level]||1;
   if(chance<1&&Math.random()>chance){history.push({event,result:"frequency-skip",context});return false}
   const line=choose(event,context);if(!line){history.push({event,result:"no-safe-line",context});return false}
-  history.push({hostEventId:`host-${++eventSequence}`,event,result:provider.available!==true?"provider-unavailable":"selected",priority,lineId:line.id,text:line.text,screen:state.screen,session:runtimeSessionId,renderGeneration,requestTime:Date.now(),context});
+  history.push({hostEventId:`host-${++eventSequence}`,event,result:!state.voiceOn?"voice-disabled":provider.available!==true?"provider-unavailable":"selected",priority,lineId:line.id,text:line.text,screen:state.screen,session:runtimeSessionId,renderGeneration,requestTime:Date.now(),context});
+  if(!state.voiceOn)return false;
   if(provider.available!==true)return true;
   if(speaking&&priority<currentPriority)return false;
   const carriedMic=speaking?cancel("interrupted-by-"+event,false):false;
@@ -520,6 +520,7 @@ function centralNavIntent(h,isFinal=false,confidence=0){
   if(/^(back|go back)$/.test(n)){if(!isFinal)return false;return voiceOnce("back:packs",()=>go("setup","packs-back"))}
  }
  if(/^(continue|next|done|go ahead|go on|move on|lets go|let s go|im ready|i m ready|ready|start|play|go|begin|lets begin|let s begin)$/.test(n)){
+  if(!isFinal)return false;
   if(navLock)return queueVoiceNavigation(h,isFinal,confidence);
   if(state.screen==="players")return voiceOnce("continue:players",()=>playersContinue());
   if(state.screen==="industry")return voiceOnce("continue:industry",()=>industryContinue());
@@ -1099,7 +1100,7 @@ function resumeActiveMatch(x){
  state.mode=x.mode||"friends";state.contentPacks=x.contentPacks||[x.mode==="work"?"work":"original"];state.quick=!!x.quick;state.duration=x.duration||10;
  state.questionSeconds=x.questionSeconds||15;state.categories=x.categories||[];
  state.industry=x.industry||"";state.difficulty=x.difficulty||"medium";state.answerLanguage=x.answerLanguage||"en";state.readQuestions=x.readQuestions!==false;state.players=x.players||[];
- state.game=x.game;state.game.players=state.game.players.map(p=>({...p,strikes:Math.min(3,Math.max(0,Number(p.strikes)||0)),eliminated:!!p.eliminated||(Number(p.strikes)||0)>=3}));
+ state.game=x.game;state.game.used=[...new Set(Array.isArray(state.game.used)?state.game.used.filter(id=>typeof id==="string"&&id):[])];state.game.players=state.game.players.map(p=>({...p,strikes:Math.min(3,Math.max(0,Number(p.strikes)||0)),eliminated:!!p.eliminated||(Number(p.strikes)||0)>=3}));
  // Resume cleanly at the beginning of the saved player's turn.
  const alive=state.game.players.filter(p=>!p.eliminated);
  if(!alive.length){clearActiveGame();home();return}
@@ -1362,24 +1363,27 @@ function transition(kind,done,reason="game-transition"){
 function pickQuestion(){
  const g=state.game;
  const effectivePacks=[...new Set([...(state.contentPacks||[]),...(state.mode==="work"?["work"]:[])])],source=QUESTION_BANK.select({edition:state.mode==="work"?"work":state.mode==="solo"?"solo":"original",packs:effectivePacks,difficulty:state.difficulty,usedIds:g.used||[],recentCategories:g.recentCategories||[],random:Math.random});
- if(!source)throw new Error(`No eligible questions for ${state.mode}/${state.difficulty}`);
+ if(!source)return null;
  const item=QUESTION_BANK.toGameplay(source),selectedPacks=effectivePacks,eligibleIds=new Set(QUESTION_BANK.questions.filter(q=>!selectedPacks.length||QUESTION_BANK.packsFor(q).some(pack=>selectedPacks.includes(pack))).filter(q=>!selectedPacks.includes("kids")||q.kidsSafe).map(q=>q.id));
  g.used=(g.used||[]).filter(id=>eligibleIds.has(id));
- if(g.used.includes(item.id))g.used=g.used.filter(id=>id!==item.id);
  g.used.push(item.id);g.recentCategories=[...(g.recentCategories||[]),item.cat].slice(-2);return item
+}
+function finishExhaustedQuestionPool(){
+ const g=state.game;if(!g)return;g.poolExhausted=true;saveActiveGame();const contenders=activePlayers().length?activePlayers():g.players,champ=[...contenders].sort((a,b)=>(a.strikes-b.strikes)||(b.correct-a.correct))[0]||g.players[0];champion(champ)
 }
 function question(resumeCurrent=false){
  clearRuntime();const session=enterScreen("question",resumeCurrent?"resume-question":"lock-in-complete","internal-game-event");saveActiveGame();const g=state.game;
  const regularSeconds=Number(state.questionSeconds)||15;
  const resuming=resumeCurrent&&g.current&&!g.answered;
  const remStart=resuming?Math.max(1,Number(pausedRemaining??g.questionRemaining)||regularSeconds):(g.showdown?Math.max(5,regularSeconds-5):regularSeconds);
- if(!resuming){g.current=pickQuestion();g.answered=false;g.speechLog=[];questionSessionId++}
+ if(!resuming){g.current=pickQuestion();g.answered=false;g.speechLog=[];questionSessionId++;if(!g.current){finishExhaustedQuestionPool();return}}
  let rem=remStart;
  g.questionRemaining=rem;g.questionStartedWith=remStart;
  const questionSize=g.current.q.length>90?"question-long":g.current.q.length>55?"question-medium":"question-short";
  app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(true)}<div class="question-area"><div class="question-text ${questionSize}">${esc(g.current.q)}</div>
      ${!state.voiceOn?`<div class="keyboard-answer"><input id="typedAnswer" disabled autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="TYPE YOUR ANSWER"><button id="lockAnswer" disabled class="btn primary">LOCK IN</button></div>`:speechSupported()?`<button id="retryMic" class="btn mic-retry" type="button">TRY MIC AGAIN</button>`:""}<div id="answerAttemptFeedback" class="answer-attempt-feedback" aria-live="polite"></div><div id="timer" class="timer ${rem<=5?"urgent":""}" style="--timer-progress:${rem/remStart}" aria-label="${rem} seconds remaining">${rem}</div></div></div></section>`;
  bindGamebar();
+ fitQuestionText();if(typeof requestAnimationFrame==="function")requestAnimationFrame(()=>{if(state.screen==="question")fitQuestionText()});
  const retryMic=document.getElementById("retryMic");if(retryMic){retryMic.onclick=manualRecoverVoice;updateRetryMicAvailability()}
  const startClock=()=>{
   if(state.screen!=="question"||runtimeSessionId!==session||g.answered)return;questionReading=false;answerListening=true;audioDiagnostics.buzzerFired=false;const input=document.getElementById("typedAnswer"),lock=document.getElementById("lockAnswer");if(input)input.disabled=false;if(lock)lock.disabled=false;startVoice("question");GameAudio.playSfx("questionStart",{eventId:`question-start:${questionSessionId}`});tickSound(rem);
@@ -1413,7 +1417,7 @@ function finish(outcome){
   if(categoryStats.correct>=3&&categoryStats.correct%3===0)event="categoryRun";else if(p.hostCorrectStreak>=3)event="streak";else if((p.strikes||0)>=2&&p.hostCorrectStreak>=2)event="comeback";else if(!tied&&leader?.id===p.id&&g.hostLeaderId&&g.hostLeaderId!==p.id)event="lead";else if(tied)event="tie";else if(earnedKnowledge&&knowledgeEvent)event=knowledgeEvent;else if(context.elapsed<=3)event="fastCorrect";else if(context.remaining<=2)event="slowCorrect";else if(state.difficulty==="hard"||state.difficulty==="savage")event="tough";else if(/hip-hop|r&b|funk|oldies|music|regional mexican|tejano|corrido|norte|ranchera/i.test(category))event="culturalCorrect";else event="correct";
   g.hostLeaderId=tied?null:leader?.id||null
  }else if(p.eliminated)event="elimination";else if(p.hostMissStreak>=2)event="misses";else if(state.difficulty==="kids"||state.difficulty==="easy"||g.current?.cat==="I Should Have Known That")event="easyMiss";else if(state.difficulty==="hard"||state.difficulty==="savage")event="tough";else event="wrong";
- saveActiveGame();if(outcome==="correct"){result(outcome);hostSystem?.emit(event,context)}else result(outcome,null,true)
+ saveActiveGame();if(outcome==="correct"){result(outcome);hostSystem?.emit(event,context);showHostReaction(event)}else result(outcome,null,true)
 }
 function marks(p){
  return [0,1,2].map(i=>i<Math.min(3,p.strikes)
@@ -1421,16 +1425,27 @@ function marks(p){
   :`<span class="strike-empty">—</span>`).join(" ")
 }
 function standings(){return `<div class="standings">${[...state.game.players].sort((a,b)=>(a.eliminated-b.eliminated)||(a.strikes-b.strikes)||(b.correct-a.correct)).map(p=>`<div class="standing-row ${p.eliminated?"out":""}"><strong>${esc(p.name)}</strong><span>✓ ${p.correct}</span><span class="standing-strikes">${marks(p)}</span><span>${p.eliminated?"OUT":"IN"}</span></div>`).join("")}</div>`}
-function fitFocalText(element,{container=element?.parentElement,minPx=24,multiline=true}={}){
- if(!element||!container)return null;const text=(element.textContent||"").trim(),singleWord=!/\s/.test(text);element.style.removeProperty("font-size");element.classList.toggle("focal-single-word",singleWord);element.classList.toggle("focal-multiline",!singleWord&&multiline);
- const maxPx=parseFloat(getComputedStyle(element).fontSize)||minPx,fits=()=>element.scrollWidth<=container.clientWidth+1&&element.scrollHeight<=container.clientHeight+1;
- let low=Math.min(minPx,maxPx),high=maxPx;if(!fits()){element.style.setProperty("font-size",low+"px","important");if(!fits()){element.classList.add("focal-emergency-break");return{fontPx:low,fit:fits(),singleWord}}while(high-low>.5){const mid=(low+high)/2;element.style.setProperty("font-size",mid+"px","important");if(fits())low=mid;else high=mid}element.style.setProperty("font-size",low+"px","important")}
- return{fontPx:parseFloat(getComputedStyle(element).fontSize),fit:fits(),singleWord}
+function fitFocalText(element,{container=element?.parentElement,minPx=24,multiline=true,fits:customFits=null}={}){
+ if(!element||!container)return null;const text=(element.textContent||"").trim(),singleWord=!/\s/.test(text);element.style.removeProperty("font-size");element.classList.remove("focal-emergency-break");element.classList.toggle("focal-single-word",singleWord);element.classList.toggle("focal-multiline",!singleWord&&multiline);
+ const maxPx=parseFloat(getComputedStyle(element).fontSize)||minPx,fits=()=>customFits?customFits():element.scrollWidth<=container.clientWidth+1&&element.scrollHeight<=container.clientHeight+1;
+ let low=Math.min(minPx,maxPx),high=maxPx;if(!fits()){element.style.setProperty("font-size",low+"px","important");if(!fits()){element.classList.add("focal-emergency-break");return{fontPx:low,maxPx,fit:fits(),singleWord}}while(high-low>.5){const mid=(low+high)/2;element.style.setProperty("font-size",mid+"px","important");if(fits())low=mid;else high=mid}element.style.setProperty("font-size",low+"px","important")}
+ return{fontPx:parseFloat(getComputedStyle(element).fontSize),maxPx,fit:fits(),singleWord}
+}
+function fitQuestionText(){
+ const area=document.querySelector(".question-area"),question=document.querySelector(".question-text"),timer=document.querySelector(".timer");if(!area||!question||!timer)return null;
+ return fitFocalText(question,{container:area,minPx:20,multiline:true,fits:()=>{const a=area.getBoundingClientRect(),q=question.getBoundingClientRect(),t=timer.getBoundingClientRect();return question.scrollWidth<=question.clientWidth+1&&q.left>=a.left-1&&q.right<=a.right+1&&q.top>=a.top-1&&q.bottom<=t.top-10}})
 }
 function fitResultAnswer(){
  const body=document.querySelector(".result-body"),answer=document.querySelector(".answer-big");if(!body||!answer)return;
  const tiers=["result-fit-1","result-fit-2","result-fit-3","result-fit-4"],fits=()=>body.scrollHeight<=body.clientHeight+1&&answer.scrollWidth<=answer.clientWidth+1;
- answer.classList.remove(...tiers);let tier=0;while(!fits()&&tier<tiers.length)answer.classList.add(tiers[tier++]);answer.dataset.fitTier=String(tier);fitFocalText(answer,{container:answer.parentElement,minPx:18,multiline:true})
+ answer.classList.remove(...tiers);const result=fitFocalText(answer,{container:body,minPx:18,multiline:true,fits});answer.dataset.fitTier=String(result?.fontPx<result?.maxPx?1:0);return result
+}
+function showHostReaction(event){
+ const visibleEvents=new Set(["fastCorrect","tough","streak","categoryRun","comeback","lead","tie","streetKnowledge","movieKnowledge","musicKnowledge","transitKnowledge","disneyKnowledge"]),entry=hostSystem?.history.at(-1);if(!visibleEvents.has(event)||entry?.event!==event||!entry.text||["frequency-skip","no-safe-line"].includes(entry.result))return false;
+ const body=document.querySelector(".result-body");if(!body||body.querySelector(".host-reaction-callout"))return false;const callout=document.createElement("div");callout.className="host-reaction-callout";callout.setAttribute("role","status");callout.setAttribute("aria-live","polite");callout.textContent=entry.text;body.querySelector(".result-word")?.insertAdjacentElement("afterend",callout);fitResultAnswer();return true
+}
+function refitActiveText(){if(state.screen==="question")fitQuestionText();else if(state.screen==="result")fitResultAnswer()}
+let textFitFrame=0;function scheduleActiveTextFit(){if(textFitFrame&&typeof cancelAnimationFrame==="function")cancelAnimationFrame(textFitFrame);textFitFrame=typeof requestAnimationFrame==="function"?requestAnimationFrame(()=>{textFitFrame=0;refitActiveText()}):0
 }
 function result(outcome,resumeDelay=null,revealAnswer=false){
  const session=enterScreen("result","answer-result","internal-game-event");saveActiveGame();const g=state.game,p=g.players[g.idx],q=g.current;
@@ -1483,7 +1498,7 @@ function showdownIntro(){
    champion(champ);return;
  }
  g.players=finalists.map(p=>({...p,strikes:0,eliminated:false}));
- g.idx=0;g.showdown=true;g.qnum=0;g.used=[];
+ g.idx=0;g.showdown=true;g.qnum=0;
  const session=enterScreen("showdown","final-showdown","internal-game-event"),enteredAt=Date.now(),minimumVisibleMs=3600;saveActiveGame();
  const secs=Math.max(5,(Number(state.questionSeconds)||15)-5);
  app.innerHTML=`<section class="screen showdown-screen"><div class="showdown-stage">
@@ -1568,6 +1583,7 @@ function installLayoutBoundsDebug(){
 }
 function viewport(){document.documentElement.style.setProperty("--app-h",Math.max(document.documentElement.clientHeight||0,window.innerHeight||0)+"px")}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
+window.addEventListener("resize",scheduleActiveTextFit,{passive:true});window.addEventListener("orientationchange",scheduleActiveTextFit,{passive:true});window.visualViewport?.addEventListener("resize",scheduleActiveTextFit,{passive:true});
 document.addEventListener("visibilitychange",()=>{if(!document.defaultView)return;if(document.visibilityState==="hidden")suspendVoiceForLifecycle("visibilitychange");else resumeVoiceForLifecycle("visibilitychange")});
 window.addEventListener("pagehide",event=>{if(document.defaultView&&event.persisted)suspendVoiceForLifecycle("pagehide")});
 window.addEventListener("pageshow",event=>{if(document.defaultView&&event.persisted&&voiceLifecycleSuspended)resumeVoiceForLifecycle("pageshow")});

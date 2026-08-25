@@ -83,8 +83,8 @@ function createQuestionBank(bank){
   const centers=desired.map(x=>ordered.indexOf(x));let best=Infinity,out=[];for(const q of pool){const distance=Math.min(...centers.map(x=>Math.abs(ordered.indexOf(q.difficulty)-x)));if(distance<best){best=distance;out=[q]}else if(distance===best)out.push(q)}return out
  };
  const choose=(pool,usedIds,recentCategories,random)=>{
-  if(!pool.length)return null;const eligibleIds=new Set(pool.map(q=>q.id)),used=new Set((usedIds||[]).filter(id=>eligibleIds.has(id)));let available=pool.filter(q=>!used.has(q.id));
-  if(!available.length){for(const id of eligibleIds)used.delete(id);available=pool.slice()}
+  if(!pool.length)return null;const used=new Set(usedIds||[]);let available=pool.filter(q=>!used.has(q.id));
+  if(!available.length)return null;
   const recent=new Set((recentCategories||[]).slice(-2)),varied=available.filter(q=>!recent.has(q.subject));if(varied.length)available=varied;
   return available[Math.min(available.length-1,Math.floor(Math.max(0,Math.min(.999999,Number(random())||0))*available.length))]
  };
@@ -92,14 +92,16 @@ function createQuestionBank(bank){
   const selected=[...new Set((packs||[]).filter(Boolean))];let base=selected.length?selectable.filter(q=>packsFor(q).some(pack=>selected.includes(pack))):(byEdition.get(edition)||[]);
   if(selected.includes("kids"))base=base.filter(q=>q.kidsSafe);if(selected.includes("work"))base=base.filter(q=>q.workSafe);
   let pool=difficultyPool(base,difficulty);if(!pool.length)return null;
+  const unused=subpool=>subpool.filter(q=>!(usedIds||[]).includes(q.id));
   if(edition==="work"){
    const dedicated=pool.filter(q=>q.workTrack==="dedicated"),broad=pool.filter(q=>q.workTrack==="broad"),preferred=random()<.7?dedicated:broad;
-   pool=preferred.length?preferred:(dedicated.length?dedicated:broad)
+   const alternate=preferred===dedicated?broad:dedicated;pool=unused(preferred).length?preferred:unused(alternate).length?alternate:pool
   }
   if(selected.includes("street")&&selected.length>1){
    const identity=pool.filter(q=>packsFor(q).includes("street"));
    const supporting=pool.filter(q=>!packsFor(q).includes("street"));
-   if(identity.length&&supporting.length)pool=random()<.62?identity:supporting
+   const identityAvailable=unused(identity),supportingAvailable=unused(supporting),preferIdentity=random()<.62;
+   if(preferIdentity&&identityAvailable.length)pool=identity;else if(!preferIdentity&&supportingAvailable.length)pool=supporting;else if(identityAvailable.length)pool=identity;else if(supportingAvailable.length)pool=supporting
   }
   return choose(pool,usedIds,recentCategories,random)
  }

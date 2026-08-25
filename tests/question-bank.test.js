@@ -71,8 +71,8 @@ test("edition indexes make Original, Work, and Solo eligibility explicit",()=>{
  const bank=api.createQuestionBank(data);assert.equal(bank.byEdition.get("original").length,1409);assert.equal(bank.byEdition.get("work").length,1493);assert.equal(bank.byEdition.get("solo").length,1409);assert.ok(bank.byEdition.get("work").every(q=>q.editions.includes("work")&&q.workSafe));assert.ok(bank.byEdition.get("solo").every(q=>q.editions.includes("solo")))
 });
 
-test("edition exhaustion recycles only eligible IDs and never leaks",()=>{
- const bank=api.createQuestionBank(data);for(const edition of ["original","work","solo"]){const used=[],eligible=new Set(bank.byEdition.get(edition).map(q=>q.id));for(let i=0;i<eligible.size*3;i++){const q=bank.select({edition,difficulty:"medium",usedIds:used,random:()=>0});assert.ok(q,edition);assert.ok(eligible.has(q.id),`${edition} leaked ${q.id}`);if(used.includes(q.id))used.splice(used.indexOf(q.id),1);used.push(q.id)}}
+test("edition exhaustion returns null instead of recycling a used question",()=>{
+ const bank=api.createQuestionBank(data);for(const edition of ["original","work","solo"]){const used=[],eligible=new Set(bank.byEdition.get(edition).map(q=>q.id));for(;;){const q=bank.select({edition,difficulty:"medium",usedIds:used,random:()=>0});if(!q)break;assert.ok(eligible.has(q.id),`${edition} leaked ${q.id}`);assert.equal(used.includes(q.id),false,`${edition} repeated ${q.id}`);used.push(q.id)}assert.ok(used.length>0,edition);assert.equal(bank.select({edition,difficulty:"medium",usedIds:used,random:()=>0}),null,edition)}
 });
 
 test("visible difficulty changes the eligible internal pool without crossing edition",()=>{
@@ -88,7 +88,7 @@ test("recent subject avoidance chooses another subject when one is available",()
 });
 
 test("Work selection follows a deterministic 70/30 dedicated-to-broad mix",()=>{
- const bank=api.createQuestionBank(data),used=[];let randomCall=0,selection=0,dedicated=0,broad=0;const random=()=>{const choosingTrack=randomCall++%2===0;if(choosingTrack)return (selection++%10)<7?0:.9;return 0};for(let i=0;i<100;i++){const q=bank.select({edition:"work",difficulty:"medium",usedIds:used,random});q.workTrack==="dedicated"?dedicated++:broad++;if(used.includes(q.id))used.splice(used.indexOf(q.id),1);used.push(q.id)}assert.equal(dedicated,70);assert.equal(broad,30)
+ const bank=api.createQuestionBank(data);let randomCall=0,selection=0,dedicated=0,broad=0;const random=()=>{const choosingTrack=randomCall++%2===0;if(choosingTrack)return (selection++%10)<7?0:.9;return 0};for(let i=0;i<100;i++){const q=bank.select({edition:"work",difficulty:"medium",random});q.workTrack==="dedicated"?dedicated++:broad++}assert.equal(dedicated,70);assert.equal(broad,30)
 });
 
 test("gameplay projection retains legacy alts without changing accepted-answer semantics",()=>{
@@ -111,6 +111,10 @@ test("Street identity is substantial and receives a strong share in mixed vibe g
  let call=0,selection=0,streetPicks=0;const random=()=>call++%2===0?(selection++%100)/100:0;
  for(let i=0;i<100;i++){const q=bank.select({packs:["street","movies","music"],difficulty:"medium",random});if(bank.packsFor(q).includes("street"))streetPicks++}
  assert.ok(streetPicks>=60&&streetPicks<=65,`Street weighting was ${streetPicks}%`)
+});
+
+test("Street weighting and category avoidance never repeat a used question",()=>{
+ const bank=api.createQuestionBank(data),used=[],recent=[];for(let i=0;i<120;i++){const q=bank.select({packs:["street","movies","music"],difficulty:"medium",usedIds:used,recentCategories:recent,random:()=>((i*37)%100)/100});assert.ok(q,`pool exhausted unexpectedly at ${i}`);assert.equal(used.includes(q.id),false,`repeated ${q.id}`);used.push(q.id);recent.push(q.subject)}assert.equal(new Set(used).size,used.length)
 });
 
 test("Street weighting never overrides Kids or Work safety",()=>{

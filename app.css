@@ -1109,6 +1109,8 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
 .result-body>.result-word,.result-body>.answer-panel,.result-body>.strike-box,.result-body>.phase-heading,.result-body>.standings{grid-column:auto;grid-row:auto;align-self:center;min-width:0;max-width:100%}
 .result-body>.answer-panel,.result-body>.standings{width:min(900px,100%);margin-inline:auto}
 .result-body>.strike-box{margin-inline:auto}
+.host-reaction-callout{width:min(760px,94%);margin-inline:auto;padding:8px 14px;border:1px solid rgba(255,208,79,.36);border-radius:14px;background:rgba(255,208,79,.09);color:#fff4c2;font-size:clamp(.9rem,2vw,1.22rem);font-weight:900;line-height:1.15;text-align:center;animation:hostReactionIn .28s ease-out both}
+@keyframes hostReactionIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
 
 @media (orientation:portrait) and (max-width:700px){
  .players-list .player-row{grid-template-columns:72px minmax(0,1fr) 44px!important;grid-template-rows:44px 44px;gap:5px 7px;min-height:101px;padding:4px 6px}
