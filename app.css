@@ -780,6 +780,8 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
 .setup-options{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
 .setup-choice{flex:1 1 88px;min-width:44px;min-height:44px;padding:9px 11px}
 .setup-game-options .setup-choice{font-size:clamp(.95rem,1.5vw,1.2rem)}
+.setup-pack-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;width:100%}.setup-pack-options .setup-choice{font-size:clamp(.7rem,1.15vw,.92rem)}
+@media(max-width:700px){.setup-pack-options{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .unified-players{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
 .unified-players .player-row{grid-template-columns:72px minmax(0,1fr) 44px;min-height:48px;padding:3px 5px}
 .unified-players input{min-height:44px;padding:9px 10px}
@@ -900,6 +902,7 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
  .setup-options{gap:3px;flex-wrap:nowrap}
  .setup-choice{flex:1 1 44px;min-width:44px;min-height:44px;padding:3px 2px;border-radius:9px;font-size:clamp(.66rem,2.8vh,.82rem);line-height:1.05}
  .setup-game-options .setup-choice{font-size:clamp(.72rem,3vh,.92rem)}
+ .setup-pack-label{display:none}.setup-pack-options{grid-template-columns:repeat(9,minmax(44px,1fr));gap:3px}.setup-pack-options .setup-choice{min-width:44px;font-size:clamp(.55rem,2vh,.7rem)}
  .setup-card .volume-wrap{min-height:44px;gap:4px}
  .setup-card .volume-wrap input{width:min(190px,75%);min-height:44px}
  .shell:has(.unified-setup) .footer{min-height:44px;padding:0;background:none}

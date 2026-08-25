@@ -11,6 +11,7 @@ const DIFFICULTIES=[
  {id:"hard",label:"HARD"},
  {id:"savage",label:"SAVAGE"}
 ];
+const CONTENT_PACKS=[['original','ORIGINAL'],['street','STREET / HIP-HOP'],['kids','KIDS'],['work','WORK'],['transit','TRANSIT'],['sunline','SUNLINE'],['movies','MOVIES'],['music','MUSIC'],['disney','DISNEY']];
 const WORK_INDUSTRIES=[
  "General Workplace","Healthcare","Education","Construction","Hospitality",
  "Retail","Finance","Technology","Manufacturing","Automotive",
@@ -25,7 +26,7 @@ const QUESTION_BANK_SOURCE={...window.LOS_QUESTION_BANK_DATA,bankVersion:"stage-
 const QUESTION_BANK=window.LOSQuestionBank.createQuestionBank(QUESTION_BANK_SOURCE);
 const QUESTIONS=QUESTION_BANK.questions.map(QUESTION_BANK.toGameplay);
 let state={
- screen:"home",mode:"original",players:[],selectedIds:[],duration:15,questionSeconds:15,
+ screen:"home",mode:"original",contentPacks:["original"],players:[],selectedIds:[],duration:15,questionSeconds:15,
  quick:false,voiceOn:localStorage.getItem(STORAGE.voice)!=="false",readQuestions:localStorage.getItem(STORAGE.readQuestions)!=="false",
  volume:Number(localStorage.getItem(STORAGE.volume)||.65),categories:[],industry:"",difficulty:"medium",answerLanguage:"en",game:null
 };
@@ -120,9 +121,9 @@ const HOST_LINE_TUNING={
  ]
 };
 let hostSystem=null;
-let recognition=null,questionTimer=null,flowTimer=null,pausedRemaining=null,pausedFrom=null,pausedResultDelay=null,resultDelayRemaining=null,renamePending=null,lastVolume=state.volume>0?state.volume:.65,questionSoundTimers=[],celebrationTimers=[],handoffTimers=[];
+let recognition=null,questionTimer=null,answerGraceTimer=null,flowTimer=null,pausedRemaining=null,pausedFrom=null,pausedResultDelay=null,resultDelayRemaining=null,renamePending=null,lastVolume=state.volume>0?state.volume:.65,questionSoundTimers=[],celebrationTimers=[],handoffTimers=[];
 let runtimeSessionId=0,renderGeneration=0,setupRenderId=0,pendingTransitionCause={trigger:"internal",reason:"runtime"},questionReading=false,questionSessionId=0,answerListening=false,playerUpRenderGeneration=0;
-const BUILD_INFO={stage:"6.24",version:"iphone-voice-enable-diagnosis",builtAt:"2026-08-20"},transitionDiagnostics=[],screenLifetimeDiagnostics=[],answerDiagnostics=[],playerUpDiagnostics=[],audioDiagnostics={tick:"off",buzzerFired:false},transitionDebugEnabled=new URLSearchParams(location.search).get("playtestDebug")==="1"||localStorage.getItem("los_playtest_debug")==="1";
+const BUILD_INFO={stage:"6.25",version:"semantic-packs-timeout-grace",builtAt:"2026-08-24"},transitionDiagnostics=[],screenLifetimeDiagnostics=[],answerDiagnostics=[],playerUpDiagnostics=[],audioDiagnostics={tick:"off",buzzerFired:false},transitionDebugEnabled=new URLSearchParams(location.search).get("playtestDebug")==="1"||localStorage.getItem("los_playtest_debug")==="1";
 function enterScreen(next,reason="render",trigger=pendingTransitionCause.trigger||"internal"){
  const from=state.screen,sourceSession=runtimeSessionId,validScreens=new Set(["home","setup","mode","industry","difficulty","fun","players","time","ready","handoff","transition","question","result","showdown","complete","paused"]),valid=validScreens.has(next);
  if(!valid){const rejected={accepted:false,from,to:next,reason,trigger,command:trigger==="voice"?pendingTransitionCause.reason:null,callback:trigger==="internal-game-event"?reason:null,at:Date.now(),sourceSession,session:runtimeSessionId,renderGeneration};transitionDiagnostics.push(rejected);return runtimeSessionId}
@@ -273,7 +274,7 @@ function createHostSystem(provider=defaultHostProvider()){
  const cancel=(reason,resumeRecognition=true)=>{token++;provider.cancel?.(reason);if(currentEntry&&!/completed|failed|cancelled/.test(currentEntry.result||"")){currentEntry.result="cancelled";currentEntry.cancelReason=reason;currentEntry.settledAt=Date.now()}const outcome=currentEntry;currentEntry=null;const resume=micWasActive;micWasActive=false;speaking=false;currentPriority=0;settleIdle(outcome);if(resume&&resumeRecognition)queueMicrotask(()=>{if(state.voiceOn&&voiceCore.desired&&!voiceCore.permissionBlocked)startVoice(state.screen)});return resume};
  const choose=(event,context={})=>{
   const culturalCategory=/hip-hop|r&b|funk|oldies|music|regional mexican|tejano|corrido|norte|ranchera/i.test(context.category||""),style=["masculine","feminine","neutral"].includes(context.hostStyle)?context.hostStyle:"neutral",pronunciationSafe=line=>SPANISH_PRONUNCIATION_REVIEWED||!/\b(?:compa|perro|orale|órale)\b/i.test(line.text);
-  const source=(HOST_LINES[event]||[]).filter(x=>(state.mode!=="work"||x.workSafe!==false)&&(!x.hostStyle||x.hostStyle==="any"||x.hostStyle===style)&&pronunciationSafe(x)),flavored=culturalCategory?source.filter(x=>x.cultural):[];
+  const safeGame=state.mode==="work"||(state.contentPacks||[]).some(pack=>pack==="work"||pack==="kids"),source=(HOST_LINES[event]||[]).filter(x=>(!safeGame||x.workSafe!==false)&&(!x.hostStyle||x.hostStyle==="any"||x.hostStyle===style)&&pronunciationSafe(x)),flavored=culturalCategory?source.filter(x=>x.cultural):[];
   const candidates=flavored.length&&Math.random()<.35?flavored:source;
   const phraseFamily=line=>line.family||norm(line.text).replace(/\b(?:name|player|big|dawg|homie|compa|perro|okay|alright|aight|orale)\b/g,"").split(" ").filter(Boolean).slice(0,3).join(" ");
   const pool=candidates.filter(line=>!lastIds.includes(event+":"+(HOST_LINES[event]||[]).indexOf(line))&&!lastFamilies.includes(phraseFamily(line)));
@@ -302,7 +303,7 @@ function createHostSystem(provider=defaultHostProvider()){
 }
 function startMusic(){if(isSetupScreen()||state.screen==="home")GameAudio.playMusic("setup",{owner:"setup"})}
 function stopMusic(){GameAudio.stopMusic()}
-function clearRuntime(){hostSystem?.cancel("runtime-change");questionReading=false;answerListening=false;audioDiagnostics.tick="off";GameAudio.restore();GameAudio.stopPending();clearInterval(questionTimer);questionTimer=null;clearTimeout(flowTimer);flowTimer=null;questionSoundTimers.forEach(clearTimeout);questionSoundTimers=[];handoffTimers.forEach(clearTimeout);handoffTimers=[];celebrationTimers.forEach(id=>{clearTimeout(id);clearInterval(id)});celebrationTimers=[]}
+function clearRuntime(){hostSystem?.cancel("runtime-change");questionReading=false;answerListening=false;audioDiagnostics.tick="off";GameAudio.restore();GameAudio.stopPending();clearInterval(questionTimer);questionTimer=null;clearTimeout(answerGraceTimer);answerGraceTimer=null;clearTimeout(flowTimer);flowTimer=null;questionSoundTimers.forEach(clearTimeout);questionSoundTimers=[];handoffTimers.forEach(clearTimeout);handoffTimers=[];celebrationTimers.forEach(id=>{clearTimeout(id);clearInterval(id)});celebrationTimers=[]}
 function isSetupScreen(){return ["setup","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen)}
 function exitSetup(){if(state.game)return;markSetupAbandoned(state.screen);state.game=null;home()}
 function bindSetupShell(){document.querySelectorAll("[data-setup-exit]").forEach(button=>button.onclick=exitSetup)}
@@ -408,7 +409,7 @@ function fuzzyVisibleTarget(h){
  return false
 }
 const voicePageHidden=()=>{try{return !document.defaultView||document.visibilityState==="hidden"}catch{return true}};
-let voiceCore={ctx:null,owner:null,restart:null,errorWatchdog:null,generation:0,retryAttempt:0,restartCount:0,desired:false,lastDesiredDecision:{desired:false,reason:"initializing"},actualState:"stopped",health:{generation:0,phase:"stopped",events:{}},lastManualRecoveryAt:-Infinity,lastKey:"",lastAt:0,lastHeard:"",lastTranscript:"",lastTranscriptFinal:null,lastInterim:"",lastFinal:"",lastRoute:"",lastRejection:"",lastError:"",suppressionReason:"",startRequestedAt:null,startedAt:null,listeningAt:null,lastSpeechAt:null,endedAt:null,permissionBlocked:false,handledInterimSlots:new Map(),interimCandidates:new Map(),navQueued:null,diagnostics:[],utterance:0,currentUtterance:null,latencySeen:new Set()},lastPlayerVoiceMutation={key:"",at:0},voiceLifecycleSuspended=voicePageHidden();
+let voiceCore={ctx:null,owner:null,restart:null,errorWatchdog:null,generation:0,retryAttempt:0,restartCount:0,desired:false,lastDesiredDecision:{desired:false,reason:"initializing"},actualState:"stopped",health:{generation:0,phase:"stopped",events:{}},lastManualRecoveryAt:-Infinity,lastKey:"",lastAt:0,lastHeard:"",lastTranscript:"",lastTranscriptFinal:null,lastInterim:"",lastFinal:"",lastRoute:"",lastRejection:"",lastError:"",suppressionReason:"",startRequestedAt:null,startedAt:null,listeningAt:null,lastSpeechAt:null,endedAt:null,permissionBlocked:false,handledInterimSlots:new Map(),interimCandidates:new Map(),navQueued:null,diagnostics:[],utterance:0,currentUtterance:null,answerUtterance:null,latencySeen:new Set()},lastPlayerVoiceMutation={key:"",at:0},voiceLifecycleSuspended=voicePageHidden();
 const VOICE_LATENCY_MODE=new URLSearchParams(location.search).get("voiceLatency")==="1";
 const VOICE_HEALTH_MODE=VOICE_LATENCY_MODE||new URLSearchParams(location.search).get("voiceHealth")==="1"||localStorage.getItem("los_voice_health")==="1";
 function voiceTimelineSnapshot(){
@@ -767,6 +768,7 @@ function centralGameIntent(h,isFinal=false){
 }
 function centralQuestionIntent(h,isFinal=false,confidence=0,resultIndex=-1){
  if(state.screen!=="question"||!state.game?.current||!answerListening||state.game.answered)return false;
+ if(Number(state.game.questionRemaining)<=0&&(!voiceCore.answerUtterance?.startedBeforeDeadline||voiceCore.answerUtterance.questionSessionId!==questionSessionId)){voiceDiagnostic("answer-attempt-rejected",{rawTranscript:h,isFinal,reason:"speech-started-after-deadline",questionSessionId});return false}
  const n=norm(h);
  if(!isFinal){
   voiceDiagnostic("answer-matcher-invoked",{text:h,normalizedText:n,isFinal:false,resultIndex,questionSessionId});const match=answerMatchTrace(h,state.game.current);voiceDiagnostic("answer-match-produced",{text:h,accepted:match.accepted,method:match.method,isFinal:false,resultIndex,questionSessionId});const key=`${questionSessionId}:${resultIndex}`,prior=voiceCore.interimCandidates.get(key),stable=!!(match.accepted&&prior?.normalized===n),highConfidence=match.accepted&&confidence>=.9;
@@ -888,7 +890,7 @@ function startVoice(ctx){
   };
   r.onaudiostart=()=>{if(voiceCore.generation!==generation||recognition!==r)return;setVoiceHealth(generation,"audio-detected");voiceDiagnostic("audio-start",{generation})};
   r.onsoundstart=()=>{if(voiceCore.generation!==generation||recognition!==r)return;setVoiceHealth(generation,"sound-detected");beginVoiceLatencyUtterance("sound-start")};
-  r.onspeechstart=()=>{if(voiceCore.generation!==generation||recognition!==r)return;setVoiceHealth(generation,"waiting-for-transcript");if(!voiceCore.currentUtterance)beginVoiceLatencyUtterance("speech-start");else voiceDiagnostic("speech-start")};
+  r.onspeechstart=()=>{if(voiceCore.generation!==generation||recognition!==r)return;setVoiceHealth(generation,"waiting-for-transcript");if(!voiceCore.currentUtterance)beginVoiceLatencyUtterance("speech-start");else voiceDiagnostic("speech-start");voiceCore.answerUtterance={id:voiceCore.currentUtterance,questionSessionId,startedBeforeDeadline:state.screen==="question"&&answerListening&&Number(state.game?.questionRemaining)>0}}
   r.onspeechend=()=>{if(voiceCore.generation!==generation||recognition!==r)return;voiceDiagnostic("speech-end")};
   r.onsoundend=()=>{if(voiceCore.generation!==generation||recognition!==r)return;voiceDiagnostic("sound-end")};
   r.onaudioend=()=>{if(voiceCore.generation!==generation||recognition!==r)return;voiceDiagnostic("audio-end",{generation})};
@@ -1004,9 +1006,11 @@ function properNamePronunciationMatch(heard,target){
  return scores.every((score,i)=>score>=(i===scores.length-1 ? .8 : .72))&&editSimilarity(phoneticKey(heard),phoneticKey(target))>=.78
 }
 const SAFE_CONCEPT_EQUIVALENTS=[
- ["car","automobile"],["television","tv"],["united states","united states of america","united states america","usa","us","u s"],["world war two","world war 2","world war ii","second world war","wwii"],["new york city","nyc"]
+ ["car","automobile"],["television","tv"],["conflict","struggle","problem","central conflict","main conflict"],["circulatory system","cardiovascular system","circulatory"],["united states","united states of america","united states america","usa","us","u s"],["world war two","world war 2","world war ii","second world war","wwii"],["new york city","nyc"]
 ].map(group=>new Set(group.map(norm)));
 function genericConceptEquivalent(a,b){a=norm(a);b=norm(b);return SAFE_CONCEPT_EQUIVALENTS.some(group=>group.has(a)&&group.has(b))}
+const SAFE_CATEGORY_EXAMPLES={food:new Set(["apple","banana","bread","burger","pizza","rice","salad","sandwich","taco"]),vehicle:new Set(["bus","car","motorcycle","truck","van"])};
+function safeCategoryExample(heard,target){return SAFE_CATEGORY_EXAMPLES[norm(target)]?.has(norm(heard))===true}
 function safeWordFormEquivalent(a,b){a=norm(a);b=norm(b);if(!a||!b||a.includes(" ")||b.includes(" "))return false;const singular=x=>x.length>4&&x.endsWith("ies")?x.slice(0,-3)+"y":x.length>4&&/(?:ches|shes|xes|zes|ses)$/.test(x)?x.slice(0,-2):x.length>3&&x.endsWith("s")&&!x.endsWith("ss")?x.slice(0,-1):x;return singular(a)===singular(b)&&Math.min(a.length,b.length)>=4}
 const GENERIC_PARTIAL_ANSWER_WORDS=new Set(["animal","author","book","bridge","capital","city","color","country","element","film","food","game","instrument","language","movie","number","ocean","person","planet","president","river","scientist","singer","song","sport","state","team","theory","vehicle","war"]);
 function meaningfulPartialAnswer(heard,target,question=""){
@@ -1033,6 +1037,7 @@ function answerMatchTrace(h,q){
  for(const {value:ans,source,target,targetCore} of entries)if(heard===target||heardCore===targetCore)return{accepted:true,method:source==="canonical"?"exact-canonical":source,matched:ans,heard,heardCore,target,targetCore};
  for(const {value:ans,source,target,targetCore} of entries){
   if(genericConceptEquivalent(heardCore,targetCore))return{accepted:true,method:"generic-safe-equivalence",matched:ans,heard,heardCore,target,targetCore};
+  if(safeCategoryExample(heardCore,targetCore))return{accepted:true,method:"safe-category-example",matched:ans,heard,heardCore,target,targetCore};
   if(safeWordFormEquivalent(heardCore,targetCore))return{accepted:true,method:"safe-word-form",matched:ans,heard,heardCore,target,targetCore};
   if(targetCore.length>=7&&Math.abs(heardCore.length-targetCore.length)<=1&&editSimilarity(heardCore,targetCore)>=.88)return{accepted:true,method:"normalization-edit",matched:ans,heard,heardCore,target,targetCore};
   const hp=phoneticKey(heardCore),tp=phoneticKey(targetCore);
@@ -1058,17 +1063,17 @@ function saveActiveGame(){
   const payload={
    version:1,
    savedAt:Date.now(),
-   mode:state.mode,quick:state.quick,duration:state.duration,
+   mode:state.mode,contentPacks:state.contentPacks||["original"],quick:state.quick,duration:state.duration,
    questionSeconds:state.questionSeconds,categories:state.categories||[],
    industry:state.industry||"",difficulty:state.difficulty||"medium",answerLanguage:state.answerLanguage||"en",readQuestions:state.readQuestions!==false,players:state.players,game:state.game
   };
   localStorage.setItem(STORAGE.activeGame,JSON.stringify(payload))
  }catch{}
 }
-function setupPayload(screen=state.screen,resumable=false){return{version:2,kind:"setup",resumable:!!resumable,savedAt:Date.now(),screen:["setup","players"].includes(screen)?screen:"setup",mode:state.mode,quick:!!state.quick,duration:state.duration,questionSeconds:state.questionSeconds,categories:state.categories||[],industry:state.industry||"",difficulty:state.difficulty||"medium",answerLanguage:state.answerLanguage||"en",voiceOn:!!state.voiceOn,volume:state.volume,readQuestions:state.readQuestions!==false,players:state.players.map(p=>({id:p.id||uid(),name:String(p.name||""),hostStyle:["masculine","feminine","neutral"].includes(p.hostStyle)?p.hostStyle:"neutral"}))}}
+function setupPayload(screen=state.screen,resumable=false){return{version:2,kind:"setup",resumable:!!resumable,savedAt:Date.now(),screen:["setup","players"].includes(screen)?screen:"setup",mode:state.mode,contentPacks:state.contentPacks||["original"],quick:!!state.quick,duration:state.duration,questionSeconds:state.questionSeconds,categories:state.categories||[],industry:state.industry||"",difficulty:state.difficulty||"medium",answerLanguage:state.answerLanguage||"en",voiceOn:!!state.voiceOn,volume:state.volume,readQuestions:state.readQuestions!==false,players:state.players.map(p=>({id:p.id||uid(),name:String(p.name||""),hostStyle:["masculine","feminine","neutral"].includes(p.hostStyle)?p.hostStyle:"neutral"}))}}
 function saveSetupState(screen=state.screen){if(state.game||!["setup","players"].includes(screen))return;try{const previous=loadSetupState();localStorage.setItem(STORAGE.setup,JSON.stringify(setupPayload(screen,previous?.resumable===true)))}catch{}}
 function markSetupAbandoned(screen=state.screen){if(state.game||!["setup","players"].includes(screen))return;try{localStorage.setItem(STORAGE.setup,JSON.stringify(setupPayload(screen,true)))}catch{}}
-function loadSetupState(){try{const x=JSON.parse(localStorage.getItem(STORAGE.setup)||"null");return x?.kind==="setup"?x:null}catch{return null}}
+function loadSetupState(){try{const x=JSON.parse(localStorage.getItem(STORAGE.setup)||"null");if(x?.kind==="setup"&&x.resumable&&state.screen==="home"&&Array.isArray(x.contentPacks))state.contentPacks=[...x.contentPacks];return x?.kind==="setup"?x:null}catch{return null}}
 function hasResumableSetup(){const x=loadSetupState();return !!(x&&x.version===2&&x.resumable===true&&["setup","players"].includes(x.screen)&&Array.isArray(x.players))}
 function clearSetupState(){localStorage.removeItem(STORAGE.setup)}
 function loadActiveGame(){
@@ -1082,7 +1087,7 @@ function resumeSavedGame(){
  resumeActiveMatch(x)
 }
 function resumeActiveMatch(x){
- state.mode=x.mode||"friends";state.quick=!!x.quick;state.duration=x.duration||10;
+ state.mode=x.mode||"friends";state.contentPacks=x.contentPacks||[x.mode==="work"?"work":"original"];state.quick=!!x.quick;state.duration=x.duration||10;
  state.questionSeconds=x.questionSeconds||15;state.categories=x.categories||[];
  state.industry=x.industry||"";state.difficulty=x.difficulty||"medium";state.answerLanguage=x.answerLanguage||"en";state.readQuestions=x.readQuestions!==false;state.players=x.players||[];
  state.game=x.game;state.game.players=state.game.players.map(p=>({...p,strikes:Math.min(3,Math.max(0,Number(p.strikes)||0)),eliminated:!!p.eliminated||(Number(p.strikes)||0)>=3}));
@@ -1140,11 +1145,14 @@ function setSetupSeconds(value){value=Number(value);if(![10,15,20,30].includes(v
 function setup(){
  ensureUnifiedRoster();const renderId=++setupRenderId,live=fn=>()=>{if(state.screen==="setup"&&renderId===setupRenderId)fn()};
  const modes=[["original","ORIGINAL"],["work","WORK"],["solo","SOLO"]].map(([id,label])=>`<button class="btn setup-choice ${state.mode===id?"selected":""}" data-setup-mode="${id}" aria-pressed="${state.mode===id}">${label}</button>`).join("");
+ const packs=CONTENT_PACKS.map(([id,label])=>`<button class="btn setup-choice ${(state.contentPacks||[]).includes(id)?"selected":""}" data-content-pack="${id}" aria-pressed="${(state.contentPacks||[]).includes(id)}">${label}</button>`).join("");
  const difficulties=DIFFICULTIES.filter(d=>d.id!=="kids").map(d=>`<button class="btn setup-choice ${state.difficulty===d.id?"selected":""}" data-setup-difficulty="${d.id}" aria-pressed="${state.difficulty===d.id}">${d.label}</button>`).join("");
  const answerTimes=[10,15,20,30].map(s=>`<button class="btn setup-choice ${state.questionSeconds===s?"selected":""}" data-setup-seconds="${s}" aria-pressed="${state.questionSeconds===s}">${s} SEC</button>`).join("");
  const lengths=[5,10,15,20].map(m=>`<button class="btn setup-choice ${state.duration===m?"selected":""}" data-setup-minutes="${m}" aria-pressed="${state.duration===m}">${m} MIN</button>`).join("");
  app.innerHTML=shell("",`<div class="unified-setup"><div class="unified-setup-heading">GAME SETUP</div><div id="setupError" class="setup-error" role="alert" aria-live="assertive"></div><div class="unified-setup-grid">${setupSection("GAME MODE",`<div class="setup-options setup-game-options">${modes}</div>`,"setup-game-row")}${setupSection("DIFFICULTY",`<div class="setup-options">${difficulties}</div>`,"setup-middle-row")}${setupSection("ANSWER TIME",`<div class="setup-options">${answerTimes}</div>`,"setup-middle-row")}${setupSection("GAME LENGTH",`<div class="setup-options">${lengths}</div>`,"setup-middle-row")}${setupSection("VOICE",`<div class="setup-options"><button id="setupVoiceOn" class="btn setup-choice ${state.voiceOn?"selected":""}" aria-pressed="${state.voiceOn}">ON</button><button id="setupVoiceOff" class="btn setup-choice ${!state.voiceOn?"selected":""}" aria-pressed="${!state.voiceOn}">OFF</button></div>`,"setup-bottom-row")}${setupSection("VOLUME",`<div class="volume-wrap"><input id="vol" type="range" min="0" max="1" step=".05" value="${state.volume}" aria-label="Game volume"><strong id="volPct">${Math.round(state.volume*100)}%</strong></div>`,"setup-bottom-row")}${setupSection("READ QUESTIONS",`<div class="setup-options"><button id="readQuestionsOn" class="btn setup-choice ${state.readQuestions?"selected":""}" aria-pressed="${state.readQuestions}">ON</button><button id="readQuestionsOff" class="btn setup-choice ${!state.readQuestions?"selected":""}" aria-pressed="${!state.readQuestions}">OFF</button></div>`,"setup-bottom-row")}</div></div>`,`<button id="startGame" class="btn primary large" data-voice="CONTINUE" data-voice-aliases="start game">CONTINUE</button>`);
+ document.querySelector(".setup-game-row")?.insertAdjacentHTML("beforeend",`<div class="setup-label setup-pack-label">CONTENT PACKS</div><div class="setup-options setup-pack-options">${packs}</div>`);
  document.querySelectorAll("[data-setup-mode]").forEach(b=>b.onclick=live(()=>setUnifiedMode(b.dataset.setupMode)));
+ document.querySelectorAll("[data-content-pack]").forEach(b=>b.onclick=live(()=>toggleContentPack(b.dataset.contentPack)));
  document.querySelectorAll("[data-setup-difficulty]").forEach(b=>b.onclick=live(()=>setSetupDifficulty(b.dataset.setupDifficulty)));
  document.querySelectorAll("[data-setup-seconds]").forEach(b=>b.onclick=live(()=>setSetupSeconds(b.dataset.setupSeconds)));
  document.querySelectorAll("[data-setup-minutes]").forEach(b=>b.onclick=live(()=>setGameDuration(Number(b.dataset.setupMinutes))));
@@ -1153,6 +1161,7 @@ function setup(){
  document.getElementById("vol").oninput=e=>{if(renderId===setupRenderId){setVolume(Number(e.target.value));saveSetupState("setup")}};document.getElementById("startGame").onclick=live(startUnifiedGame);saveSetupState("setup");startVoice("setup")
 }
 function setUnifiedMode(mode){if(!["original","work","solo"].includes(mode))return;rerenderSetupPreservingViewport(()=>{state.mode=mode;state.quick=false;state.categories=[];state.industry=""},`[data-setup-mode="${mode}"]`)}
+function toggleContentPack(pack){if(!CONTENT_PACKS.some(([id])=>id===pack))return;rerenderSetupPreservingViewport(()=>{const selected=new Set(state.contentPacks||[]);if(selected.has(pack))selected.delete(pack);else selected.add(pack);state.contentPacks=[...selected]},`[data-content-pack="${pack}"]`)}
 function setSetupVoice(on){rerenderSetupPreservingViewport(()=>{state.voiceOn=!!on;voiceCore.permissionBlocked=on?false:voiceCore.permissionBlocked;voiceCore.retryAttempt=0;save();if(!on)stopVoice()},on?"#setupVoiceOn":"#setupVoiceOff")}
 function setupSettingDiagnostic(raw,matchedIntent,matchedSetting,oldValue,newValue,parserBranch,rejectedSecondaryMatches){voiceDiagnostic("setup-setting-command",{rawTranscript:String(raw||""),normalizedTranscript:norm(raw),matchedIntent,matchedSetting,oldValue,newValue,parserBranch,parserStopped:true,rejectedSecondaryMatches,screen:state.screen,session:runtimeSessionId})}
 function setSetupVoiceVoice(on,raw){const oldValue=state.voiceOn;setSetupVoice(on);setupSettingDiagnostic(raw,"voice", "voiceOn",oldValue,state.voiceOn,"named-voice-toggle",["volume","other-setup","navigation"])}
@@ -1162,6 +1171,8 @@ function setupError(message,section,selector){const box=document.getElementById(
 function startUnifiedGame(){
  if(state.screen!=="setup")return false;
  if(!["original","work","solo"].includes(state.mode))return setupError("CHOOSE ORIGINAL, WORK EDITION, OR SOLO.","game");
+ if(!(state.contentPacks||[]).length)return setupError("CHOOSE AT LEAST ONE CONTENT PACK.","content-packs");
+ if(!QUESTION_BANK.select({packs:state.contentPacks,difficulty:state.difficulty,random:()=>0}))return setupError("THE SELECTED PACKS DO NOT HAVE APPROVED QUESTIONS YET.","content-packs");
  if(!["easy","medium","hard","savage"].includes(state.difficulty))return setupError("CHOOSE A DIFFICULTY.","difficulty");
  if(![10,15,20,30].includes(Number(state.questionSeconds)))return setupError("CHOOSE AN ANSWER TIME.","answer-time");
  if(![5,10,15,20].includes(Number(state.duration)))return setupError("CHOOSE A GAME LENGTH.","game-length");
@@ -1336,9 +1347,9 @@ function transition(kind,done,reason="game-transition"){
 }
 function pickQuestion(){
  const g=state.game;
- const source=QUESTION_BANK.select({edition:state.mode==="work"?"work":state.mode==="solo"?"solo":"original",difficulty:state.difficulty,usedIds:g.used||[],recentCategories:g.recentCategories||[],random:Math.random});
+ const effectivePacks=[...new Set([...(state.contentPacks||[]),...(state.mode==="work"?["work"]:[])])],source=QUESTION_BANK.select({edition:state.mode==="work"?"work":state.mode==="solo"?"solo":"original",packs:effectivePacks,difficulty:state.difficulty,usedIds:g.used||[],recentCategories:g.recentCategories||[],random:Math.random});
  if(!source)throw new Error(`No eligible questions for ${state.mode}/${state.difficulty}`);
- const item=QUESTION_BANK.toGameplay(source),eligibleIds=new Set((QUESTION_BANK.byEdition.get(state.mode==="work"?"work":state.mode==="solo"?"solo":"original")||[]).map(q=>q.id));
+ const item=QUESTION_BANK.toGameplay(source),selectedPacks=effectivePacks,eligibleIds=new Set(QUESTION_BANK.questions.filter(q=>!selectedPacks.length||QUESTION_BANK.packsFor(q).some(pack=>selectedPacks.includes(pack))).filter(q=>!selectedPacks.includes("kids")||q.kidsSafe).map(q=>q.id));
  g.used=(g.used||[]).filter(id=>eligibleIds.has(id));
  if(g.used.includes(item.id))g.used=g.used.filter(id=>id!==item.id);
  g.used.push(item.id);g.recentCategories=[...(g.recentCategories||[]),item.cat].slice(-2);return item
@@ -1363,7 +1374,7 @@ function question(resumeCurrent=false){
    const t=document.getElementById("timer");
    if(t){t.textContent=Math.max(0,rem);t.classList.toggle("urgent",rem<=5);t.style.setProperty("--timer-progress",String(Math.max(0,rem)/remStart));t.setAttribute("aria-label",`${Math.max(0,rem)} seconds remaining`)}
    if(rem>0)tickSound(rem);
-   if(rem<=0){clearInterval(questionTimer);questionTimer=null;finish("timeout")}
+   if(rem<=0){clearInterval(questionTimer);questionTimer=null;const pending=state.voiceOn&&voiceCore.answerUtterance?.startedBeforeDeadline&&voiceCore.answerUtterance.questionSessionId===questionSessionId;if(pending){voiceDiagnostic("answer-finalization-grace-started",{questionSessionId,durationMs:1200,utterance:voiceCore.answerUtterance.id});answerGraceTimer=setTimeout(()=>{answerGraceTimer=null;if(state.screen==="question"&&!g.answered){answerListening=false;voiceDiagnostic("answer-finalization-grace-expired",{questionSessionId});finish("timeout")}},1200)}else finish("timeout")}
   },1000)
  };
  if(state.voiceOn&&state.readQuestions&&!resuming){questionReading=true;hostSystem?.emit("questionRead",{question:g.current.q,name:g.players[g.idx]?.name,category:g.current.cat,mode:state.mode});if(hostSystem?.isSpeaking())hostSystem.whenIdle().then(startClock);else startClock()}

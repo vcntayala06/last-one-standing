@@ -68,6 +68,15 @@ function createQuestionBank(bank){
  const byEdition=new Map(EDITIONS.map(e=>[e,selectable.filter(q=>q.editions.includes(e)&&(e!=="work"||q.workSafe))]));
  const byId=new Map(selectable.map(q=>[q.id,q]));
  const ordered=DIFFICULTIES;
+ const packsFor=q=>{
+  const packs=new Set(q.contentPacks||[]),subject=normalize(q.subject),prompt=normalize(q.prompt);
+  if(q.editions.includes("original")&&q.workTrack!=="dedicated")packs.add("original");
+  if(q.kidsSafe)packs.add("kids");if(q.workSafe&&q.editions.includes("work"))packs.add("work");
+  if(/transit|transport|vehicle|road/.test(subject))packs.add("transit");
+  if(/movies|film|tv|pop culture/.test(subject)){packs.add("movies");if(/disney|pixar|frozen|encanto|coco|zombies|descendants|camp rock/.test(prompt))packs.add("disney")}
+  if(/music/.test(subject)){packs.add("music");if(/hip hop|rap|kendrick|jay z|beyonce|tupac|snoop|funk|oldies|lowrider|chicano|selena|reggaeton|corrido/.test(prompt))packs.add("street")}
+  return [...packs]
+ };
  const difficultyPool=(pool,visible)=>{
   const desired=VISIBLE_DIFFICULTIES[visible]||VISIBLE_DIFFICULTIES.medium,exact=pool.filter(q=>desired.includes(q.difficulty));if(exact.length)return exact;
   const centers=desired.map(x=>ordered.indexOf(x));let best=Infinity,out=[];for(const q of pool){const distance=Math.min(...centers.map(x=>Math.abs(ordered.indexOf(q.difficulty)-x)));if(distance<best){best=distance;out=[q]}else if(distance===best)out.push(q)}return out
@@ -78,15 +87,17 @@ function createQuestionBank(bank){
   const recent=new Set((recentCategories||[]).slice(-2)),varied=available.filter(q=>!recent.has(q.subject));if(varied.length)available=varied;
   return available[Math.min(available.length-1,Math.floor(Math.max(0,Math.min(.999999,Number(random())||0))*available.length))]
  };
- function select({edition="original",difficulty="medium",usedIds=[],recentCategories=[],random=Math.random}={}){
-  let pool=difficultyPool(byEdition.get(edition)||[],difficulty);if(!pool.length)return null;
+ function select({edition="original",packs=[],difficulty="medium",usedIds=[],recentCategories=[],random=Math.random}={}){
+  const selected=[...new Set((packs||[]).filter(Boolean))];let base=selected.length?selectable.filter(q=>packsFor(q).some(pack=>selected.includes(pack))):(byEdition.get(edition)||[]);
+  if(selected.includes("kids"))base=base.filter(q=>q.kidsSafe);if(selected.includes("work"))base=base.filter(q=>q.workSafe);
+  let pool=difficultyPool(base,difficulty);if(!pool.length)return null;
   if(edition==="work"){
    const dedicated=pool.filter(q=>q.workTrack==="dedicated"),broad=pool.filter(q=>q.workTrack==="broad"),preferred=random()<.7?dedicated:broad;
    pool=preferred.length?preferred:(dedicated.length?dedicated:broad)
   }
   return choose(pool,usedIds,recentCategories,random)
  }
- return {schemaVersion:bank.schemaVersion,bankVersion:bank.bankVersion,questions:selectable,byId,byEdition,select,validate:()=>validateBank(bank),toGameplay(q){const en=[...(q.answer.accepted.en||[])],es=[...(q.answer.accepted.es||[])],equivalents=[...(q.answer.accepted.equivalents||[])],legacy=[...(q.alts||[])];return{id:q.id,q:q.prompt,a:q.answer.canonical,cat:q.subject,accept:en,es,equivalents,alts:[...new Set([...legacy,...en])],edition:q.workTrack==="dedicated"?"work":undefined,difficulty:q.difficulty,editions:[...q.editions]}}}
+ return {schemaVersion:bank.schemaVersion,bankVersion:bank.bankVersion,questions:selectable,byId,byEdition,packsFor,select,validate:()=>validateBank(bank),toGameplay(q){const en=[...(q.answer.accepted.en||[])],es=[...(q.answer.accepted.es||[])],equivalents=[...(q.answer.accepted.equivalents||[])],legacy=[...(q.alts||[])];return{id:q.id,q:q.prompt,a:q.answer.canonical,cat:q.subject,accept:en,es,equivalents,alts:[...new Set([...legacy,...en])],packs:packsFor(q),kidsSafe:q.kidsSafe,workSafe:q.workSafe,edition:q.workTrack==="dedicated"?"work":undefined,difficulty:q.difficulty,editions:[...q.editions]}}}
 }
 return {DIFFICULTIES,EDITIONS,STATUSES,VISIBLE_DIFFICULTIES,normalize,validateBank,createQuestionBank,approvedFactErrors};
 });

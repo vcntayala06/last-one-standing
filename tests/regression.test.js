@@ -641,7 +641,7 @@ test("Stage 6.20 accepts a bounded correct question alternative without broadeni
 }));
 
 test("Stage 6.20 spoken answers execute synchronously after the final callback",withHarness(h=>{
- const state=activeTimedQuestion(h);state.game.current={id:"latency-answer",q:"What planet is red?",a:"Mars"};h.recognition().speechStart();h.speak("Mars",{final:true});const rows=h.api.getVoiceDiagnostics(),final=[...rows].reverse().find(x=>x.stage==="first-final-transcript"),executed=[...rows].reverse().find(x=>x.stage==="answer-executed");assert.ok(final&&executed);assert.ok(executed.monoAt-final.monoAt<5);assert.equal(state.screen,"result")
+ const state=activeTimedQuestion(h);state.game.current={id:"latency-answer",q:"What planet is red?",a:"Mars"};h.recognition().speechStart();h.speak("Mars",{final:true});const rows=h.api.getVoiceDiagnostics(),final=[...rows].reverse().find(x=>x.stage==="first-final-transcript"),executed=[...rows].reverse().find(x=>x.stage==="answer-executed");assert.ok(final&&executed);assert.ok(executed.monoAt-final.monoAt<10);assert.equal(state.screen,"result")
 }));
 
 test("Stage 6.20 no-speech recovery is prompt and normal screen changes do not churn recognition",withHarness(h=>{
@@ -670,6 +670,37 @@ test("meaningful partial answers preserve player intent without accepting generi
   ["bridge",{q:"Name the famous San Francisco bridge",a:"Golden Gate Bridge"}],
   ["Alexander",{q:"Who invented the telephone?",a:"Alexander Graham Bell"}]
  ])assert.equal(h.api.accepted(heard,q),false,heard)
+}));
+
+test("Family-Feud-style judging accepts safe equivalents and category examples",withHarness(h=>{
+ const accepted=[
+  ["the conflict",{q:"What is the struggle in a story called?",a:"conflict"}],
+  ["central conflict",{q:"What is the struggle in a story called?",a:"conflict"}],
+  ["struggle",{q:"What is the struggle in a story called?",a:"conflict"}],
+  ["problem",{q:"What is the struggle in a story called?",a:"conflict"}],
+  ["cardiovascular system",{q:"Which body system uses the heart and blood vessels?",a:"circulatory system"}],
+  ["circulatory",{q:"Which body system uses the heart and blood vessels?",a:"circulatory system"}],
+  ["banana",{q:"Name a food",a:"food"}],
+  ["pizza",{q:"Name a food",a:"food"}],
+  ["taco",{q:"Name a food",a:"food"}],
+  ["car",{q:"Name a vehicle",a:"vehicle"}],
+  ["truck",{q:"Name a vehicle",a:"vehicle"}],
+  ["bus",{q:"Name a vehicle",a:"vehicle"}]
+ ];
+ for(const [heard,q] of accepted)assert.equal(h.api.accepted(heard,q),true,heard);
+ for(const heard of ["plot","character","setting"])assert.equal(h.api.accepted(heard,{q:"What is the struggle in a story called?",a:"conflict"}),false,heard)
+}));
+
+test("speech begun before zero can finalize after zero exactly once",withHarness(h=>{
+ const state=activeTimedQuestion(h),r=h.recognition();state.game.current={id:"late-20",q:"What comes next: 4, 8, 12, 16?",a:"20"};h.timers.advance(14000);r.speechStart();h.timers.advance(1000);assert.equal(state.screen,"question");assert.equal(state.game.questionRemaining,0);r.emit("20",{final:true});assert.equal(state.screen,"result");assert.equal(state.game.players[0].correct,1);assert.equal(state.game.players[0].timeout,0);assert.equal(h.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().audio.buzzerFired,false);r.emit("20",{final:true});h.timers.advance(1500);assert.equal(state.game.players[0].correct,1);assert.equal(state.game.players[0].timeout,0)
+}));
+
+test("speech begun after zero cannot use another utterance's grace window",withHarness(h=>{
+ const state=activeTimedQuestion(h),r=h.recognition();state.game.current={id:"late-start",q:"What comes next: 4, 8, 12, 16?",a:"20"};h.timers.advance(14000);r.speechStart();h.timers.advance(1000);r.speechStart();r.emit("20",{final:true});assert.equal(state.screen,"question");assert.equal(state.game.players[0].correct,0);h.timers.advance(1200);assert.equal(state.screen,"result");assert.equal(state.game.players[0].timeout,1);assert.equal(state.game.players[0].correct,0)
+}));
+
+test("Game Setup content packs are multi-select and clearly selected",withHarness(h=>{
+ const state=h.api.getState();state.screen="setup";state.contentPacks=["original"];h.api.setup();h.click('[data-content-pack="street"]');h.click('[data-content-pack="movies"]');assert.deepEqual(Array.from(state.contentPacks),["original","street","movies"]);for(const id of state.contentPacks)assert.equal(h.document.querySelector(`[data-content-pack="${id}"]`).getAttribute("aria-pressed"),"true")
 }));
 
 test("Stage 6.23 stable interim answer reacts early once and ignores the trailing final",withHarness(h=>{

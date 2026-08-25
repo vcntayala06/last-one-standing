@@ -22,7 +22,7 @@ test("Stage 6.9 validator rejects incomplete cultural-quality approval",()=>{
 });
 
 test("Batch 2 applies the complete quality and double-verification gate before approval",()=>{
- const approved=batch2.questions.filter(q=>q.review.status==="approved"),rejected=batch2.questions.filter(q=>q.review.status==="rejected");assert.equal(batch2.candidateCount,550);assert.equal(approved.length,545);assert.equal(rejected.length,5);assert.equal(approved.filter(q=>q.quality.status==="rewritten").length,3);
+ const approved=batch2.questions.filter(q=>q.review.status==="approved"),rejected=batch2.questions.filter(q=>q.review.status==="rejected");assert.equal(batch2.candidateCount,550);assert.equal(approved.length,545);assert.equal(rejected.length,5);assert.equal(approved.filter(q=>q.quality.status==="rewritten").length,5);
  for(const q of approved){assert.equal(q.review.approvalStandard,"stage-6.8");assert.equal(q.fact.sources.length,2,q.id);assert.equal(new Set(q.fact.sources.map(s=>s.publisher+"|"+s.url)).size,2,q.id);for(const key of ["factual","fair","difficulty","worthwhile","gameWording","templateVariety","answerSpecific","timerSuitable"])assert.equal(q.quality.rubric[key],true,`${q.id}:${key}`)}
 });
 
@@ -97,6 +97,17 @@ test("gameplay projection retains legacy alts without changing accepted-answer s
 
 test("a synthetic 4,000-question bank validates, indexes, and selects responsively",()=>{
  const template=data.questions[0],synthetic={...data,bankVersion:"synthetic-performance",questions:Array.from({length:4000},(_,i)=>({...clone(template),id:`synthetic-general-${String(i).padStart(4,"0")}`,prompt:`Synthetic performance question number ${i}?`,answer:{...clone(template.answer),conceptId:`synthetic-${i}.answer`,canonical:`Synthetic answer ${i}`,accepted:{en:[`synthetic answer ${i}`],es:[]}}}))};const started=performance.now(),report=api.validateBank(synthetic),bank=api.createQuestionBank(synthetic);let used=[];for(let i=0;i<100;i++){const q=bank.select({edition:"original",difficulty:"kids",usedIds:used,random:()=>.5});used.push(q.id)}const elapsed=performance.now()-started;assert.equal(report.valid,true,report.errors.join("\n"));assert.equal(bank.questions.length,4000);assert.ok(elapsed<1500,`4,000-record foundation took ${elapsed.toFixed(1)}ms`)
+});
+
+test("content packs combine pools while preserving Kids safety",()=>{
+ const bank=api.createQuestionBank(data);
+ const transit=bank.select({packs:["transit"],difficulty:"medium",random:()=>0});assert.ok(transit);assert.ok(bank.packsFor(transit).includes("transit"));
+ const mixed=bank.select({packs:["street","movies"],difficulty:"medium",random:()=>.5});assert.ok(mixed);assert.ok(bank.packsFor(mixed).some(pack=>pack==="street"||pack==="movies"));
+ for(const random of [()=>0,()=>.25,()=>.5,()=>.75,()=>.99]){const child=bank.select({packs:["kids","music","movies"],difficulty:"medium",random});assert.ok(child);assert.equal(child.kidsSafe,true)}
+});
+
+test("SunLine remains isolated until verified agency questions are supplied",()=>{
+ const bank=api.createQuestionBank(data);assert.equal(bank.select({packs:["sunline"],difficulty:"medium",random:()=>0}),null);assert.ok(bank.questions.filter(q=>bank.packsFor(q).includes("sunline")).every(q=>q.contentPacks?.includes("sunline")))
 });
 
 test("bank loading and validation failures are explicit",()=>{
