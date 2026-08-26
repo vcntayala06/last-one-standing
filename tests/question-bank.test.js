@@ -1,13 +1,17 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict"),{performance}=require("node:perf_hooks");
-const seed=require("../question-bank-data"),batch=require("../question-bank-batch-1"),batch2=require("../question-bank-batch-2"),batch3=require("../question-bank-batch-3"),batch4=require("../question-bank-batch-4"),api=require("../question-bank"),data={...seed,bankVersion:"stage-6.29-music-subcategories",questions:[...seed.questions,...batch.questions,...batch2.questions,...batch3.questions,...batch4.questions]};
+const seed=require("../question-bank-data"),batch=require("../question-bank-batch-1"),batch2=require("../question-bank-batch-2"),batch3=require("../question-bank-batch-3"),batch4=require("../question-bank-batch-4"),batch5=require("../question-bank-batch-5"),api=require("../question-bank"),data={...seed,bankVersion:"stage-6.30-quality-gate-expanded-packs",questions:[...seed.questions,...batch.questions,...batch2.questions,...batch3.questions,...batch4.questions,...batch5.questions]};
 const clone=value=>JSON.parse(JSON.stringify(value));
 
 test("all seeds and population batches pass the versioned schema with stable unique IDs",()=>{
- const report=api.validateBank(data,{nearDuplicates:true});assert.equal(report.valid,true,report.errors.join("\n"));assert.equal(seed.questions.length,34);assert.equal(batch.questions.length,500);assert.equal(batch2.questions.length,550);assert.equal(batch3.questions.length,550);assert.equal(batch4.questions.length,18);assert.equal(report.count,1652);assert.equal(new Set(data.questions.map(q=>q.id)).size,1652);assert.equal(data.questions.every(q=>q.schemaVersion===1&&q.revision>=1),true);assert.equal(report.warnings.filter(x=>x.includes("near-duplicate")).length,0)
+ const report=api.validateBank(data,{nearDuplicates:true});assert.equal(report.valid,true,report.errors.join("\n"));assert.equal(seed.questions.length,34);assert.equal(batch.questions.length,500);assert.equal(batch2.questions.length,550);assert.equal(batch3.questions.length,550);assert.equal(batch4.questions.length,18);assert.equal(batch5.questions.length,22);assert.equal(report.count,1674);assert.equal(new Set(data.questions.map(q=>q.id)).size,1674);assert.equal(data.questions.every(q=>q.schemaVersion===1&&q.revision>=1),true);assert.equal(report.warnings.filter(x=>x.includes("near-duplicate")).length,0)
 });
 
-test("Build 6.29 audits every playable question and passes the complete wording gate",()=>{const bank=api.createQuestionBank(data),audit=bank.audit();assert.equal(audit.audited,1520);assert.equal(audit.passed,1520);assert.deepEqual(audit.issues,[])});
+test("Build 6.30 audits every playable question and passes the strengthened wording gate",()=>{const bank=api.createQuestionBank(data),audit=bank.audit();assert.equal(audit.audited,1542);assert.equal(audit.passed,1542);assert.deepEqual(audit.issues,[])});
+
+test("Build 6.30 additions pass double verification and the No That Was Stupid Factor gate",()=>{for(const q of batch5.questions){assert.equal(q.review.approvalStandard,"stage-6.30");assert.equal(q.fact.sources.length,2,q.id);assert.equal(new Set(q.fact.sources.map(s=>s.publisher+"|"+s.url)).size,2,q.id);for(const key of ["accurate","clear","answerTypeClear","fair","unambiguous","notPedantic","notCheapGotcha","worthKnowing","goodReveal","timerFair","naturalSpokenWording"])assert.equal(q.quality.los[key],true,`${q.id}:${key}`)}});
+
+test("Build 6.30 riddle gate rejects an undocumented plausible answer",()=>{const bad=clone(batch5.questions.find(q=>q.contentPacks.includes("riddles")));bad.quality.riddle.plausibleAnswers.push("another answer");const report=api.validateBank({...seed,questions:[bad]});assert.equal(report.valid,false);assert.ok(report.errors.some(x=>x.includes("quality.riddle")))});
 
 test("Build 6.29 Music records have structured metadata and performer-type wording",()=>{const music=api.createQuestionBank(data).questions.filter(q=>q.subject==="Music");assert.ok(music.length>=200);for(const q of music){assert.ok(q.music);assert.ok(q.music.genres.length);assert.ok(api.PERFORMER_TYPES.includes(q.music.performerType));assert.ok(!/Name the artist connected with|points to which artist or group|Which artist is known for Steven Tyler/.test(q.prompt),q.prompt)}assert.ok(music.some(q=>q.prompt==="What band was Jim Morrison the lead singer of?"));assert.ok(music.some(q=>q.prompt==="Which rapper was a founding member of N.W.A?"))});
 
@@ -70,11 +74,11 @@ test("accepted.equivalents is validated and projected through the canonical game
 });
 
 test("duplicate canonical answers are reported for review but not silently deleted",()=>{
- const suspicious=clone(data);suspicious.questions[1].answer.canonical=suspicious.questions[0].answer.canonical;const report=api.validateBank(suspicious);assert.equal(report.valid,true);assert.ok(report.warnings.some(x=>x.includes("Suspicious repeated canonical answer")));assert.equal(report.count,1652)
+ const suspicious=clone(data);suspicious.questions[1].answer.canonical=suspicious.questions[0].answer.canonical;const report=api.validateBank(suspicious);assert.equal(report.valid,true);assert.ok(report.warnings.some(x=>x.includes("Suspicious repeated canonical answer")));assert.equal(report.count,1674)
 });
 
 test("edition indexes make Original, Work, and Solo eligibility explicit",()=>{
- const bank=api.createQuestionBank(data);assert.equal(bank.byEdition.get("original").length,1427);assert.equal(bank.byEdition.get("work").length,1511);assert.equal(bank.byEdition.get("solo").length,1427);assert.ok(bank.byEdition.get("work").every(q=>q.editions.includes("work")&&q.workSafe));assert.ok(bank.byEdition.get("solo").every(q=>q.editions.includes("solo")))
+ const bank=api.createQuestionBank(data);assert.equal(bank.byEdition.get("original").length,1449);assert.equal(bank.byEdition.get("work").length,1533);assert.equal(bank.byEdition.get("solo").length,1449);assert.ok(bank.byEdition.get("work").every(q=>q.editions.includes("work")&&q.workSafe));assert.ok(bank.byEdition.get("solo").every(q=>q.editions.includes("solo")))
 });
 
 test("edition exhaustion returns null instead of recycling a used question",()=>{
@@ -127,8 +131,8 @@ test("Street weighting never overrides Kids or Work safety",()=>{
  const bank=api.createQuestionBank(data);for(let i=0;i<100;i++){const child=bank.select({packs:["kids","street","music"],difficulty:"medium",random:()=>i/101});assert.ok(child);assert.equal(child.kidsSafe,true);const workplace=bank.select({packs:["work","street","movies"],difficulty:"medium",random:()=>i/101});assert.ok(workplace);assert.equal(workplace.workSafe,true)}
 });
 
-test("SunLine remains isolated until verified agency questions are supplied",()=>{
- const bank=api.createQuestionBank(data);assert.equal(bank.select({packs:["sunline"],difficulty:"medium",random:()=>0}),null);assert.ok(bank.questions.filter(q=>bank.packsFor(q).includes("sunline")).every(q=>q.contentPacks?.includes("sunline")))
+test("SunLine remains isolated and contains only verified agency questions",()=>{
+ const bank=api.createQuestionBank(data),sunline=bank.questions.filter(q=>bank.packsFor(q).includes("sunline"));assert.equal(sunline.length,2);assert.ok(bank.select({packs:["sunline"],difficulty:"medium",random:()=>0}));assert.ok(sunline.every(q=>q.contentPacks?.includes("sunline")&&q.fact.sources.length===2))
 });
 
 test("bank loading and validation failures are explicit",()=>{

@@ -64,6 +64,11 @@ function validateBank(bank,{nearDuplicates=false}={}){
    const rubric=q.quality?.rubric||{},required=["factual","fair","difficulty","worthwhile","gameWording","templateVariety","answerSpecific","timerSuitable","culturallyFair","memorable"];
    if(!q.quality||!['passed','rewritten'].includes(q.quality.status)||required.some(key=>rubric[key]!==true))errors.push(`${at}.quality must pass the complete Stage 6.9 human-quality and cultural-fairness rubric before approval`)
   }
+  if(q.review?.status==="approved"&&q.review?.approvalStandard==="stage-6.30"){
+   const rubric=q.quality?.los||{},required=["accurate","clear","answerTypeClear","fair","unambiguous","notPedantic","notCheapGotcha","worthKnowing","goodReveal","timerFair","naturalSpokenWording"];
+   if(required.some(key=>rubric[key]!==true))errors.push(`${at}.quality.los must pass the complete No That Was Stupid Factor rubric`);
+   if(q.contentPacks?.includes("riddles")&&(!q.quality?.riddle||q.quality.riddle.intendedAnswer!==q.answer.canonical||!Array.isArray(q.quality.riddle.plausibleAnswers)||q.quality.riddle.plausibleAnswers.some(x=>!q.answer.accepted.en.map(normalize).includes(normalize(x)))))errors.push(`${at}.quality.riddle must document and accept every equally plausible answer`)
+  }
   if(!Number.isInteger(q.schemaVersion)||q.schemaVersion!==bank.schemaVersion||!Number.isInteger(q.revision)||q.revision<1)errors.push(`${at} schema/revision is invalid`);
   const answer=normalize(q.answer?.canonical);if(answer){const peers=answers.get(answer)||[];peers.push(at);answers.set(answer,peers)}
  }
@@ -82,6 +87,9 @@ function createQuestionBank(bank){
   if(q.editions.includes("original")&&q.workTrack!=="dedicated")packs.add("original");
   if(q.kidsSafe)packs.add("kids");if(q.workSafe&&q.editions.includes("work"))packs.add("work");
   if(/transit|transport|vehicle|road/.test(subject))packs.add("transit");
+  if(/paratransit|wheelchair|accessib|ada\b|mobility device/.test(identity))packs.add("paratransit");
+  if(/i should have known/.test(subject))packs.add("known");
+  if(/logic|decoding|word play/.test(subject))packs.add("riddles");
   if(/movies|film|tv|pop culture/.test(subject)){packs.add("movies");if(/disney|pixar|frozen|encanto|coco|zombies|descendants|camp rock/.test(prompt))packs.add("disney")}
   if(/music/.test(subject))packs.add("music");
   if(/hip hop|rap\b|r&b|rhythm and blues|funk|soul|oldies|lowrider|chicano|reggaeton|djing|mcing|breakdancing|graffiti|dr dre|the chronic|snoop|doggystyle|tupac|2pac|all eyez on me|ice cube|amerikkka|n w a|warren g|nate dogg|cypress hill|kendrick|jay z|nas\b|eminem|50 cent|ll cool j|run dmc|public enemy|outkast|wu tang|beyonce|mary j blige|tlc\b|aaliyah|lauryn hill|george clinton|parliament funkadelic|destiny s child|aretha franklin|marvin gaye|earth wind fire|prince|alicia keys|en vogue|too short|nicki minaj|cardi b|a tribe called quest|queen of hip hop soul|princess of r&b|boyz n the hood|friday\b|menace ii society|blood in blood out|colors\b|la bamba|chicano movement|south central|watts|east los angeles/.test(identity))packs.add("street");
@@ -97,9 +105,9 @@ function createQuestionBank(bank){
   const recent=new Set((recentCategories||[]).slice(-2)),varied=available.filter(q=>!recent.has(q.subject));if(varied.length)available=varied;
   return available[Math.min(available.length-1,Math.floor(Math.max(0,Math.min(.999999,Number(random())||0))*available.length))]
  };
- function select({edition="original",packs=[],musicSubcategories=[],difficulty="medium",usedIds=[],recentCategories=[],random=Math.random}={}){
+ function select({edition="original",audience="general",packs=[],musicSubcategories=[],difficulty="medium",usedIds=[],recentCategories=[],random=Math.random}={}){
   const selected=[...new Set((packs||[]).filter(Boolean))];let base=selected.length?selectable.filter(q=>packsFor(q).some(pack=>selected.includes(pack))):(byEdition.get(edition)||[]);
-  if(selected.includes("kids"))base=base.filter(q=>q.kidsSafe);if(selected.includes("work"))base=base.filter(q=>q.workSafe);
+  if(audience==="kids"||selected.includes("kids"))base=base.filter(q=>q.kidsSafe);if(audience==="work"||selected.includes("work"))base=base.filter(q=>q.workSafe&&q.editions.includes("work"));
   const musicFilters=[...new Set((musicSubcategories||[]).filter(x=>MUSIC_SUBCATEGORIES.includes(x)))];
   if(selected.includes("music")&&musicFilters.length){const otherPacks=selected.filter(pack=>pack!=="music");base=base.filter(q=>q.subject!=="Music"||otherPacks.some(pack=>packsFor(q).includes(pack))||[...(q.music?.genres||[]),...(q.music?.eras||[])].some(tag=>musicFilters.includes(tag)))}
   let pool=difficultyPool(base,difficulty);if(!pool.length)return null;
@@ -125,6 +133,7 @@ function auditPlayableQuestions(questions){
   if(words.length>32)issues.push({id:q.id,rule:"timer-suitable",detail:`Prompt has ${words.length} words.`});
   if(answer.length>90)issues.push({id:q.id,rule:"answer-specific",detail:"Canonical answer is too long for timed play."});
   if(/points to which artist or group|name the artist connected with|what artist is associated with|which artist is known for (?:jim morrison|steven tyler|don henley|destiny s child)/i.test(prompt))issues.push({id:q.id,rule:"natural-music-wording",detail:"Generic association wording does not identify the requested performer type."});
+  if(/\b(?:what|which) title\b|\btitle (?:follows|is built around|is associated with)|\b(?:what|which) (?:person|thing|artist) (?:is )?(?:associated|connected|linked) with\b|\bpoints to\b/i.test(prompt))issues.push({id:q.id,rule:"answer-type-clear",detail:"Vague template wording does not clearly identify the expected answer type."});
   if(q.subject==="Music"&&["band","group","duo"].includes(q.music?.performerType)&&/^Which artist\b/i.test(prompt))issues.push({id:q.id,rule:"music-answer-type",detail:`Prompt asks for an artist but metadata expects ${q.music.performerType}.`});
   if(q.fact?.dateSensitive&&(!q.fact.currentAsOf||!isoDate(q.fact.currentAsOf)))issues.push({id:q.id,rule:"date-sensitive",detail:"Date-sensitive question needs currentAsOf."})
  }

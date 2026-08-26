@@ -154,7 +154,7 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
 /* Restored / enlarged champion payoff */
 .complete-screen{padding:0;overflow:hidden}
 .complete-stage{
-  position:relative;z-index:2;width:100%;height:100%;display:flex;flex-direction:column;
+  position:relative;z-index:2;width:100%;height:100%;min-height:0;max-height:100%;display:flex;flex-direction:column;
   align-items:center;justify-content:center;text-align:center;padding:max(24px,var(--los-safe-top)) max(24px,var(--los-safe-right)) max(24px,var(--los-safe-bottom)) max(24px,var(--los-safe-left));overflow-y:auto;overflow-x:hidden;
   background:radial-gradient(circle at 50% 48%,rgba(255,208,79,.16),transparent 35%)
 }
@@ -176,7 +176,7 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
 .champion-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;flex:none}
 .champion-actions .btn{min-width:160px;min-height:52px}
 .champion-actions .primary{font-size:clamp(1.1rem,2vw,1.4rem);padding-inline:clamp(24px,4vw,48px)}
-.confetti{z-index:3}
+.complete-screen>.confetti{position:fixed;inset:0;z-index:3;contain:strict;overflow:hidden}
 .confetti i:nth-child(3n){background:#fff}
 .confetti i:nth-child(3n+1){background:var(--gold)}
 .confetti i:nth-child(3n+2){background:var(--red)}

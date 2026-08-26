@@ -29,11 +29,10 @@ function gameState(h, { players = 2, strikes = 0 } = {}) {
 const events = h => h.api.GameAudio.diagnostics.history;
 const count = (h, type, name) => events(h).filter(x => x.type === type && x.name === name).length;
 
-test("Lock In plays first, then countdown plays exactly one distinct cue per digit", withHarness(h => {
+test("one Player-Up handoff plays Lock In once, then one distinct cue per countdown digit", withHarness(h => {
   gameState(h);
   h.api.handoff();
   assert.equal(count(h, "sfx", "lockIn"), 1);
-  h.timers.advance(1600);
   h.timers.advance(450);
   assert.equal(count(h, "sfx", "countdown3"), 1);
   h.timers.advance(1000);

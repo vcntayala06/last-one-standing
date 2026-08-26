@@ -12,7 +12,7 @@ const {createAppServer}=require("../server");
 const ROOT=path.resolve(__dirname,"..");
 const REQUIRED_FILES=[
  "index.html","app.css","app.js","host-provider.js","service-worker-register.js","question-bank-data.js",
- "question-bank-batch-1.js","question-bank-batch-2.js","question-bank-batch-3.js","question-bank-batch-4.js",
+ "question-bank-batch-1.js","question-bank-batch-2.js","question-bank-batch-3.js","question-bank-batch-4.js","question-bank-batch-5.js",
  "question-bank.js","manifest.webmanifest","apple-touch-icon.png","icon-192.png","icon-512.png"
 ];
 const REVISIONED_SHELL_FILES=REQUIRED_FILES.filter(file=>file!=="index.html");

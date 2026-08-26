@@ -6,7 +6,7 @@ const path=require("node:path");
 const crypto=require("node:crypto");
 
 const MIME={".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".json":"application/json; charset=utf-8",".png":"image/png",".webmanifest":"application/manifest+json; charset=utf-8",".txt":"text/plain; charset=utf-8"};
-const PUBLIC_FILES=new Set(["index.html","app.js","app.css","host-provider.js","question-bank-data.js","question-bank-batch-1.js","question-bank-batch-2.js","question-bank-batch-3.js","question-bank-batch-4.js","question-bank.js","manifest.webmanifest","apple-touch-icon.png","icon-192.png","icon-512.png","service-worker.js","service-worker-register.js"]);
+const PUBLIC_FILES=new Set(["index.html","app.js","app.css","host-provider.js","question-bank-data.js","question-bank-batch-1.js","question-bank-batch-2.js","question-bank-batch-3.js","question-bank-batch-4.js","question-bank-batch-5.js","question-bank.js","manifest.webmanifest","apple-touch-icon.png","icon-192.png","icon-512.png","service-worker.js","service-worker-register.js"]);
 function readEnvFile(root,env){
  const file=path.join(root,".env");if(!fs.existsSync(file))return env;
  for(const line of fs.readFileSync(file,"utf8").split(/\r?\n/)){const match=line.match(/^\s*([A-Z][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);if(match&&env[match[1]]==null)env[match[1]]=match[2].replace(/^['"]|['"]$/g,"")}
