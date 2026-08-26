@@ -12,7 +12,7 @@ const {createAppServer}=require("../server");
 const ROOT=path.resolve(__dirname,"..");
 const REQUIRED_FILES=[
  "index.html","app.css","app.js","host-provider.js","service-worker-register.js","question-bank-data.js",
- "question-bank-batch-1.js","question-bank-batch-2.js","question-bank-batch-3.js",
+ "question-bank-batch-1.js","question-bank-batch-2.js","question-bank-batch-3.js","question-bank-batch-4.js",
  "question-bank.js","manifest.webmanifest","apple-touch-icon.png","icon-192.png","icon-512.png"
 ];
 const REVISIONED_SHELL_FILES=REQUIRED_FILES.filter(file=>file!=="index.html");
@@ -123,7 +123,7 @@ test("installed game reloads and reaches a Champion through manual play with net
   await offlinePage.locator("#resumeSaved").click();
   await offlinePage.locator("#typedAnswer").waitFor({state:"visible",timeout:10000});
   assert.equal(await offlinePage.locator("#typedAnswer").isEnabled(),true);
-  const correctAnswer=await offlinePage.evaluate(()=>{const prompt=document.querySelector(".question-text")?.textContent?.trim(),sources=[window.LOS_QUESTION_BANK_DATA,window.LOS_QUESTION_BANK_BATCH_1,window.LOS_QUESTION_BANK_BATCH_2,window.LOS_QUESTION_BANK_BATCH_3];return sources.flatMap(source=>source.questions).find(question=>question.prompt===prompt)?.answer?.canonical||null});
+  const correctAnswer=await offlinePage.evaluate(()=>{const prompt=document.querySelector(".question-text")?.textContent?.trim(),sources=[window.LOS_QUESTION_BANK_DATA,window.LOS_QUESTION_BANK_BATCH_1,window.LOS_QUESTION_BANK_BATCH_2,window.LOS_QUESTION_BANK_BATCH_3,window.LOS_QUESTION_BANK_BATCH_4];return sources.flatMap(source=>source.questions).find(question=>question.prompt===prompt)?.answer?.canonical||null});
   assert.ok(correctAnswer,"offline question resolves to its canonical answer");
   await offlinePage.locator("#typedAnswer").fill(correctAnswer);
   await offlinePage.locator("#lockAnswer").click();

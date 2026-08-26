@@ -1,11 +1,17 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict"),{performance}=require("node:perf_hooks");
-const seed=require("../question-bank-data"),batch=require("../question-bank-batch-1"),batch2=require("../question-bank-batch-2"),batch3=require("../question-bank-batch-3"),api=require("../question-bank"),data={...seed,bankVersion:"stage-6.9-batch-3",questions:[...seed.questions,...batch.questions,...batch2.questions,...batch3.questions]};
+const seed=require("../question-bank-data"),batch=require("../question-bank-batch-1"),batch2=require("../question-bank-batch-2"),batch3=require("../question-bank-batch-3"),batch4=require("../question-bank-batch-4"),api=require("../question-bank"),data={...seed,bankVersion:"stage-6.29-music-subcategories",questions:[...seed.questions,...batch.questions,...batch2.questions,...batch3.questions,...batch4.questions]};
 const clone=value=>JSON.parse(JSON.stringify(value));
 
 test("all seeds and population batches pass the versioned schema with stable unique IDs",()=>{
- const report=api.validateBank(data,{nearDuplicates:true});assert.equal(report.valid,true,report.errors.join("\n"));assert.equal(seed.questions.length,34);assert.equal(batch.questions.length,500);assert.equal(batch2.questions.length,550);assert.equal(batch3.questions.length,550);assert.equal(report.count,1634);assert.equal(new Set(data.questions.map(q=>q.id)).size,1634);assert.equal(data.questions.every(q=>q.schemaVersion===1&&q.revision>=1),true);assert.equal(report.warnings.filter(x=>x.includes("near-duplicate")).length,0)
+ const report=api.validateBank(data,{nearDuplicates:true});assert.equal(report.valid,true,report.errors.join("\n"));assert.equal(seed.questions.length,34);assert.equal(batch.questions.length,500);assert.equal(batch2.questions.length,550);assert.equal(batch3.questions.length,550);assert.equal(batch4.questions.length,18);assert.equal(report.count,1652);assert.equal(new Set(data.questions.map(q=>q.id)).size,1652);assert.equal(data.questions.every(q=>q.schemaVersion===1&&q.revision>=1),true);assert.equal(report.warnings.filter(x=>x.includes("near-duplicate")).length,0)
 });
+
+test("Build 6.29 audits every playable question and passes the complete wording gate",()=>{const bank=api.createQuestionBank(data),audit=bank.audit();assert.equal(audit.audited,1520);assert.equal(audit.passed,1520);assert.deepEqual(audit.issues,[])});
+
+test("Build 6.29 Music records have structured metadata and performer-type wording",()=>{const music=api.createQuestionBank(data).questions.filter(q=>q.subject==="Music");assert.ok(music.length>=200);for(const q of music){assert.ok(q.music);assert.ok(q.music.genres.length);assert.ok(api.PERFORMER_TYPES.includes(q.music.performerType));assert.ok(!/Name the artist connected with|points to which artist or group|Which artist is known for Steven Tyler/.test(q.prompt),q.prompt)}assert.ok(music.some(q=>q.prompt==="What band was Jim Morrison the lead singer of?"));assert.ok(music.some(q=>q.prompt==="Which rapper was a founding member of N.W.A?"))});
+
+test("Music subcategory selection is multi-select and preserves other pack eligibility",()=>{const bank=api.createQuestionBank(data),hip=bank.questions.filter(q=>q.subject==="Music"&&q.music.genres.includes("hip-hop"));assert.ok(hip.length);for(let i=0;i<20;i++){const q=bank.select({packs:["music"],musicSubcategories:["hip-hop"],random:()=>i/20});assert.ok(q.music.genres.includes("hip-hop"))}const street=bank.select({packs:["street","music"],musicSubcategories:["classic-rock"],random:()=>0});assert.ok(bank.packsFor(street).includes("street")||street.music.genres.includes("classic-rock"))});
 
 test("Batch 3 applies the cultural-quality gate and requested production balance",()=>{
  const approved=batch3.questions.filter(q=>q.review.status==="approved"),entertainment=approved.filter(q=>["Music","Movies & TV"].includes(q.subject)),preferred=entertainment.filter(q=>q.culture?.preferred);
@@ -64,11 +70,11 @@ test("accepted.equivalents is validated and projected through the canonical game
 });
 
 test("duplicate canonical answers are reported for review but not silently deleted",()=>{
- const suspicious=clone(data);suspicious.questions[1].answer.canonical=suspicious.questions[0].answer.canonical;const report=api.validateBank(suspicious);assert.equal(report.valid,true);assert.ok(report.warnings.some(x=>x.includes("Suspicious repeated canonical answer")));assert.equal(report.count,1634)
+ const suspicious=clone(data);suspicious.questions[1].answer.canonical=suspicious.questions[0].answer.canonical;const report=api.validateBank(suspicious);assert.equal(report.valid,true);assert.ok(report.warnings.some(x=>x.includes("Suspicious repeated canonical answer")));assert.equal(report.count,1652)
 });
 
 test("edition indexes make Original, Work, and Solo eligibility explicit",()=>{
- const bank=api.createQuestionBank(data);assert.equal(bank.byEdition.get("original").length,1409);assert.equal(bank.byEdition.get("work").length,1493);assert.equal(bank.byEdition.get("solo").length,1409);assert.ok(bank.byEdition.get("work").every(q=>q.editions.includes("work")&&q.workSafe));assert.ok(bank.byEdition.get("solo").every(q=>q.editions.includes("solo")))
+ const bank=api.createQuestionBank(data);assert.equal(bank.byEdition.get("original").length,1427);assert.equal(bank.byEdition.get("work").length,1511);assert.equal(bank.byEdition.get("solo").length,1427);assert.ok(bank.byEdition.get("work").every(q=>q.editions.includes("work")&&q.workSafe));assert.ok(bank.byEdition.get("solo").every(q=>q.editions.includes("solo")))
 });
 
 test("edition exhaustion returns null instead of recycling a used question",()=>{

@@ -18,6 +18,7 @@ async function createPage(browser,viewport){
  await page.addScriptTag({content:fs.readFileSync(path.join(ROOT,"question-bank-batch-1.js"),"utf8")});
  await page.addScriptTag({content:fs.readFileSync(path.join(ROOT,"question-bank-batch-2.js"),"utf8")});
  await page.addScriptTag({content:fs.readFileSync(path.join(ROOT,"question-bank-batch-3.js"),"utf8")});
+ await page.addScriptTag({content:fs.readFileSync(path.join(ROOT,"question-bank-batch-4.js"),"utf8")});
  await page.addScriptTag({content:fs.readFileSync(path.join(ROOT,"question-bank.js"),"utf8")});
  await page.addScriptTag({content:instrument(fs.readFileSync(path.join(ROOT,"app.js"),"utf8"))});return page
 }

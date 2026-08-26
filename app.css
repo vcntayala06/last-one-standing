@@ -1131,3 +1131,6 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
  .shell:not(:has(.unified-setup)) .topbar-title{font-size:clamp(1.8rem,min(6vw,9vh),3.2rem)}
  .question-area .timer{width:auto;font-size:clamp(4.2rem,min(12vw,19vh),7rem)}
 }
+.music-filter-panel{margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,.16)}
+.music-subcategory-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px}
+.music-subcategory{min-height:48px;font-size:.82rem;padding:10px 12px}

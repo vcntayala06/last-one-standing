@@ -1,6 +1,9 @@
 (function(root,factory){const api=factory();if(typeof module==="object"&&module.exports)module.exports=api;root.LOSQuestionBank=api})(typeof globalThis!=="undefined"?globalThis:this,function(){
 "use strict";
 const DIFFICULTIES=["kids-easy","kids-medium","kids-hard","easy","medium","hard","savage"],EDITIONS=["original","work","solo","family"],STATUSES=["draft","reviewed","verified","approved","rejected","disabled"],CLASSIFICATIONS=["educational","entertainment","mixed"];
+const MUSIC_SUBCATEGORIES=["hip-hop","r-and-b","pop","rock","classic-rock","rock-and-roll","funk","soul","motown","lowrider-oldies","latin-oldies","regional-mexican","today","1970s","1980s","1990s","2000s"];
+const MUSIC_METADATA_TAGS=[...MUSIC_SUBCATEGORIES,"general-music"];
+const PERFORMER_TYPES=["solo-artist","singer","rapper","band","group","duo","producer","dj","composer","instrument","term","genre","other"];
 const VISIBLE_DIFFICULTIES={kids:["kids-easy","kids-medium","kids-hard"],easy:["kids-easy","kids-medium","easy"],medium:["easy","medium"],hard:["medium","hard"],savage:["hard","savage"]};
 const normalize=s=>String(s||"").toLocaleLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N}\s]/gu," ").replace(/\s+/g," ").trim();
 const isoDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||"")&&!Number.isNaN(Date.parse(value+"T00:00:00Z"));
@@ -46,6 +49,12 @@ function validateBank(bank,{nearDuplicates=false}={}){
   if(!q.answer||typeof q.answer.canonical!=="string"||!q.answer.canonical.trim())errors.push(`${at}.answer.canonical is empty`);
   if(!q.answer?.accepted||Object.entries(q.answer.accepted).some(([key,x])=>!["en","es","equivalents"].includes(key)||!Array.isArray(x)||x.some(v=>typeof v!=="string"||!v.trim())))errors.push(`${at}.answer.accepted is invalid`);
   if(!STATUSES.includes(q.review?.status))errors.push(`${at}.review.status is invalid`);
+  if(q.subject==="Music"&&!['draft','rejected','disabled'].includes(q.review?.status)){
+   const music=q.music||{};
+   if(!Array.isArray(music.genres)||!music.genres.length||music.genres.some(x=>!MUSIC_METADATA_TAGS.includes(x)))errors.push(`${at}.music.genres is invalid`);
+   if(!Array.isArray(music.eras)||music.eras.some(x=>!MUSIC_SUBCATEGORIES.includes(x)||!/^(?:1970s|1980s|1990s|2000s|today)$/.test(x)))errors.push(`${at}.music.eras is invalid`);
+   if(!PERFORMER_TYPES.includes(music.performerType))errors.push(`${at}.music.performerType is invalid`)
+  }
   if(q.review?.status==="approved")errors.push(...approvedFactErrors(q,at));
   if(q.review?.status==="approved"&&q.review?.approvalStandard==="stage-6.8"){
    const rubric=q.quality?.rubric||{},required=["factual","fair","difficulty","worthwhile","gameWording","templateVariety","answerSpecific","timerSuitable"];
@@ -88,9 +97,11 @@ function createQuestionBank(bank){
   const recent=new Set((recentCategories||[]).slice(-2)),varied=available.filter(q=>!recent.has(q.subject));if(varied.length)available=varied;
   return available[Math.min(available.length-1,Math.floor(Math.max(0,Math.min(.999999,Number(random())||0))*available.length))]
  };
- function select({edition="original",packs=[],difficulty="medium",usedIds=[],recentCategories=[],random=Math.random}={}){
+ function select({edition="original",packs=[],musicSubcategories=[],difficulty="medium",usedIds=[],recentCategories=[],random=Math.random}={}){
   const selected=[...new Set((packs||[]).filter(Boolean))];let base=selected.length?selectable.filter(q=>packsFor(q).some(pack=>selected.includes(pack))):(byEdition.get(edition)||[]);
   if(selected.includes("kids"))base=base.filter(q=>q.kidsSafe);if(selected.includes("work"))base=base.filter(q=>q.workSafe);
+  const musicFilters=[...new Set((musicSubcategories||[]).filter(x=>MUSIC_SUBCATEGORIES.includes(x)))];
+  if(selected.includes("music")&&musicFilters.length){const otherPacks=selected.filter(pack=>pack!=="music");base=base.filter(q=>q.subject!=="Music"||otherPacks.some(pack=>packsFor(q).includes(pack))||[...(q.music?.genres||[]),...(q.music?.eras||[])].some(tag=>musicFilters.includes(tag)))}
   let pool=difficultyPool(base,difficulty);if(!pool.length)return null;
   const unused=subpool=>subpool.filter(q=>!(usedIds||[]).includes(q.id));
   if(edition==="work"){
@@ -105,7 +116,19 @@ function createQuestionBank(bank){
   }
   return choose(pool,usedIds,recentCategories,random)
  }
- return {schemaVersion:bank.schemaVersion,bankVersion:bank.bankVersion,questions:selectable,byId,byEdition,packsFor,select,validate:()=>validateBank(bank),toGameplay(q){const en=[...(q.answer.accepted.en||[])],es=[...(q.answer.accepted.es||[])],equivalents=[...(q.answer.accepted.equivalents||[])],legacy=[...(q.alts||[])];return{id:q.id,q:q.prompt,a:q.answer.canonical,cat:q.subject,accept:en,es,equivalents,alts:[...new Set([...legacy,...en])],packs:packsFor(q),kidsSafe:q.kidsSafe,workSafe:q.workSafe,edition:q.workTrack==="dedicated"?"work":undefined,difficulty:q.difficulty,editions:[...q.editions]}}}
+ return {schemaVersion:bank.schemaVersion,bankVersion:bank.bankVersion,questions:selectable,byId,byEdition,packsFor,select,validate:()=>validateBank(bank),audit:()=>auditPlayableQuestions(selectable),toGameplay(q){const en=[...(q.answer.accepted.en||[])],es=[...(q.answer.accepted.es||[])],equivalents=[...(q.answer.accepted.equivalents||[])],legacy=[...(q.alts||[])];return{id:q.id,q:q.prompt,a:q.answer.canonical,cat:q.subject,accept:en,es,equivalents,alts:[...new Set([...legacy,...en])],packs:packsFor(q),music:q.music?{genres:[...q.music.genres],eras:[...q.music.eras],performerType:q.music.performerType,dateSensitive:!!q.fact?.dateSensitive,currentAsOf:q.fact?.currentAsOf||null}:null,kidsSafe:q.kidsSafe,workSafe:q.workSafe,edition:q.workTrack==="dedicated"?"work":undefined,difficulty:q.difficulty,editions:[...q.editions]}}}
 }
-return {DIFFICULTIES,EDITIONS,STATUSES,VISIBLE_DIFFICULTIES,normalize,validateBank,createQuestionBank,approvedFactErrors};
+function auditPlayableQuestions(questions){
+ const issues=[];
+ for(const q of questions){const prompt=String(q.prompt||""),answer=String(q.answer?.canonical||""),words=normalize(prompt).split(" ").filter(Boolean);
+  if(!/[?]$/.test(prompt))issues.push({id:q.id,rule:"question-mark",detail:"Playable prompt must read as a direct question."});
+  if(words.length>32)issues.push({id:q.id,rule:"timer-suitable",detail:`Prompt has ${words.length} words.`});
+  if(answer.length>90)issues.push({id:q.id,rule:"answer-specific",detail:"Canonical answer is too long for timed play."});
+  if(/points to which artist or group|name the artist connected with|what artist is associated with|which artist is known for (?:jim morrison|steven tyler|don henley|destiny s child)/i.test(prompt))issues.push({id:q.id,rule:"natural-music-wording",detail:"Generic association wording does not identify the requested performer type."});
+  if(q.subject==="Music"&&["band","group","duo"].includes(q.music?.performerType)&&/^Which artist\b/i.test(prompt))issues.push({id:q.id,rule:"music-answer-type",detail:`Prompt asks for an artist but metadata expects ${q.music.performerType}.`});
+  if(q.fact?.dateSensitive&&(!q.fact.currentAsOf||!isoDate(q.fact.currentAsOf)))issues.push({id:q.id,rule:"date-sensitive",detail:"Date-sensitive question needs currentAsOf."})
+ }
+ return{audited:questions.length,passed:questions.length-new Set(issues.map(x=>x.id)).size,issues}
+}
+return {DIFFICULTIES,EDITIONS,STATUSES,VISIBLE_DIFFICULTIES,MUSIC_SUBCATEGORIES,PERFORMER_TYPES,normalize,validateBank,createQuestionBank,auditPlayableQuestions,approvedFactErrors};
 });

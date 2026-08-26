@@ -12,7 +12,7 @@ function seed(id,prompt,subject,canonical,accepted,difficulty,options={}){
   gradeRange:(options.kidsSafe??!dedicated)?{min:4,max:7}:null,
   classification:options.classification||"educational",educationalSubject:options.educationalSubject||subject,
   review:{status:"reviewed",reviewer:null,reviewedAt:null},
-  fact:{sources:[],verifiedAt:null,dateSensitive:false}
+  fact:{sources:[],verifiedAt:null,dateSensitive:false},music:options.music||null
  }
 }
 return {schemaVersion:1,bankVersion:"seed-2026-08-stage-6.6",subjectCatalog:[
@@ -36,7 +36,7 @@ return {schemaVersion:1,bankVersion:"seed-2026-08-stage-6.6",subjectCatalog:[
  seed("los-language-first-letter-001","What is the first letter of the alphabet?","Word Play","A",["a","letter a"],"kids-easy"),
  seed("los-math-square-sides-001","What shape has four equal sides?","General Knowledge","Square",["square"],"kids-easy"),
  seed("los-space-closest-star-001","What star is closest to Earth?","Science & Nature","The Sun",["sun","the sun"],"easy"),
- seed("los-music-piano-keys-001","What instrument has black and white keys?","Music","Piano",["piano"],"easy",{classification:"entertainment"}),
+ seed("los-music-piano-keys-001","What instrument has black and white keys?","Music","Piano",["piano"],"easy",{classification:"entertainment",music:{genres:["general-music"],eras:[],performerType:"instrument"}}),
  seed("los-science-season-after-summer-001","Which season comes after summer?","General Knowledge","Fall",["fall","autumn"],"kids-medium"),
  seed("los-transit-ada-001","On a city bus, what does the abbreviation ADA commonly refer to?","Transportation","Americans with Disabilities Act",["americans with disabilities act"],"hard",{work:true,kidsSafe:false}),
  seed("los-math-bus-arrival-001","A bus leaves at 2:35 and the trip takes 45 minutes. What time does it arrive?","Practical Math","3:20",["three twenty","3 20"],"medium",{work:true,kidsSafe:false}),
@@ -46,7 +46,7 @@ return {schemaVersion:1,bankVersion:"seed-2026-08-stage-6.6",subjectCatalog:[
  seed("los-math-quarter-percent-001","What percentage is one quarter?","Practical Math","25 percent",["twenty five percent","25 percent"],"medium",{work:true,kidsSafe:false}),
  seed("los-general-us-road-side-001","What side of the road do vehicles normally travel on in the United States?","I Should Have Known That","The right side",["right","right side","the right side"],"easy",{work:true,kidsSafe:false}),
  seed("los-geography-equator-001","What is the imaginary line at zero degrees latitude called?","Geography","The Equator",["equator","the equator"],"medium",{work:true,kidsSafe:false}),
- seed("los-music-crescendo-001","Which music term means gradually getting louder?","Music","Crescendo",["crescendo"],"hard",{work:true,kidsSafe:false,classification:"entertainment"}),
+ seed("los-music-crescendo-001","Which music term means gradually getting louder?","Music","Crescendo",["crescendo"],"hard",{work:true,kidsSafe:false,classification:"entertainment",music:{genres:["general-music"],eras:[],performerType:"term"}}),
  seed("los-movies-oscar-001","What movie award is commonly represented by a gold statuette?","Movies & TV","The Oscar",["oscar","the oscar","academy award"],"medium",{work:true,kidsSafe:false,classification:"entertainment"}),
  seed("los-transit-headway-001","In transit scheduling, what does headway measure?","Transportation","Time between vehicles",["time between vehicles","time between buses"],"hard",{work:true,kidsSafe:false}),
  seed("los-history-colosseum-001","Which ancient civilization built the Colosseum?","History","The Romans",["romans","the romans","roman empire"],"medium",{work:true,kidsSafe:false}),

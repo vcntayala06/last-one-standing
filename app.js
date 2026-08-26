@@ -12,6 +12,7 @@ const DIFFICULTIES=[
  {id:"savage",label:"SAVAGE"}
 ];
 const CONTENT_PACKS=[['original','ORIGINAL'],['street','STREET / HIP-HOP'],['kids','KIDS'],['work','WORK'],['transit','TRANSIT'],['sunline','SUNLINE'],['movies','MOVIES'],['music','MUSIC'],['disney','DISNEY']];
+const MUSIC_SUBCATEGORY_OPTIONS=[["hip-hop","HIP-HOP"],["r-and-b","R&B"],["pop","POP"],["rock","ROCK"],["classic-rock","CLASSIC ROCK"],["rock-and-roll","ROCK & ROLL"],["funk","FUNK"],["soul","SOUL"],["motown","MOTOWN"],["lowrider-oldies","LOWRIDER OLDIES"],["latin-oldies","LATIN OLDIES"],["regional-mexican","REGIONAL MEXICAN"],["today","TODAY"],["1970s","1970s"],["1980s","1980s"],["1990s","1990s"],["2000s","2000s"]];
 const WORK_INDUSTRIES=[
  "General Workplace","Healthcare","Education","Construction","Hospitality",
  "Retail","Finance","Technology","Manufacturing","Automotive",
@@ -21,12 +22,12 @@ const EXTRA_CATEGORIES=[
  "Music","Movies & TV","Sports","Food & Drink","History",
  "Science & Nature","Geography","Pop Culture","90s & 2000s","Transportation","Word Play"
 ];
-if(!window.LOS_QUESTION_BANK_DATA||!window.LOS_QUESTION_BANK_BATCH_1||!window.LOS_QUESTION_BANK_BATCH_2||!window.LOS_QUESTION_BANK_BATCH_3||!window.LOSQuestionBank)throw new Error("Question bank failed to load");
-const QUESTION_BANK_SOURCE={...window.LOS_QUESTION_BANK_DATA,bankVersion:"stage-6.28-semantic-judge",questions:[...window.LOS_QUESTION_BANK_DATA.questions,...window.LOS_QUESTION_BANK_BATCH_1.questions,...window.LOS_QUESTION_BANK_BATCH_2.questions,...window.LOS_QUESTION_BANK_BATCH_3.questions]};
+if(!window.LOS_QUESTION_BANK_DATA||!window.LOS_QUESTION_BANK_BATCH_1||!window.LOS_QUESTION_BANK_BATCH_2||!window.LOS_QUESTION_BANK_BATCH_3||!window.LOS_QUESTION_BANK_BATCH_4||!window.LOSQuestionBank)throw new Error("Question bank failed to load");
+const QUESTION_BANK_SOURCE={...window.LOS_QUESTION_BANK_DATA,bankVersion:"stage-6.29-music-subcategories",questions:[...window.LOS_QUESTION_BANK_DATA.questions,...window.LOS_QUESTION_BANK_BATCH_1.questions,...window.LOS_QUESTION_BANK_BATCH_2.questions,...window.LOS_QUESTION_BANK_BATCH_3.questions,...window.LOS_QUESTION_BANK_BATCH_4.questions]};
 const QUESTION_BANK=window.LOSQuestionBank.createQuestionBank(QUESTION_BANK_SOURCE);
 const QUESTIONS=QUESTION_BANK.questions.map(QUESTION_BANK.toGameplay);
 let state={
- screen:"home",mode:"original",contentPacks:["original"],players:[],selectedIds:[],duration:15,questionSeconds:15,
+ screen:"home",mode:"original",contentPacks:["original"],musicSubcategories:[],players:[],selectedIds:[],duration:15,questionSeconds:15,
  quick:false,voiceOn:localStorage.getItem(STORAGE.voice)!=="false",readQuestions:localStorage.getItem(STORAGE.readQuestions)!=="false",
  volume:Number(localStorage.getItem(STORAGE.volume)||.65),categories:[],industry:"",difficulty:"medium",answerLanguage:"en",game:null
 };
@@ -123,7 +124,7 @@ const HOST_LINE_TUNING={
 let hostSystem=null;
 let recognition=null,questionTimer=null,answerGraceTimer=null,flowTimer=null,pausedRemaining=null,pausedFrom=null,pausedResultDelay=null,resultDelayRemaining=null,renamePending=null,lastVolume=state.volume>0?state.volume:.65,questionSoundTimers=[],celebrationTimers=[],handoffTimers=[];
 let runtimeSessionId=0,renderGeneration=0,setupRenderId=0,pendingTransitionCause={trigger:"internal",reason:"runtime"},questionReading=false,questionSessionId=0,answerListening=false,playerUpRenderGeneration=0;
-const BUILD_INFO={stage:"6.28",version:"live-whos-in-voice-numbered-defaults-semantic-judge",builtAt:"2026-08-25"},transitionDiagnostics=[],screenLifetimeDiagnostics=[],answerDiagnostics=[],playerUpDiagnostics=[],audioDiagnostics={tick:"off",buzzerFired:false},transitionDebugEnabled=new URLSearchParams(location.search).get("playtestDebug")==="1"||localStorage.getItem("los_playtest_debug")==="1";
+const BUILD_INFO={stage:"6.29",version:"question-audit-expanded-music-subcategories",builtAt:"2026-08-25"},transitionDiagnostics=[],screenLifetimeDiagnostics=[],answerDiagnostics=[],playerUpDiagnostics=[],audioDiagnostics={tick:"off",buzzerFired:false},transitionDebugEnabled=new URLSearchParams(location.search).get("playtestDebug")==="1"||localStorage.getItem("los_playtest_debug")==="1";
 function enterScreen(next,reason="render",trigger=pendingTransitionCause.trigger||"internal"){
  const from=state.screen,sourceSession=runtimeSessionId,validScreens=new Set(["home","setup","packs","mode","industry","difficulty","fun","players","time","ready","handoff","transition","question","result","showdown","complete","paused"]),valid=validScreens.has(next);
  if(!valid){const rejected={accepted:false,from,to:next,reason,trigger,command:trigger==="voice"?pendingTransitionCause.reason:null,callback:trigger==="internal-game-event"?reason:null,at:Date.now(),sourceSession,session:runtimeSessionId,renderGeneration};transitionDiagnostics.push(rejected);return runtimeSessionId}
@@ -1107,18 +1108,18 @@ function saveActiveGame(){
   const payload={
    version:1,
    savedAt:Date.now(),
-   mode:state.mode,contentPacks:state.contentPacks||["original"],quick:state.quick,duration:state.duration,
+   mode:state.mode,contentPacks:state.contentPacks||["original"],musicSubcategories:state.musicSubcategories||[],quick:state.quick,duration:state.duration,
    questionSeconds:state.questionSeconds,categories:state.categories||[],
    industry:state.industry||"",difficulty:state.difficulty||"medium",answerLanguage:state.answerLanguage||"en",readQuestions:state.readQuestions!==false,players:state.players,game:state.game
   };
   localStorage.setItem(STORAGE.activeGame,JSON.stringify(payload))
  }catch{}
 }
-function setupPayload(screen=state.screen,resumable=false){return{version:2,kind:"setup",resumable:!!resumable,savedAt:Date.now(),screen:["setup","players"].includes(screen)?screen:"setup",mode:state.mode,contentPacks:state.contentPacks||["original"],quick:!!state.quick,duration:state.duration,questionSeconds:state.questionSeconds,categories:state.categories||[],industry:state.industry||"",difficulty:state.difficulty||"medium",answerLanguage:state.answerLanguage||"en",voiceOn:!!state.voiceOn,volume:state.volume,readQuestions:state.readQuestions!==false,players:state.players.map(p=>({id:p.id||uid(),name:String(p.name||""),autoName:p.autoName===true,hostStyle:["masculine","feminine","neutral"].includes(p.hostStyle)?p.hostStyle:"neutral"}))}}
+function setupPayload(screen=state.screen,resumable=false){return{version:3,kind:"setup",resumable:!!resumable,savedAt:Date.now(),screen:["setup","players"].includes(screen)?screen:"setup",mode:state.mode,contentPacks:state.contentPacks||["original"],musicSubcategories:state.musicSubcategories||[],quick:!!state.quick,duration:state.duration,questionSeconds:state.questionSeconds,categories:state.categories||[],industry:state.industry||"",difficulty:state.difficulty||"medium",answerLanguage:state.answerLanguage||"en",voiceOn:!!state.voiceOn,volume:state.volume,readQuestions:state.readQuestions!==false,players:state.players.map(p=>({id:p.id||uid(),name:String(p.name||""),autoName:p.autoName===true,hostStyle:["masculine","feminine","neutral"].includes(p.hostStyle)?p.hostStyle:"neutral"}))}}
 function saveSetupState(screen=state.screen){if(state.game||!["setup","players"].includes(screen))return;try{const previous=loadSetupState();localStorage.setItem(STORAGE.setup,JSON.stringify(setupPayload(screen,previous?.resumable===true)))}catch{}}
 function markSetupAbandoned(screen=state.screen){if(state.game||!["setup","players"].includes(screen))return;try{localStorage.setItem(STORAGE.setup,JSON.stringify(setupPayload(screen,true)))}catch{}}
-function loadSetupState(){try{const x=JSON.parse(localStorage.getItem(STORAGE.setup)||"null");if(x?.kind==="setup"&&x.resumable&&state.screen==="home"&&Array.isArray(x.contentPacks))state.contentPacks=[...x.contentPacks];return x?.kind==="setup"?x:null}catch{return null}}
-function hasResumableSetup(){const x=loadSetupState();return !!(x&&x.version===2&&x.resumable===true&&["setup","players"].includes(x.screen)&&Array.isArray(x.players))}
+function loadSetupState(){try{const x=JSON.parse(localStorage.getItem(STORAGE.setup)||"null");if(x?.kind==="setup"&&x.resumable&&state.screen==="home"&&Array.isArray(x.contentPacks)){state.contentPacks=[...x.contentPacks];state.musicSubcategories=Array.isArray(x.musicSubcategories)?[...x.musicSubcategories]:[]}return x?.kind==="setup"?x:null}catch{return null}}
+function hasResumableSetup(){const x=loadSetupState();return !!(x&&[2,3].includes(x.version)&&x.resumable===true&&["setup","players"].includes(x.screen)&&Array.isArray(x.players))}
 function clearSetupState(){localStorage.removeItem(STORAGE.setup)}
 function loadActiveGame(){
  try{return JSON.parse(localStorage.getItem(STORAGE.activeGame)||"null")}catch{return null}
@@ -1131,7 +1132,7 @@ function resumeSavedGame(){
  resumeActiveMatch(x)
 }
 function resumeActiveMatch(x){
- state.mode=x.mode||"friends";state.contentPacks=x.contentPacks||[x.mode==="work"?"work":"original"];state.quick=!!x.quick;state.duration=x.duration||10;
+ state.mode=x.mode||"friends";state.contentPacks=x.contentPacks||[x.mode==="work"?"work":"original"];state.musicSubcategories=Array.isArray(x.musicSubcategories)?x.musicSubcategories:[];state.quick=!!x.quick;state.duration=x.duration||10;
  state.questionSeconds=x.questionSeconds||15;state.categories=x.categories||[];
  state.industry=x.industry||"";state.difficulty=x.difficulty||"medium";state.answerLanguage=x.answerLanguage||"en";state.readQuestions=x.readQuestions!==false;state.players=x.players||[];
  state.game=x.game;state.game.used=[...new Set(Array.isArray(state.game.used)?state.game.used.filter(id=>typeof id==="string"&&id):[])];state.game.players=state.game.players.map(p=>({...p,strikes:Math.min(3,Math.max(0,Number(p.strikes)||0)),eliminated:!!p.eliminated||(Number(p.strikes)||0)>=3}));
@@ -1204,6 +1205,8 @@ function setup(){
 }
 function setUnifiedMode(mode){if(!["original","solo"].includes(mode))return;rerenderSetupPreservingViewport(()=>{state.mode=mode;state.quick=false;state.categories=[];state.industry=""},`[data-setup-mode="${mode}"]`)}
 function toggleContentPack(pack){if(!CONTENT_PACKS.some(([id])=>id===pack))return;const selected=new Set(state.contentPacks||[]);if(selected.has(pack))selected.delete(pack);else selected.add(pack);state.contentPacks=[...selected];if(state.screen==="packs")packs(pack)}
+function toggleMusicSubcategory(category){if(!MUSIC_SUBCATEGORY_OPTIONS.some(([id])=>id===category))return;const selected=new Set(state.musicSubcategories||[]);if(selected.has(category))selected.delete(category);else selected.add(category);state.musicSubcategories=[...selected];if(state.screen==="packs")packs("",category)}
+function selectAllMusic(){state.musicSubcategories=[];if(state.screen==="packs")packs("","all")}
 function setSetupVoice(on){rerenderSetupPreservingViewport(()=>{state.voiceOn=!!on;voiceCore.permissionBlocked=on?false:voiceCore.permissionBlocked;voiceCore.retryAttempt=0;save();if(!on)stopVoice()},on?"#setupVoiceOn":"#setupVoiceOff")}
 function setupSettingDiagnostic(raw,matchedIntent,matchedSetting,oldValue,newValue,parserBranch,rejectedSecondaryMatches){voiceDiagnostic("setup-setting-command",{rawTranscript:String(raw||""),normalizedTranscript:norm(raw),matchedIntent,matchedSetting,oldValue,newValue,parserBranch,parserStopped:true,rejectedSecondaryMatches,screen:state.screen,session:runtimeSessionId})}
 function setSetupVoiceVoice(on,raw){const oldValue=state.voiceOn;setSetupVoice(on);setupSettingDiagnostic(raw,"voice", "voiceOn",oldValue,state.voiceOn,"named-voice-toggle",["volume","other-setup","navigation"])}
@@ -1218,14 +1221,16 @@ function startUnifiedGame(){
  if(![5,10,15,20].includes(Number(state.duration)))return setupError("CHOOSE A GAME LENGTH.","game-length");
  go("packs","game-setup-content-packs");return true
 }
-function packs(focusPack=""){
+function packs(focusPack="",focusMusic=""){
  const selected=new Set(state.contentPacks||[]),buttons=CONTENT_PACKS.map(([id,label])=>`<button class="btn pack-choice ${selected.has(id)?"selected":""}" data-content-pack="${id}" aria-pressed="${selected.has(id)}"><span class="pack-check" aria-hidden="true">${selected.has(id)?"✓":""}</span><span>${label}</span></button>`).join("");
- app.innerHTML=shell("GAME VIBE / CONTENT PACKS",`<div class="pack-picker"><div class="pack-instruction">CHOOSE ONE OR MIX SEVERAL</div><div id="packError" class="setup-error" role="alert" aria-live="assertive"></div><div class="pack-grid">${buttons}</div><div class="pack-summary">SELECTED: ${selected.size?CONTENT_PACKS.filter(([id])=>selected.has(id)).map(([,label])=>label).join(" · "):"NONE"}</div></div>`,`<button id="back" class="btn">BACK</button><button id="continuePacks" class="btn primary large">CONTINUE</button>`);
- document.querySelectorAll("[data-content-pack]").forEach(button=>button.onclick=()=>toggleContentPack(button.dataset.contentPack));document.getElementById("back").onclick=()=>go("setup","packs-back");document.getElementById("continuePacks").onclick=continueFromPacks;saveSetupState("setup");startVoice("packs");if(focusPack)document.querySelector(`[data-content-pack="${focusPack}"]`)?.focus()
+ const musicSelected=new Set(state.musicSubcategories||[]),musicButtons=MUSIC_SUBCATEGORY_OPTIONS.map(([id,label])=>`<button class="btn music-subcategory ${musicSelected.has(id)?"selected":""}" data-music-subcategory="${id}" aria-pressed="${musicSelected.has(id)}">${label}</button>`).join("");
+ const musicPanel=selected.has("music")?`<section class="music-filter-panel" aria-labelledby="musicFilterTitle"><div id="musicFilterTitle" class="pack-instruction">MUSIC MIX — CHOOSE ANY COMBINATION</div><div class="music-subcategory-grid"><button class="btn music-subcategory ${musicSelected.size?"":"selected"}" data-all-music aria-pressed="${!musicSelected.size}">ALL MUSIC</button>${musicButtons}</div><div class="pack-summary">MUSIC: ${musicSelected.size?MUSIC_SUBCATEGORY_OPTIONS.filter(([id])=>musicSelected.has(id)).map(([,label])=>label).join(" · "):"ALL MUSIC"}</div></section>`:"";
+ app.innerHTML=shell("GAME VIBE / CONTENT PACKS",`<div class="pack-picker"><div class="pack-instruction">CHOOSE ONE OR MIX SEVERAL</div><div id="packError" class="setup-error" role="alert" aria-live="assertive"></div><div class="pack-grid">${buttons}</div>${musicPanel}<div class="pack-summary">SELECTED: ${selected.size?CONTENT_PACKS.filter(([id])=>selected.has(id)).map(([,label])=>label).join(" · "):"NONE"}</div></div>`,`<button id="back" class="btn">BACK</button><button id="continuePacks" class="btn primary large">CONTINUE</button>`);
+ document.querySelectorAll("[data-content-pack]").forEach(button=>button.onclick=()=>toggleContentPack(button.dataset.contentPack));document.querySelectorAll("[data-music-subcategory]").forEach(button=>button.onclick=()=>toggleMusicSubcategory(button.dataset.musicSubcategory));document.querySelector("[data-all-music]")?.addEventListener("click",selectAllMusic);document.getElementById("back").onclick=()=>go("setup","packs-back");document.getElementById("continuePacks").onclick=continueFromPacks;saveSetupState("setup");startVoice("packs");if(focusPack)document.querySelector(`[data-content-pack="${focusPack}"]`)?.focus();else if(focusMusic==="all")document.querySelector("[data-all-music]")?.focus();else if(focusMusic)document.querySelector(`[data-music-subcategory="${focusMusic}"]`)?.focus()
 }
 function continueFromPacks(){
  const error=document.getElementById("packError");if(!(state.contentPacks||[]).length){if(error)error.textContent="CHOOSE AT LEAST ONE CONTENT PACK.";return false}
- if(!QUESTION_BANK.select({packs:state.contentPacks,difficulty:state.difficulty,random:()=>0})){if(error)error.textContent="THIS PACK NEEDS APPROVED QUESTIONS. ADD ANOTHER PACK TO CONTINUE.";return false}
+ if(!QUESTION_BANK.select({packs:state.contentPacks,musicSubcategories:state.musicSubcategories,difficulty:state.difficulty,random:()=>0})){if(error)error.textContent="THIS MIX NEEDS APPROVED QUESTIONS. CHOOSE ALL MUSIC OR ADD ANOTHER OPTION.";return false}
  if(state.mode!=="solo"){go("players","content-packs-continue");return true}rememberNames();go("ready","content-packs-continue");return true
 }
 function rerenderPlayerContext(){if(state.screen==="setup")setup();else players()}
@@ -1396,7 +1401,7 @@ function transition(kind,done,reason="game-transition"){
 }
 function pickQuestion(){
  const g=state.game;
- const effectivePacks=[...new Set([...(state.contentPacks||[]),...(state.mode==="work"?["work"]:[])])],source=QUESTION_BANK.select({edition:state.mode==="work"?"work":state.mode==="solo"?"solo":"original",packs:effectivePacks,difficulty:state.difficulty,usedIds:g.used||[],recentCategories:g.recentCategories||[],random:Math.random});
+ const effectivePacks=[...new Set([...(state.contentPacks||[]),...(state.mode==="work"?["work"]:[])])],source=QUESTION_BANK.select({edition:state.mode==="work"?"work":state.mode==="solo"?"solo":"original",packs:effectivePacks,musicSubcategories:state.musicSubcategories,difficulty:state.difficulty,usedIds:g.used||[],recentCategories:g.recentCategories||[],random:Math.random});
  if(!source)return null;
  const item=QUESTION_BANK.toGameplay(source),selectedPacks=effectivePacks,eligibleIds=new Set(QUESTION_BANK.questions.filter(q=>!selectedPacks.length||QUESTION_BANK.packsFor(q).some(pack=>selectedPacks.includes(pack))).filter(q=>!selectedPacks.includes("kids")||q.kidsSafe).map(q=>q.id));
  g.used=(g.used||[]).filter(id=>eligibleIds.has(id));
