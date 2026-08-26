@@ -157,7 +157,7 @@ function createHarness({ storage = {}, voiceLatency = false, voiceHealth = false
   window.__LOS_TEST__ = {};
   if(hostProvider)window.__LOS_HOST_PROVIDER__=hostProvider;
 
-  for(const filename of ["question-bank-data.js","question-bank-batch-1.js","question-bank-batch-2.js","question-bank-batch-3.js","question-bank-batch-4.js","question-bank-batch-5.js","question-bank-batch-6.js","question-bank.js"]){
+  for(const filename of ["question-bank-data.js","question-bank-batch-1.js","question-bank-batch-2.js","question-bank-batch-3.js","question-bank-batch-4.js","question-bank-batch-5.js","question-bank-batch-6.js","question-bank-batch-7.js","question-bank.js"]){
     const bankPath=path.resolve(__dirname,"..","..",filename);
     vm.runInContext(fs.readFileSync(bankPath,"utf8"),dom.getInternalVMContext(),{filename:bankPath});
   }

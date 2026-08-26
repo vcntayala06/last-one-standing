@@ -1020,6 +1020,10 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
 @keyframes championSweep{from{translate:-35% 0}to{translate:35% 0}}
 .confetti i{border-radius:2px;will-change:transform}
 
+/* The desktop Champion composition is fully contained; suppress its otherwise
+   unnecessary internal scroll gutter while retaining mobile overflow access. */
+@media (min-width:1000px) and (min-height:700px){.complete-stage{overflow-y:hidden}}
+
 /* Large displays use the stage confidently without merely scaling phone chrome. */
 @media (min-width:1600px) and (min-height:850px){
  .shell{max-width:1500px}.question-text{max-width:1400px}.answer-panel{width:min(1240px,96%)}

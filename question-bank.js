@@ -3,6 +3,7 @@
 const DIFFICULTIES=["kids-easy","kids-medium","kids-hard","easy","medium","hard","savage"],EDITIONS=["original","work","solo","family"],STATUSES=["draft","reviewed","verified","approved","rejected","disabled"],CLASSIFICATIONS=["educational","entertainment","mixed"];
 const MUSIC_SUBCATEGORIES=["hip-hop","r-and-b","pop","rock","classic-rock","rock-and-roll","funk","soul","motown","lowrider-oldies","latin-oldies","regional-mexican","today","1970s","1980s","1990s","2000s"];
 const MUSIC_METADATA_TAGS=[...MUSIC_SUBCATEGORIES,"general-music"];
+const MUSIC_LANES=["old-school-hip-hop","west-coast","east-coast","southern-hip-hop","modern-hip-hop"];
 const PERFORMER_TYPES=["solo-artist","singer","rapper","band","group","duo","producer","dj","composer","instrument","term","genre","other"];
 const DISNEY_METADATA_TAGS=["descendants","zombies","camp-rock","wizards","vampirina","fairy-tales","disney-movies","disney-channel","disney-junior","disneyland"];
 const VISIBLE_DIFFICULTIES={kids:["kids-easy","kids-medium","kids-hard"],easy:["kids-easy","kids-medium","easy"],medium:["easy","medium"],hard:["medium","hard"],savage:["hard","savage"]};
@@ -54,6 +55,7 @@ function validateBank(bank,{nearDuplicates=false}={}){
    const music=q.music||{};
    if(!Array.isArray(music.genres)||!music.genres.length||music.genres.some(x=>!MUSIC_METADATA_TAGS.includes(x)))errors.push(`${at}.music.genres is invalid`);
    if(!Array.isArray(music.eras)||music.eras.some(x=>!MUSIC_SUBCATEGORIES.includes(x)||!/^(?:1970s|1980s|1990s|2000s|today)$/.test(x)))errors.push(`${at}.music.eras is invalid`);
+   if(music.lanes!==undefined&&(!Array.isArray(music.lanes)||music.lanes.some(x=>!MUSIC_LANES.includes(x))))errors.push(`${at}.music.lanes is invalid`);
    if(!PERFORMER_TYPES.includes(music.performerType))errors.push(`${at}.music.performerType is invalid`)
   }
   if(q.contentPacks?.includes("disney")&&!['draft','rejected','disabled'].includes(q.review?.status)){
@@ -130,7 +132,7 @@ function createQuestionBank(bank){
   }
   return choose(pool,usedIds,recentCategories,random)
  }
- return {schemaVersion:bank.schemaVersion,bankVersion:bank.bankVersion,questions:selectable,byId,byEdition,packsFor,select,validate:()=>validateBank(bank),audit:()=>auditPlayableQuestions(selectable),toGameplay(q){const en=[...(q.answer.accepted.en||[])],es=[...(q.answer.accepted.es||[])],equivalents=[...(q.answer.accepted.equivalents||[])],legacy=[...(q.alts||[])];return{id:q.id,q:q.prompt,a:q.answer.canonical,cat:q.subject,accept:en,es,equivalents,alts:[...new Set([...legacy,...en])],packs:packsFor(q),music:q.music?{genres:[...q.music.genres],eras:[...q.music.eras],performerType:q.music.performerType,dateSensitive:!!q.fact?.dateSensitive,currentAsOf:q.fact?.currentAsOf||null}:null,disney:q.disney?{tags:[...q.disney.tags],franchise:q.disney.franchise}:null,kidsSafe:q.kidsSafe,workSafe:q.workSafe,edition:q.workTrack==="dedicated"?"work":undefined,difficulty:q.difficulty,editions:[...q.editions]}}}
+ return {schemaVersion:bank.schemaVersion,bankVersion:bank.bankVersion,questions:selectable,byId,byEdition,packsFor,select,validate:()=>validateBank(bank),audit:()=>auditPlayableQuestions(selectable),toGameplay(q){const en=[...(q.answer.accepted.en||[])],es=[...(q.answer.accepted.es||[])],equivalents=[...(q.answer.accepted.equivalents||[])],legacy=[...(q.alts||[])];return{id:q.id,q:q.prompt,a:q.answer.canonical,cat:q.subject,accept:en,es,equivalents,alts:[...new Set([...legacy,...en])],packs:packsFor(q),music:q.music?{genres:[...q.music.genres],eras:[...q.music.eras],performerType:q.music.performerType,lanes:[...(q.music.lanes||[])],dateSensitive:!!q.fact?.dateSensitive,currentAsOf:q.fact?.currentAsOf||null}:null,disney:q.disney?{tags:[...q.disney.tags],franchise:q.disney.franchise}:null,kidsSafe:q.kidsSafe,workSafe:q.workSafe,edition:q.workTrack==="dedicated"?"work":undefined,difficulty:q.difficulty,editions:[...q.editions]}}}
 }
 function auditPlayableQuestions(questions){
  const issues=[];
@@ -145,5 +147,5 @@ function auditPlayableQuestions(questions){
  }
  return{audited:questions.length,passed:questions.length-new Set(issues.map(x=>x.id)).size,issues}
 }
-return {DIFFICULTIES,EDITIONS,STATUSES,VISIBLE_DIFFICULTIES,MUSIC_SUBCATEGORIES,PERFORMER_TYPES,DISNEY_METADATA_TAGS,normalize,validateBank,createQuestionBank,auditPlayableQuestions,approvedFactErrors};
+return {DIFFICULTIES,EDITIONS,STATUSES,VISIBLE_DIFFICULTIES,MUSIC_SUBCATEGORIES,MUSIC_LANES,PERFORMER_TYPES,DISNEY_METADATA_TAGS,normalize,validateBank,createQuestionBank,auditPlayableQuestions,approvedFactErrors};
 });
