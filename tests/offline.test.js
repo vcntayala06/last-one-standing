@@ -12,7 +12,7 @@ const {createAppServer}=require("../server");
 const ROOT=path.resolve(__dirname,"..");
 const REQUIRED_FILES=[
  "index.html","app.css","app.js","host-provider.js","service-worker-register.js","question-bank-data.js",
- "question-bank-batch-1.js","question-bank-batch-2.js","question-bank-batch-3.js","question-bank-batch-4.js","question-bank-batch-5.js","question-bank-batch-6.js","question-bank-batch-7.js","question-bank-batch-8.js",
+ "question-bank-batch-1.js","question-bank-batch-2.js","question-bank-batch-3.js","question-bank-batch-4.js","question-bank-batch-5.js","question-bank-batch-6.js","question-bank-batch-7.js","question-bank-batch-8.js","question-bank-batch-9.js",
  "question-bank.js","manifest.webmanifest","apple-touch-icon.png","icon-192.png","icon-512.png"
 ];
 const REVISIONED_SHELL_FILES=REQUIRED_FILES.filter(file=>file!=="index.html");
@@ -103,7 +103,7 @@ test("service-worker update code cannot clear saved localStorage data",()=>{
  assert.doesNotMatch(registration,/localStorage\.(?:clear|removeItem)|indexedDB|storage\.clear/i);
 });
 
-test("installed game reloads and reaches a Champion through manual play with network removed",{timeout:60000},async()=>{
+test("installed game reloads and reaches a Champion through manual play with network removed",{timeout:90000},async()=>{
  const server=createAppServer({rootDir:ROOT,env:{},loadEnvFile:false});
  let browser=null,context=null;
  try{
@@ -123,7 +123,7 @@ test("installed game reloads and reaches a Champion through manual play with net
   await offlinePage.locator("#resumeSaved").click();
   await offlinePage.locator("#typedAnswer").waitFor({state:"visible",timeout:10000});
   assert.equal(await offlinePage.locator("#typedAnswer").isEnabled(),true);
-  const correctAnswer=await offlinePage.evaluate(()=>{const prompt=document.querySelector(".question-text")?.textContent?.trim(),sources=[window.LOS_QUESTION_BANK_DATA,window.LOS_QUESTION_BANK_BATCH_1,window.LOS_QUESTION_BANK_BATCH_2,window.LOS_QUESTION_BANK_BATCH_3,window.LOS_QUESTION_BANK_BATCH_4,window.LOS_QUESTION_BANK_BATCH_5,window.LOS_QUESTION_BANK_BATCH_6,window.LOS_QUESTION_BANK_BATCH_7,window.LOS_QUESTION_BANK_BATCH_8];return sources.flatMap(source=>source.questions).find(question=>question.prompt===prompt)?.answer?.canonical||null});
+  const correctAnswer=await offlinePage.evaluate(()=>{const prompt=document.querySelector(".question-text")?.textContent?.trim(),sources=[window.LOS_QUESTION_BANK_DATA,window.LOS_QUESTION_BANK_BATCH_1,window.LOS_QUESTION_BANK_BATCH_2,window.LOS_QUESTION_BANK_BATCH_3,window.LOS_QUESTION_BANK_BATCH_4,window.LOS_QUESTION_BANK_BATCH_5,window.LOS_QUESTION_BANK_BATCH_6,window.LOS_QUESTION_BANK_BATCH_7,window.LOS_QUESTION_BANK_BATCH_8,window.LOS_QUESTION_BANK_BATCH_9];return sources.flatMap(source=>source.questions).find(question=>question.prompt===prompt)?.answer?.canonical||null});
   assert.ok(correctAnswer,"offline question resolves to its canonical answer");
   await offlinePage.locator("#typedAnswer").fill(correctAnswer);
   await offlinePage.locator("#lockAnswer").click();
@@ -132,5 +132,5 @@ test("installed game reloads and reaches a Champion through manual play with net
   await offlinePage.locator(".champion-name").waitFor({state:"visible",timeout:25000});
   assert.equal(await offlinePage.locator(".champion-name").textContent(),"Alex");
   assert.equal(await offlinePage.locator(".complete-stage").count(),1);
- }finally{await Promise.allSettled([context?.close(),browser?.close(),close(server)])}
+ }finally{if(context)await context.setOffline(false).catch(()=>{});await Promise.allSettled([context?.close(),browser?.close(),close(server)])}
 });

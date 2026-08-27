@@ -6,6 +6,7 @@ const MUSIC_METADATA_TAGS=[...MUSIC_SUBCATEGORIES,"general-music"];
 const MUSIC_LANES=["old-school-hip-hop","west-coast","east-coast","southern-hip-hop","modern-hip-hop"];
 const PERFORMER_TYPES=["solo-artist","singer","rapper","band","group","duo","producer","dj","composer","instrument","term","genre","other"];
 const DISNEY_METADATA_TAGS=["descendants","zombies","camp-rock","wizards","vampirina","fairy-tales","disney-movies","disney-channel","disney-junior","disneyland"];
+const TRANSIT_CATEGORIES=["transit-general","fixed-route","paratransit","cdl-dmv","sunline"];
 const VISIBLE_DIFFICULTIES={kids:["kids-easy","kids-medium","kids-hard"],easy:["kids-easy","kids-medium","easy"],medium:["easy","medium"],hard:["medium","hard"],savage:["hard","savage"]};
 const normalize=s=>String(s||"").toLocaleLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N}\s]/gu," ").replace(/\s+/g," ").trim();
 const isoDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(value||"")&&!Number.isNaN(Date.parse(value+"T00:00:00Z"));
@@ -62,6 +63,10 @@ function validateBank(bank,{nearDuplicates=false}={}){
    const disney=q.disney||{};
    if(!Array.isArray(disney.tags)||!disney.tags.length||disney.tags.some(x=>!DISNEY_METADATA_TAGS.includes(x)))errors.push(`${at}.disney.tags is invalid`);
    if(typeof disney.franchise!=="string"||!disney.franchise.trim())errors.push(`${at}.disney.franchise is required`)
+  }
+  if(q.transit&&!['draft','rejected','disabled'].includes(q.review?.status)){
+   if(!Array.isArray(q.transit.categories)||!q.transit.categories.length||q.transit.categories.some(x=>!TRANSIT_CATEGORIES.includes(x)))errors.push(`${at}.transit.categories is invalid`);
+   if(typeof q.transit.lane!=="string"||!q.transit.lane.trim())errors.push(`${at}.transit.lane is required`)
   }
   if(q.review?.status==="approved")errors.push(...approvedFactErrors(q,at));
   if(q.review?.status==="approved"&&q.review?.approvalStandard==="stage-6.8"){
@@ -132,7 +137,7 @@ function createQuestionBank(bank){
   }
   return choose(pool,usedIds,recentCategories,random)
  }
- return {schemaVersion:bank.schemaVersion,bankVersion:bank.bankVersion,questions:selectable,byId,byEdition,packsFor,select,validate:()=>validateBank(bank),audit:()=>auditPlayableQuestions(selectable),toGameplay(q){const en=[...(q.answer.accepted.en||[])],es=[...(q.answer.accepted.es||[])],equivalents=[...(q.answer.accepted.equivalents||[])],legacy=[...(q.alts||[])];return{id:q.id,q:q.prompt,a:q.answer.canonical,cat:q.subject,accept:en,es,equivalents,alts:[...new Set([...legacy,...en])],packs:packsFor(q),music:q.music?{genres:[...q.music.genres],eras:[...q.music.eras],performerType:q.music.performerType,lanes:[...(q.music.lanes||[])],dateSensitive:!!q.fact?.dateSensitive,currentAsOf:q.fact?.currentAsOf||null}:null,disney:q.disney?{tags:[...q.disney.tags],franchise:q.disney.franchise}:null,kidsSafe:q.kidsSafe,workSafe:q.workSafe,edition:q.workTrack==="dedicated"?"work":undefined,difficulty:q.difficulty,editions:[...q.editions]}}}
+ return {schemaVersion:bank.schemaVersion,bankVersion:bank.bankVersion,questions:selectable,byId,byEdition,packsFor,select,validate:()=>validateBank(bank),audit:()=>auditPlayableQuestions(selectable),toGameplay(q){const en=[...(q.answer.accepted.en||[])],es=[...(q.answer.accepted.es||[])],equivalents=[...(q.answer.accepted.equivalents||[])],legacy=[...(q.alts||[])];return{id:q.id,q:q.prompt,a:q.answer.canonical,cat:q.subject,accept:en,es,equivalents,alts:[...new Set([...legacy,...en])],packs:packsFor(q),music:q.music?{genres:[...q.music.genres],eras:[...q.music.eras],performerType:q.music.performerType,lanes:[...(q.music.lanes||[])],dateSensitive:!!q.fact?.dateSensitive,currentAsOf:q.fact?.currentAsOf||null}:null,disney:q.disney?{tags:[...q.disney.tags],franchise:q.disney.franchise}:null,transit:q.transit?{categories:[...q.transit.categories],lane:q.transit.lane,dateSensitive:!!q.fact?.dateSensitive,currentAsOf:q.fact?.currentAsOf||null}:null,kidsSafe:q.kidsSafe,workSafe:q.workSafe,edition:q.workTrack==="dedicated"?"work":undefined,difficulty:q.difficulty,editions:[...q.editions]}}}
 }
 function auditPlayableQuestions(questions){
  const issues=[];

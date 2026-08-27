@@ -92,6 +92,17 @@ reject("Which fruit is dried to make a date?",["awkward-wording","self-answering
 reject("Which movie features a boxer who trains by running up Philadelphia's museum steps?",["repetitive","weak-reveal"],"Redundant with the stronger Rocky plot clue already in Batch 2.");
 reject("What is the name of the trophy awarded to the FIFA World Cup winner?",["self-answering","weak-reveal"],"The canonical name simply repeats the competition name.");
 reject("Which music format preceded the compact disc as a popular portable cassette format?",["self-answering","awkward-wording"],"The question included the word cassette while expecting cassette tape.");
+const transitArithmeticAudit=new Set([
+ "A route is scheduled every 15 minutes. How many departures occur from 8:00 through 9:00, including both times?",
+ "A vehicle is eight minutes late and gains three minutes. How late is it now?",
+ "Two routes arrive every 10 and 15 minutes. If both arrive now, in how many minutes will they arrive together again?",
+ "A passenger has a 12-minute transfer and the first bus is five minutes late. How much transfer time remains?",
+ "What is the difference between a pickup window of 2:00 to 2:30?",
+ "If a route has equal 20-minute headways, how many vehicles pass one point in an hour?",
+ "Which is shorter: a 0.5-mile walk or a 2,000-foot walk?",
+ "A vehicle travels 45 miles at 30 miles per hour. How long does it take?"
+]);
+for(const q of questions)if(transitArithmeticAudit.has(q.prompt)){q.review.status="disabled";q.quality.status="rejected";q.quality.flags=["disguised-arithmetic","weak-transit-value"];q.quality.notes="Build 6.34 full Transit audit disabled arithmetic filler that did not primarily test Transit knowledge."}
 const b2HipHop=new Set(["A Tribe Called Quest","Outkast","Nas","Jay-Z","Kendrick Lamar","Kanye West","Nicki Minaj","Cardi B","The Notorious B.I.G.","Tupac Shakur","André 3000","Snoop Dogg","hip-hop"]);
 const b2RnB=new Set(["Stevie Wonder","Marvin Gaye","Beyoncé","Janet Jackson","Alicia Keys","Destiny's Child","The Supremes","Earth, Wind & Fire","George Clinton","Aretha Franklin"]);
 const b2Pop=new Set(["Michael Jackson","Prince","Beyoncé","Adele","Dua Lipa","Bad Bunny","Taylor Swift","Lady Gaga","The Weeknd"]);
