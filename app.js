@@ -27,7 +27,7 @@ const EXTRA_CATEGORIES=[
  "Science & Nature","Geography","Pop Culture","90s & 2000s","Transportation","Word Play"
 ];
 if(!window.LOS_QUESTION_BANK_DATA||!window.LOS_QUESTION_BANK_BATCH_1||!window.LOS_QUESTION_BANK_BATCH_2||!window.LOS_QUESTION_BANK_BATCH_3||!window.LOS_QUESTION_BANK_BATCH_4||!window.LOS_QUESTION_BANK_BATCH_5||!window.LOS_QUESTION_BANK_BATCH_6||!window.LOS_QUESTION_BANK_BATCH_7||!window.LOS_QUESTION_BANK_BATCH_8||!window.LOS_QUESTION_BANK_BATCH_9||!window.LOSQuestionBank)throw new Error("Question bank failed to load");
-const QUESTION_BANK_SOURCE={...window.LOS_QUESTION_BANK_DATA,bankVersion:"stage-6.34-major-transit-cdl-depth",questions:[...window.LOS_QUESTION_BANK_DATA.questions,...window.LOS_QUESTION_BANK_BATCH_1.questions,...window.LOS_QUESTION_BANK_BATCH_2.questions,...window.LOS_QUESTION_BANK_BATCH_3.questions,...window.LOS_QUESTION_BANK_BATCH_4.questions,...window.LOS_QUESTION_BANK_BATCH_5.questions,...window.LOS_QUESTION_BANK_BATCH_6.questions,...window.LOS_QUESTION_BANK_BATCH_7.questions,...window.LOS_QUESTION_BANK_BATCH_8.questions,...window.LOS_QUESTION_BANK_BATCH_9.questions]};
+const QUESTION_BANK_SOURCE={...window.LOS_QUESTION_BANK_DATA,bankVersion:"stage-6.35-qa-voice-hardening",questions:[...window.LOS_QUESTION_BANK_DATA.questions,...window.LOS_QUESTION_BANK_BATCH_1.questions,...window.LOS_QUESTION_BANK_BATCH_2.questions,...window.LOS_QUESTION_BANK_BATCH_3.questions,...window.LOS_QUESTION_BANK_BATCH_4.questions,...window.LOS_QUESTION_BANK_BATCH_5.questions,...window.LOS_QUESTION_BANK_BATCH_6.questions,...window.LOS_QUESTION_BANK_BATCH_7.questions,...window.LOS_QUESTION_BANK_BATCH_8.questions,...window.LOS_QUESTION_BANK_BATCH_9.questions]};
 const QUESTION_BANK=window.LOSQuestionBank.createQuestionBank(QUESTION_BANK_SOURCE);
 const QUESTIONS=QUESTION_BANK.questions.map(QUESTION_BANK.toGameplay);
 let state={
@@ -128,7 +128,7 @@ const HOST_LINE_TUNING={
 let hostSystem=null;
 let recognition=null,questionTimer=null,answerGraceTimer=null,flowTimer=null,pausedRemaining=null,pausedFrom=null,pausedResultDelay=null,resultDelayRemaining=null,renamePending=null,lastVolume=state.volume>0?state.volume:.65,questionSoundTimers=[],celebrationTimers=[],handoffTimers=[];
 let runtimeSessionId=0,renderGeneration=0,setupRenderId=0,pendingTransitionCause={trigger:"internal",reason:"runtime"},questionReading=false,questionSessionId=0,answerListening=false,playerUpRenderGeneration=0;
-const BUILD_INFO={stage:"6.34",version:"major-transit-cdl-depth-expansion",builtAt:"2026-08-26"},transitionDiagnostics=[],screenLifetimeDiagnostics=[],answerDiagnostics=[],playerUpDiagnostics=[],audioDiagnostics={tick:"off",buzzerFired:false},transitionDebugEnabled=new URLSearchParams(location.search).get("playtestDebug")==="1"||localStorage.getItem("los_playtest_debug")==="1";
+const BUILD_INFO={stage:"6.35",version:"question-answer-voice-quality-hardening",builtAt:"2026-08-27"},transitionDiagnostics=[],screenLifetimeDiagnostics=[],answerDiagnostics=[],playerUpDiagnostics=[],audioDiagnostics={tick:"off",buzzerFired:false},transitionDebugEnabled=new URLSearchParams(location.search).get("playtestDebug")==="1"||localStorage.getItem("los_playtest_debug")==="1";
 function enterScreen(next,reason="render",trigger=pendingTransitionCause.trigger||"internal"){
  const from=state.screen,sourceSession=runtimeSessionId,validScreens=new Set(["home","setup","packs","mode","industry","difficulty","fun","players","time","ready","handoff","transition","question","result","showdown","complete","paused"]),valid=validScreens.has(next);
  if(!valid){const rejected={accepted:false,from,to:next,reason,trigger,command:trigger==="voice"?pendingTransitionCause.reason:null,callback:trigger==="internal-game-event"?reason:null,at:Date.now(),sourceSession,session:runtimeSessionId,renderGeneration};transitionDiagnostics.push(rejected);return runtimeSessionId}
@@ -313,7 +313,7 @@ function createHostSystem(provider=defaultHostProvider()){
 }
 function startMusic(){if(isSetupScreen()||state.screen==="home")GameAudio.playMusic("setup",{owner:"setup"})}
 function stopMusic(){GameAudio.stopMusic()}
-function clearRuntime(){clearPendingPlayersNavigation();hostSystem?.cancel("runtime-change");questionReading=false;answerListening=false;audioDiagnostics.tick="off";GameAudio.restore();GameAudio.stopPending();clearInterval(questionTimer);questionTimer=null;clearTimeout(answerGraceTimer);answerGraceTimer=null;clearTimeout(flowTimer);flowTimer=null;questionSoundTimers.forEach(clearTimeout);questionSoundTimers=[];handoffTimers.forEach(clearTimeout);handoffTimers=[];celebrationTimers.forEach(id=>{clearTimeout(id);clearInterval(id)});celebrationTimers=[]}
+function clearRuntime(){clearPendingPlayersNavigation();clearPendingAnswerCandidate();hostSystem?.cancel("runtime-change");questionReading=false;answerListening=false;audioDiagnostics.tick="off";GameAudio.restore();GameAudio.stopPending();clearInterval(questionTimer);questionTimer=null;clearTimeout(answerGraceTimer);answerGraceTimer=null;clearTimeout(flowTimer);flowTimer=null;questionSoundTimers.forEach(clearTimeout);questionSoundTimers=[];handoffTimers.forEach(clearTimeout);handoffTimers=[];celebrationTimers.forEach(id=>{clearTimeout(id);clearInterval(id)});celebrationTimers=[]}
 function isSetupScreen(){return ["setup","packs","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen)}
 function exitSetup(){if(state.game)return;markSetupAbandoned(state.screen);state.game=null;home()}
 function bindSetupShell(){document.querySelectorAll("[data-setup-exit]").forEach(button=>button.onclick=exitSetup)}
@@ -344,7 +344,7 @@ function updateRetryMicAvailability(){
 }
 function temporarilySuspendRecognitionForHost(){
  if(!state.voiceOn||!recognition)return false;
- clearPendingPlayersNavigation();
+ clearPendingPlayersNavigation();clearPendingAnswerCandidate();
  voiceCore.actualState="suppressed";voiceCore.suppressionReason="host-speech";voiceDiagnostic("recognition-suppressed",{reason:"host-speech"});
  clearTimeout(voiceCore.restart);voiceCore.restart=null;clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=null;voiceCore.generation++;
  voiceCore.health={generation:voiceCore.generation,phase:"suppressed",events:{suppressed:performance.now()}};
@@ -352,7 +352,7 @@ function temporarilySuspendRecognitionForHost(){
  const r=recognition;recognition=null;try{detachRecognitionCallbacks(r);r.abort()}catch{};return true
 }
 function stopVoice(reason="voice-setting-off",detail={}){
- clearPendingPlayersNavigation();
+ clearPendingPlayersNavigation();clearPendingAnswerCandidate();
  voiceCore.desired=false;voiceCore.lastDesiredDecision={desired:false,reason,screen:state.screen,session:runtimeSessionId,at:Date.now(),...detail};
  voiceCore.actualState="stopped";voiceCore.suppressionReason=reason;voiceDiagnostic("voice-desired-changed",voiceCore.lastDesiredDecision);voiceDiagnostic("recognition-stop-requested",{reason,...detail});
  voiceCore.handledInterimSlots.clear();voiceCore.navQueued=null;
@@ -423,7 +423,7 @@ function fuzzyVisibleTarget(h){
  return false
 }
 const voicePageHidden=()=>{try{return !document.defaultView||document.visibilityState==="hidden"}catch{return true}};
-let voiceCore={ctx:null,owner:null,restart:null,errorWatchdog:null,generation:0,retryAttempt:0,restartCount:0,desired:false,lastDesiredDecision:{desired:false,reason:"initializing"},actualState:"stopped",health:{generation:0,phase:"stopped",events:{}},lastManualRecoveryAt:-Infinity,lastKey:"",lastAt:0,lastHeard:"",lastTranscript:"",lastTranscriptFinal:null,lastInterim:"",lastFinal:"",lastRoute:"",lastRejection:"",lastError:"",suppressionReason:"",startRequestedAt:null,startedAt:null,listeningAt:null,lastSpeechAt:null,endedAt:null,permissionBlocked:false,handledInterimSlots:new Map(),handledFinalSlots:new Map(),interimCandidates:new Map(),navQueued:null,pendingPlayersNav:null,pendingPlayersNavTimer:null,diagnostics:[],utterance:0,currentUtterance:null,answerUtterance:null,latencySeen:new Set()},lastPlayerVoiceMutation={key:"",at:0},voiceLifecycleSuspended=voicePageHidden();
+let voiceCore={ctx:null,owner:null,restart:null,errorWatchdog:null,generation:0,retryAttempt:0,restartCount:0,desired:false,lastDesiredDecision:{desired:false,reason:"initializing"},actualState:"stopped",health:{generation:0,phase:"stopped",events:{}},lastManualRecoveryAt:-Infinity,lastKey:"",lastAt:0,lastHeard:"",lastTranscript:"",lastTranscriptFinal:null,lastInterim:"",lastFinal:"",lastRoute:"",lastRejection:"",lastError:"",suppressionReason:"",startRequestedAt:null,startedAt:null,listeningAt:null,lastSpeechAt:null,endedAt:null,permissionBlocked:false,handledInterimSlots:new Map(),handledFinalSlots:new Map(),interimCandidates:new Map(),pendingAnswerCandidate:null,pendingAnswerTimer:null,navQueued:null,pendingPlayersNav:null,pendingPlayersNavTimer:null,diagnostics:[],utterance:0,currentUtterance:null,answerUtterance:null,latencySeen:new Set()},lastPlayerVoiceMutation={key:"",at:0},voiceLifecycleSuspended=voicePageHidden();
 const VOICE_LATENCY_MODE=new URLSearchParams(location.search).get("voiceLatency")==="1";
 const VOICE_HEALTH_MODE=VOICE_LATENCY_MODE||new URLSearchParams(location.search).get("voiceHealth")==="1"||localStorage.getItem("los_voice_health")==="1";
 function voiceTimelineSnapshot(){
@@ -510,6 +510,12 @@ function queueVoiceNavigation(h,isFinal,confidence){
  return true
 }
 function clearPendingPlayersNavigation(){clearTimeout(voiceCore?.pendingPlayersNavTimer);if(voiceCore){voiceCore.pendingPlayersNavTimer=null;voiceCore.pendingPlayersNav=null}}
+function clearPendingAnswerCandidate(){clearTimeout(voiceCore?.pendingAnswerTimer);if(voiceCore){voiceCore.pendingAnswerTimer=null;voiceCore.pendingAnswerCandidate=null}}
+function finalizePendingAnswerCandidate(reason="speech-ended-without-final-result"){
+ const candidate=voiceCore.pendingAnswerCandidate;clearPendingAnswerCandidate();
+ if(!candidate||candidate.generation!==voiceCore.generation||candidate.screen!=="question"||state.screen!=="question"||candidate.session!==runtimeSessionId||candidate.questionSessionId!==questionSessionId||!answerListening||state.game?.answered)return false;
+ voiceDiagnostic("answer-interim-finalized",{reason,text:candidate.text,resultIndex:candidate.resultIndex,questionSessionId});return centralQuestionIntent(candidate.text,true,candidate.confidence,candidate.resultIndex)
+}
 function rememberPlayersNavigationCandidate(text,confidence,resultIndex,generation){
  const command=norm(text);if(state.screen!=="players"||!/^(continue|next|start)$/.test(command))return false;
  clearPendingPlayersNavigation();voiceCore.pendingPlayersNav={text,command,confidence,resultIndex,generation,screen:state.screen,session:runtimeSessionId};voiceDiagnostic("players-navigation-candidate",{command,resultIndex,confidence,generation});return true
@@ -803,6 +809,7 @@ function centralQuestionIntent(h,isFinal=false,confidence=0,resultIndex=-1){
  if(!isFinal){
   voiceDiagnostic("answer-matcher-invoked",{text:h,normalizedText:n,isFinal:false,resultIndex,questionSessionId});const match=answerMatchTrace(h,state.game.current);voiceDiagnostic("answer-match-produced",{text:h,normalizedText:n,expectedAnswer:state.game.current.a,accepted:match.accepted,method:match.method,reason:match.reason||null,aliasesConsidered:match.aliasesConsidered||[],attemptedRules:match.attemptedRules||[],isFinal:false,resultIndex,questionSessionId});const key=`${questionSessionId}:${resultIndex}`,prior=voiceCore.interimCandidates.get(key),stable=!!(match.accepted&&prior?.normalized===n),highConfidence=match.accepted&&confidence>=.9;
   voiceCore.interimCandidates.set(key,{normalized:n,accepted:match.accepted,at:performance.now()});
+  if(match.accepted){clearPendingAnswerCandidate();voiceCore.pendingAnswerCandidate={text:h,confidence,resultIndex,generation:voiceCore.generation,screen:state.screen,session:runtimeSessionId,questionSessionId}}else clearPendingAnswerCandidate();
   if(!match.accepted){if(n)voiceDiagnostic("answer-attempt-rejected",{rawTranscript:h,isFinal:false,reason:"interim-not-accepted",questionSessionId,remaining:state.game.questionRemaining});return false}
   voiceDiagnostic("answer-interim-evaluated",{text:h,normalizedText:n,confidence,resultIndex,stable,highConfidence,matchMethod:match.method,questionSessionId});
   if(!stable&&!highConfidence)return false;
@@ -922,7 +929,7 @@ function startVoice(ctx){
   r.onaudiostart=()=>{if(voiceCore.generation!==generation||recognition!==r)return;setVoiceHealth(generation,"audio-detected");voiceDiagnostic("audio-start",{generation})};
   r.onsoundstart=()=>{if(voiceCore.generation!==generation||recognition!==r)return;setVoiceHealth(generation,"sound-detected");beginVoiceLatencyUtterance("sound-start")};
   r.onspeechstart=()=>{if(voiceCore.generation!==generation||recognition!==r)return;setVoiceHealth(generation,"waiting-for-transcript");if(!voiceCore.currentUtterance)beginVoiceLatencyUtterance("speech-start");else voiceDiagnostic("speech-start");voiceCore.answerUtterance={id:voiceCore.currentUtterance,questionSessionId,startedBeforeDeadline:state.screen==="question"&&answerListening&&Number(state.game?.questionRemaining)>0}}
-  r.onspeechend=()=>{if(voiceCore.generation!==generation||recognition!==r)return;voiceDiagnostic("speech-end");if(voiceCore.pendingPlayersNav){clearTimeout(voiceCore.pendingPlayersNavTimer);voiceCore.pendingPlayersNavTimer=setTimeout(()=>finalizePlayersNavigationCandidate("speech-ended-without-final-result"),240)}};
+  r.onspeechend=()=>{if(voiceCore.generation!==generation||recognition!==r)return;voiceDiagnostic("speech-end");if(voiceCore.pendingPlayersNav){clearTimeout(voiceCore.pendingPlayersNavTimer);voiceCore.pendingPlayersNavTimer=setTimeout(()=>finalizePlayersNavigationCandidate("speech-ended-without-final-result"),240)}if(voiceCore.pendingAnswerCandidate){clearTimeout(voiceCore.pendingAnswerTimer);voiceCore.pendingAnswerTimer=setTimeout(()=>finalizePendingAnswerCandidate("speech-ended-without-final-result"),240)}};
   r.onsoundend=()=>{if(voiceCore.generation!==generation||recognition!==r)return;voiceDiagnostic("sound-end")};
   r.onaudioend=()=>{if(voiceCore.generation!==generation||recognition!==r)return;voiceDiagnostic("audio-end",{generation})};
 
@@ -941,7 +948,7 @@ function startVoice(ctx){
      const prior=voiceCore.handledInterimSlots.get(i),finalText=norm(res[0]?.transcript||"");voiceCore.handledInterimSlots.delete(i);
      if(prior.transcript===finalText&&prior.screen===state.screen&&prior.session===runtimeSessionId){voiceDiagnostic("command-rejected",{reason:"final-after-handled-interim",resultIndex:i,command:finalText});voiceCore.currentUtterance=null;continue}
     }
-    if(res.isFinal)clearPendingPlayersNavigation();
+    if(res.isFinal){clearPendingPlayersNavigation();clearPendingAnswerCandidate()}
 
     const alternativeOrder=[...Array(Math.min(res.length,5)).keys()];
     if(res.isFinal&&state.screen==="question"&&state.game?.current){const acceptedIndex=alternativeOrder.find(a=>accepted((res[a]?.transcript||"").trim(),state.game.current));if(acceptedIndex>0){alternativeOrder.splice(acceptedIndex,1);alternativeOrder.unshift(acceptedIndex);voiceDiagnostic("answer-alternative-promoted",{resultIndex:i,alternative:acceptedIndex})}}
@@ -994,7 +1001,7 @@ function startVoice(ctx){
 
   r.onend=()=>{
    if(voiceCore.generation!==generation||recognition!==r)return;
-   finalizePlayersNavigationCandidate("recognition-ended-without-final-result");
+   finalizePlayersNavigationCandidate("recognition-ended-without-final-result");finalizePendingAnswerCandidate("recognition-ended-without-final-result");
    clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=null;voiceCore.actualState="stopped";voiceCore.endedAt=performance.now();setVoiceHealth(generation,"ended");voiceDiagnostic("recognition-ended",{generation,error:voiceCore.lastError});recognition=null;scheduleVoiceRestart()
   };
 
@@ -1012,7 +1019,7 @@ function manualRecoverVoice(){
  if(voiceLifecycleSuspended||voicePageHidden())return reject("lifecycle-hidden");
  if(hostSystem?.isSpeaking())return reject("host-speaking");
  const now=performance.now();if(now-voiceCore.lastManualRecoveryAt<750)return reject("duplicate-request");voiceCore.lastManualRecoveryAt=now;
- clearPendingPlayersNavigation();clearTimeout(voiceCore.restart);voiceCore.restart=null;clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=null;voiceCore.generation++;
+ clearPendingPlayersNavigation();clearPendingAnswerCandidate();clearTimeout(voiceCore.restart);voiceCore.restart=null;clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=null;voiceCore.generation++;
  const r=recognition;recognition=null;try{if(r){detachRecognitionCallbacks(r);r.abort()}}catch{}
  voiceCore.actualState="stopped";voiceCore.currentUtterance=null;voiceCore.handledInterimSlots.clear();voiceCore.interimCandidates.clear();voiceDiagnostic("manual-recovery-requested",{screen:state.screen,session:runtimeSessionId});startVoice(state.screen);return true
 }
@@ -1021,7 +1028,7 @@ function suspendVoiceForLifecycle(reason="visibility-hidden"){
  voiceLifecycleSuspended=true;clearTimeout(voiceCore.restart);voiceCore.restart=null;clearTimeout(voiceCore.errorWatchdog);voiceCore.errorWatchdog=null;voiceCore.generation++;
  voiceCore.health={generation:voiceCore.generation,phase:"suppressed",events:{suppressed:performance.now()}};
  voiceCore.desired=!!state.voiceOn&&!voiceCore.permissionBlocked;voiceCore.actualState="suppressed";voiceCore.suppressionReason="lifecycle-hidden";voiceCore.lastDesiredDecision={desired:voiceCore.desired,reason:"lifecycle-hidden",event:reason,screen:state.screen,session:runtimeSessionId,at:Date.now()};voiceDiagnostic("voice-lifecycle-suspended",voiceCore.lastDesiredDecision);
- clearPendingPlayersNavigation();voiceCore.handledInterimSlots.clear();voiceCore.interimCandidates.clear();voiceCore.navQueued=null;const r=recognition;recognition=null;
+ clearPendingPlayersNavigation();clearPendingAnswerCandidate();voiceCore.handledInterimSlots.clear();voiceCore.interimCandidates.clear();voiceCore.navQueued=null;const r=recognition;recognition=null;
  try{if(r){detachRecognitionCallbacks(r);r.abort()}}catch{}
 }
 function resumeVoiceForLifecycle(reason="visibility-visible"){
@@ -1078,7 +1085,7 @@ function answerMatchTrace(h,q){
  if(!q)return{accepted:false,method:"no-question",reason:"no-current-question"};
  const answerNorm=value=>String(value||"").toLocaleLowerCase().normalize("NFKD").replace(/\p{M}/gu,"").replace(/[^\p{L}\p{N}\s]/gu," ").replace(/\s+/g," ").trim();
  const stripSafeArticle=value=>answerNorm(value).replace(/^(?:the|a|an|el|la|los|las|un|una)\s+/,"");
- const rawHeard=answerNorm(h),heard=rawHeard.replace(/^(?:so|well|okay|ok|the answer is|my answer is|i think it is|i think it s|i believe it is|i believe it s|it is|it s|i m going with|i would say)\s+/,""),heardCore=stripSafeArticle(heard),attemptedRules=["exact-or-approved-alias","safe-concept-equivalence","safe-category-example","safe-action-equivalence","safe-alternative-specificity","safe-word-form","bounded-edit","phonetic-identity","meaningful-partial","question-context"];
+ const rawHeard=answerNorm(h),withoutFiller=rawHeard.replace(/^(?:(?:um|uh)\s+)+/,""),heard=withoutFiller.replace(/^(?:so|well|okay|ok|the answer is|my answer is|i think (?:the answer is|it is|it s)|i believe (?:it is|it s)|i m pretty sure (?:it is|it s)|i m gonna say|i am going to say|it is|it s|i m going with|i would say|probably|maybe|is it)\s+/,""),heardCore=stripSafeArticle(heard),attemptedRules=["exact-or-approved-alias","safe-concept-equivalence","safe-category-example","safe-action-equivalence","safe-alternative-specificity","safe-word-form","bounded-edit","phonetic-identity","meaningful-partial","question-context"];
  const entries=[{value:q.a,source:"canonical"},...(q.accept||[]).map(value=>({value,source:"accepted-english"})),...(q.aliases||[]).map(value=>({value,source:"legacy-alias"})),...(q.alts||[]).map(value=>({value,source:"legacy-alt"})),...(q.es||[]).map(value=>({value,source:"accepted-spanish"})),...(q.equivalents||[]).map(value=>({value,source:"concept-equivalent"}))].filter(x=>x.value).map(entry=>({...entry,target:answerNorm(entry.value),targetCore:stripSafeArticle(entry.value)}));
  for(const {value:ans,source,target,targetCore} of entries)if(rawHeard===target)return{accepted:true,method:source==="canonical"?"exact-canonical":source,matched:ans,heard:rawHeard,heardCore:stripSafeArticle(rawHeard),target,targetCore};
  for(const {value:ans,source,target,targetCore} of entries)if(heard===target||heardCore===targetCore)return{accepted:true,method:source==="canonical"?"exact-canonical":source,matched:ans,heard,heardCore,target,targetCore};

@@ -523,6 +523,52 @@ test("answer wrappers are removed only as anchored framing around an independent
  assert.equal(h.api.answerMatchTrace("I think it's Marte",q).method,"accepted-spanish")
 }));
 
+test("Build 6.35 safely accepts conversational and hesitation framing",withHarness(h=>{
+ const cases=[
+  ["Probably Pacific",{q:"What ocean is west of California?",a:"Pacific Ocean"}],
+  ["Maybe the Pacific",{q:"What ocean is west of California?",a:"Pacific Ocean"}],
+  ["Is it Pacific?",{q:"What ocean is west of California?",a:"Pacific Ocean"}],
+  ["I'm pretty sure it's Pacific",{q:"What ocean is west of California?",a:"Pacific Ocean"}],
+  ["I'm gonna say Pacific",{q:"What ocean is west of California?",a:"Pacific Ocean"}],
+  ["I am going to say Pacific",{q:"What ocean is west of California?",a:"Pacific Ocean"}],
+  ["um Pacific",{q:"What ocean is west of California?",a:"Pacific Ocean"}],
+  ["uh I think it's Pacific",{q:"What ocean is west of California?",a:"Pacific Ocean"}],
+  ["I think the answer is CNG",{a:"CNG",accept:["compressed natural gas"]}],
+  ["I'm pretty sure it's 1991",{a:"1991"}],
+  ["Probably compressed natural gas",{a:"CNG",accept:["compressed natural gas"]}],
+  ["Maybe P endorsement",{a:"P endorsement",accept:["passenger endorsement"]}],
+  ["Is it three quarters of a mile",{a:"3/4 mile",accept:["three quarters of a mile","0.75 mile"]}],
+  ["um ADA",{a:"ADA",accept:["Americans with Disabilities Act"]}],
+  ["uh SunDial",{a:"SunDial"}],
+  ["I'm gonna say wheelchair ramp",{q:"What type of accessibility device may allow a wheelchair user to board a bus?",a:"Ramp or lift"}],
+  ["Probably Graham Bell",{q:"Who is credited with inventing the telephone?",a:"Alexander Graham Bell"}],
+  ["Maybe so it doesn't move",{q:"Why must cargo be secured?",a:"So it does not shift"}],
+  ["I'm pretty sure it's Marte",{a:"Mars",es:["Marte"]}],
+  ["uh I think the answer is fourteen",{a:"14",accept:["fourteen"]}]
+ ];
+ for(const [heard,q] of cases)assert.equal(h.api.accepted(heard,q),true,heard);
+ for(const [heard,q] of [
+  ["probably not Pacific",{q:"What ocean is west of California?",a:"Pacific Ocean"}],
+  ["maybe Atlantic",{q:"What ocean is west of California?",a:"Pacific Ocean"}],
+  ["is it Atlantic",{q:"What ocean is west of California?",a:"Pacific Ocean"}],
+  ["I think Mars might be wrong",{a:"Mars"}],
+  ["um air compressor",{a:"air compressor governor"}],
+  ["probably bus",{a:"SunDial"}],
+  ["maybe CNG",{a:"hydrogen"}],
+  ["is it ocean",{a:"Pacific Ocean"}],
+  ["uh vehicle",{a:"car"}],
+  ["I'm gonna say Alexander Bell",{a:"Alexander Graham Bell"}]
+ ])assert.equal(h.api.accepted(heard,q),false,heard)
+}));
+
+test("Build 6.35 finalizes one accepted WebKit interim at a speech boundary",withHarness(h=>{
+ const state=activeTimedQuestion(h);state.game.current={id:"webkit-boundary",q:"What planet is red?",a:"Mars"};const r=h.recognition();r.emit("Mars",{final:false,confidence:.4});assert.equal(state.screen,"question");r.speechEnd();h.timers.advance(239);assert.equal(state.screen,"question");h.timers.advance(1);assert.equal(state.screen,"result");assert.equal(state.game.players[0].correct,1)
+}));
+
+test("Build 6.35 finalizes an accepted interim when WebKit ends without a final",withHarness(h=>{
+ const state=activeTimedQuestion(h);state.game.current={id:"webkit-end",q:"What planet is red?",a:"Mars"};const r=h.recognition();r.emit("Mars",{final:false,confidence:.4});assert.equal(state.screen,"question");r.end();assert.equal(state.screen,"result");assert.equal(state.game.players[0].correct,1)
+}));
+
 test("exact wrapper-like titles match before wrapper fallback",withHarness(h=>{
  const titles=["It Is What It Is","It's a Wonderful Life","My Answer Is Love","The Answer Is Forty-Two","I'm Going With You"];
  for(const title of titles){

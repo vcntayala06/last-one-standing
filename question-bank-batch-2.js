@@ -103,6 +103,7 @@ const transitArithmeticAudit=new Set([
  "A vehicle travels 45 miles at 30 miles per hour. How long does it take?"
 ]);
 for(const q of questions)if(transitArithmeticAudit.has(q.prompt)){q.review.status="disabled";q.quality.status="rejected";q.quality.flags=["disguised-arithmetic","weak-transit-value"];q.quality.notes="Build 6.34 full Transit audit disabled arithmetic filler that did not primarily test Transit knowledge."}
+for(const q of questions)if(["Which doll debuted in 1959 with the first name Barbie?","What is the name of the green ogre in the Shrek films?"].includes(q.prompt)){q.review.status="disabled";q.quality.status="rejected";q.quality.flags=["self-answering","too-easy","weak-reveal"];q.quality.notes="Build 6.35 whole-bank audit disabled a prompt that directly gave away its canonical answer."}
 const b2HipHop=new Set(["A Tribe Called Quest","Outkast","Nas","Jay-Z","Kendrick Lamar","Kanye West","Nicki Minaj","Cardi B","The Notorious B.I.G.","Tupac Shakur","André 3000","Snoop Dogg","hip-hop"]);
 const b2RnB=new Set(["Stevie Wonder","Marvin Gaye","Beyoncé","Janet Jackson","Alicia Keys","Destiny's Child","The Supremes","Earth, Wind & Fire","George Clinton","Aretha Franklin"]);
 const b2Pop=new Set(["Michael Jackson","Prince","Beyoncé","Adele","Dua Lipa","Bad Bunny","Taylor Swift","Lady Gaga","The Weeknd"]);
