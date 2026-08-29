@@ -35,10 +35,14 @@ function activeTimedQuestion(h) {
   return state;
 }
 
+function addPlayerViaForm(h,firstName,{lastName="",nickname=""}={}){
+ h.click("#add");const form=h.document.querySelector(".los-player-sheet");assert.ok(form,"add-player form");form.elements.firstName.value=firstName;form.elements.lastName.value=lastName;form.elements.nickname.value=nickname;form.dispatchEvent(new h.window.Event("submit",{bubbles:true,cancelable:true}))
+}
+
 test("fake SpeechRecognition is active and routes a final Home command", withHarness(h => {
   assert.equal(h.api.getState().screen, "home");
   h.speak("start", { final: true });
-  assert.equal(h.api.getState().screen, "setup");
+  assert.equal(h.api.getState().screen, "packs");
 }));
 
 test("protected answer matcher accepts exact, contained, fuzzy, and phonetic answers", withHarness(h => {
@@ -108,19 +112,25 @@ test("wrong Result includes one immediate non-interactive game-show X", withHarn
   assert.equal(state.game.players[0].strikes,1);
 }));
 
-test("player touch controls add, edit, and delete without changing production logic", withHarness(h => {
+test("Build 6.36 compact roster adds removes edits and preserves production names", withHarness(h => {
   const state = h.api.getState();
   state.screen = "players";
   state.mode = "friends";
-  state.players = [{ id: "p1", name: "Vicente" }, { id: "p2", name: "Todd" }];
+  state.players = [];
   h.api.players();
-  h.click("#add");
-  const input = h.document.querySelectorAll("[data-p]")[2];
-  input.value = "Maria";
-  input.dispatchEvent(new h.window.Event("input", { bubbles: true }));
-  assert.equal(state.players[2].name, "Maria");
-  h.click(`[data-remove="${state.players[2].id}"]`);
-  assert.deepEqual(Array.from(state.players, p => p.name), ["Vicente", "Todd"]);
+  assert.ok(h.document.querySelector(".los-selected-empty"));addPlayerViaForm(h,"Maria",{lastName:"Lopez",nickname:"Mari"});assert.deepEqual(Array.from(state.players,p=>p.name),["Mari"]);const id=state.players[0].id;assert.ok(h.document.querySelector(`[data-selected-player="${id}"]`));h.click(`[data-remove-player="${id}"]`);assert.equal(state.players.length,0);h.click("#selectPlayers");assert.equal(h.document.querySelector(`[data-picker-player="${id}"]`).getAttribute("aria-pressed"),"false");h.click(`[data-picker-player="${id}"]`);assert.deepEqual(Array.from(state.players,p=>p.name),["Mari"]);h.click(`[data-picker-edit="${id}"]`);const form=h.document.querySelector(".los-player-sheet");form.elements.nickname.value="Maria";form.dispatchEvent(new h.window.Event("submit",{bubbles:true,cancelable:true}));assert.equal(state.players[0].name,"Maria")
+}));
+
+test("Build 6.36 avatar library filters expands styles and persists old and new IDs",withHarness(h=>{
+ const state=h.api.getState();state.mode="original";state.screen="players";state.players=[];h.api.players();addPlayerViaForm(h,"Alex");const id=state.players[0].id;const openAvatar=()=>{h.click("#selectPlayers");h.click(`[data-picker-avatar="${id}"]`)};openAvatar();assert.equal(h.document.querySelectorAll("[data-avatar]").length,47);assert.equal(h.document.querySelectorAll('[data-avatar-style="street"]').length,6);assert.equal(h.document.querySelectorAll('[data-avatar-style="western"]').length,6);assert.equal(h.document.querySelectorAll('[data-avatar-style="biker"]').length,6);for(const [filter,count] of [["kids",7],["adults",28],["seniors",11]]){h.click(`[data-avatar-filter="${filter}"]`);assert.equal(h.document.querySelectorAll("[data-avatar]").length,count,filter)}h.click('[data-avatar="senior-glasses"]');h.click("[data-save-avatar]");assert.equal(state.players[0].avatar,"senior-glasses");let profiles=JSON.parse(h.window.localStorage.getItem("los636_player_profiles"));assert.equal(profiles[0].avatar,"senior-glasses");h.click(`[data-picker-avatar="${id}"]`);h.click('[data-avatar="street-nightcap"]');h.click("[data-save-avatar]");assert.equal(state.players[0].avatar,"street-nightcap");profiles=JSON.parse(h.window.localStorage.getItem("los636_player_profiles"));assert.equal(profiles[0].avatar,"street-nightcap")
+}));
+
+test("Build 6.36 saved-player picker multi-selects searches and prevents duplicates",withHarness(h=>{
+ const state=h.api.getState(),profiles=[{id:"p1",firstName:"Vicente",lastName:"Ayala",nickname:"Vince",name:"Vince",avatar:"adult-fade"},{id:"p2",firstName:"Maria",lastName:"Lopez",nickname:"",name:"Maria Lopez",avatar:"adult-bob"},{id:"p3",firstName:"George",lastName:"King",nickname:"Geo",name:"Geo",avatar:"senior-glasses"}];h.window.localStorage.setItem("los636_player_profiles",JSON.stringify(profiles));state.screen="players";state.mode="original";state.players=[];h.api.players();h.click("#selectPlayers");assert.equal(h.document.querySelectorAll("[data-saved-profile]").length,3);h.click('[data-picker-player="p1"]');h.click('[data-picker-player="p2"]');assert.deepEqual(Array.from(state.players,p=>p.id),["p1","p2"]);h.click('[data-picker-player="p1"]');assert.deepEqual(Array.from(state.players,p=>p.id),["p2"]);const search=h.document.querySelector('.los-player-search input');search.value="geo";search.dispatchEvent(new h.window.Event("input",{bubbles:true}));assert.equal(h.document.querySelectorAll("[data-saved-profile]").length,1);assert.equal(h.document.querySelector("[data-saved-profile]").dataset.savedProfile,"p3")
+}));
+
+test("Build 6.36 voice selects saved profiles by stable ID and rejects ambiguous names",withHarness(h=>{
+ const state=h.api.getState(),profiles=[{id:"a",firstName:"Alex",lastName:"Able",nickname:"Ace",name:"Ace"},{id:"b",firstName:"Alex",lastName:"Baker",nickname:"Bee",name:"Bee"},{id:"m",firstName:"Maria",lastName:"Lopez",nickname:"Mari",name:"Mari"}];h.window.localStorage.setItem("los636_player_profiles",JSON.stringify(profiles));state.screen="players";state.mode="original";state.players=[];h.api.players();h.speak("Select Maria");assert.deepEqual(Array.from(state.players,p=>p.id),["m"]);h.speak("Maria is playing");assert.deepEqual(Array.from(state.players,p=>p.id),["m"]);h.speak("Alex");assert.deepEqual(Array.from(state.players,p=>p.id),["m"]);assert.ok(h.api.getVoiceDiagnostics().some(row=>row.reason==="ambiguous-saved-player-name"));h.speak("Add Ace");assert.deepEqual(Array.from(state.players,p=>p.id),["m","a"])
 }));
 
 test("player voice commands add, rename, delete, and incrementally spell", withHarness(h => {
@@ -339,15 +349,11 @@ test("quit-confirmation approval commands still end the game", () => {
   }
 });
 
-test("mouse/touch controls start Multiplayer and Solo through Unified Setup", () => {
-  for(const mode of ["original","solo"]){
-    const h=createHarness();
-    try{
-      const state=h.api.getState();h.click("#start");h.timers.advance(220);assert.equal(state.screen,"setup");h.click(`[data-setup-mode="${mode}"]`);
-      h.click('[data-setup-difficulty="hard"]');h.click('[data-setup-seconds="20"]');h.click('[data-setup-minutes="10"]');h.click("#startGame");h.timers.advance(220);assert.equal(state.screen,"packs");h.click("#continuePacks");h.timers.advance(220);if(mode!=="solo"){assert.equal(state.screen,"players");h.click("#continue");h.timers.advance(220)}
-      assert.equal(state.screen,"ready");h.timers.advance(30000);assert.equal(state.screen,"ready");h.click("#showtimeStart");assert.equal(state.screen,"handoff");assert.equal(state.mode,mode);assert.equal(state.game.players.length,mode==="solo"?1:3)
-    }finally{h.close()}
-  }
+test("mouse/touch Home Play routes through Choose Your Game and Who’s In", () => {
+  const h=createHarness();
+  try{
+    const state=h.api.getState();h.click("#start");h.timers.advance(220);assert.equal(state.screen,"packs");assert.equal(state.mode,"original");assert.equal(h.document.querySelector("#continuePacks").textContent,"PLAY");assert.equal(h.document.querySelector("[data-mode]"),null);h.click("#continuePacks");h.timers.advance(220);assert.equal(state.screen,"players");addPlayerViaForm(h,"Alex");addPlayerViaForm(h,"Blair");h.click("#continue");h.timers.advance(220);assert.equal(state.screen,"ready");h.timers.advance(30000);assert.equal(state.screen,"ready");h.click("#showtimeStart");assert.equal(state.screen,"handoff");assert.equal(state.mode,"original");assert.equal(state.game.players.length,2)
+  }finally{h.close()}
 });
 
 test("keyboard answer focuses, ignores empty Enter, and submits once", withHarness(h => {
@@ -358,9 +364,8 @@ test("keyboard answer focuses, ignores empty Enter, and submits once", withHarne
   assert.equal(state.game.players[0].correct,1);assert.equal(state.game.answered,true);assert.equal(state.screen,"result")
 }));
 
-test("detached Add Player control cannot perform a duplicate mutation", withHarness(h => {
-  const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];h.api.players();
-  const add=h.document.querySelector("#add");add.click();add.click();assert.equal(state.players.length,3)
+test("Build 6.36 Add Player form creates one profile only on save", withHarness(h => {
+  const state=h.api.getState();state.mode="original";state.players=[];h.api.players();h.click("#add");assert.equal(state.players.length,0);const form=h.document.querySelector(".los-player-sheet");form.elements.firstName.value="Casey";form.dispatchEvent(new h.window.Event("submit",{bubbles:true,cancelable:true}));assert.equal(state.players.length,1);assert.equal(state.players[0].name,"Casey")
 }));
 
 test("pausing Result preserves that Result and resumes one delayed advancement", withHarness(h => {
@@ -377,7 +382,7 @@ test("pause confirmation owns focus and returning Home clears celebration callba
 test("manual-control selected states expose accessible semantics", withHarness(h => {
   const state=h.api.getState();state.difficulty="hard";h.api.difficulty();assert.equal(h.document.querySelector('[data-difficulty="hard"]').getAttribute("aria-pressed"),"true");
   state.screen="time";h.api.time();assert.equal(h.document.querySelector('[data-sec="15"]').getAttribute("aria-pressed"),"true");assert.equal(h.document.querySelector("#vol").getAttribute("aria-label"),"Game volume");
-  state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];h.api.players();assert.equal(h.document.querySelector("[data-remove]").getAttribute("aria-label"),"Delete contestant 1")
+  state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];h.api.players();assert.ok(h.document.querySelector('[data-selected-player="p1"]'));assert.equal(h.document.querySelector('[data-remove-player="p1"]').getAttribute("aria-label"),"Remove Alex from this game");assert.equal(h.document.querySelector("[data-host-style]"),null)
 }));
 
 test("manual Back and Exit controls follow setup state without corrupting selections", () => {
@@ -403,16 +408,20 @@ test("Champion PLAY AGAIN uses the button activation shared by mouse touch and k
  for(const input of ["mouse","touch","keyboard"]){const h=createHarness();try{const state=h.api.getState();state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];h.api.startGame();h.api.champion(state.game.players[0]);const button=h.document.getElementById("playAgain");button.focus();assert.equal(h.document.activeElement,button);button.click();assert.equal(state.screen,"ready",input)}finally{h.close()}}
 });
 
-test("Home exposes Game Type without duplicating Original or Work content packs",()=>{
- const h=createHarness();try{const state=h.api.getState();h.click("#start");h.timers.advance(220);assert.equal(state.screen,"setup");assert.equal(h.document.querySelector("[data-setup-player]"),null);assert.equal(h.document.querySelector("#setupAddPlayer"),null);assert.equal(h.document.querySelector('[data-difficulty="easy"]'),null);assert.equal(h.document.querySelector("#startGame").textContent,"CONTINUE");assert.equal(h.document.querySelector('[data-setup-section="game-type"]')?.textContent.includes("GAME TYPE"),true);assert.deepEqual([...h.document.querySelectorAll("[data-setup-mode]")].map(x=>x.textContent),["MULTIPLAYER","SOLO"]);assert.equal(h.document.querySelector('[data-setup-mode="work"]'),null);const names=state.players.map(p=>p.name);for(const mode of ["solo","original"]){h.click(`[data-setup-mode="${mode}"]`);assert.equal(state.screen,"setup");assert.equal(state.mode,mode);assert.equal(h.document.querySelector(".unified-players"),null)}assert.deepEqual(state.players.map(p=>p.name),names);for(const selector of ['[data-setup-difficulty="hard"]','[data-setup-seconds="20"]','[data-setup-minutes="10"]']){h.click(selector);assert.equal(state.screen,"setup")}assert.equal(state.difficulty,"hard");assert.equal(state.questionSeconds,20);assert.equal(state.duration,10)}finally{h.close()}
+test("Home exposes one Play route without visible Multiplayer or Solo choices",()=>{
+ const h=createHarness();try{const state=h.api.getState();h.api.home();assert.equal(h.document.querySelectorAll("#start").length,1);assert.equal(h.document.querySelector("#start").getAttribute("aria-label"),"Play");for(const selector of ["#multiplayer","#solo","[data-setup-mode]","[data-mode]"])assert.equal(h.document.querySelector(selector),null);h.click("#start");h.timers.advance(220);assert.equal(state.screen,"packs");assert.equal(state.mode,"original");assert.equal(h.document.querySelector(".topbar-title").textContent,"CHOOSE YOUR GAME");assert.equal(h.document.querySelector("#continuePacks").textContent,"PLAY");assert.equal(h.document.body.textContent.includes("SOLO"),false);assert.equal(h.document.body.textContent.includes("MULTIPLAYER"),false)}finally{h.close()}
 });
 
+test("Build 6.36 Home How to Play and Settings are functional without duplicating utilities",withHarness(h=>{
+ const state=h.api.getState();h.api.home();assert.equal(h.document.querySelectorAll("#homeMic,#homeSound").length,0);assert.equal(h.document.querySelectorAll("#start,#homeHow,#homeSettings").length,3);h.click("#homeHow");assert.match(h.document.querySelector(".los-home-dialog").textContent,/HOW TO PLAY/);assert.equal(h.document.activeElement.getAttribute("aria-label"),"Close How to Play");h.click(".los-home-dialog [data-close]");h.click("#homeSettings");const range=h.document.querySelector('.los-home-volume input[type="range"]');range.value="0.4";range.dispatchEvent(new h.window.Event("input",{bubbles:true}));assert.equal(state.volume,.4);assert.equal(h.document.querySelector(".los-home-volume strong").textContent,"40%");h.click("[data-settings-mute]");assert.equal(state.volume,0);h.click("[data-settings-mute]");assert.equal(state.volume,.4);h.click("[data-settings-mic]");assert.equal(state.voiceOn,false);assert.match(h.document.querySelector(".los-build-info").textContent,/6\.36/);h.click(".los-home-dialog [data-close]");assert.equal(h.document.querySelector(".los-home-dialog"),null)
+}));
+
 test("multiplayer Continue opens content packs before the dedicated roster page",()=>{
- const h=createHarness();try{const state=h.api.getState();state.mode="original";h.api.go("setup");h.timers.advance(220);h.click("#startGame");assert.equal(state.screen,"packs");h.timers.advance(220);h.click("#continuePacks");assert.equal(state.screen,"players");const before=state.players.length;h.click("#add");assert.equal(state.screen,"players");assert.equal(state.players.length,before+1);const input=[...h.document.querySelectorAll("[data-p]")].at(-1);input.value="Jordan";input.dispatchEvent(new h.window.Event("input",{bubbles:true}));assert.equal(state.players.at(-1).name,"Jordan")}finally{h.close()}
+ const h=createHarness();try{const state=h.api.getState();state.mode="original";h.api.go("setup");h.timers.advance(220);h.click("#startGame");assert.equal(state.screen,"packs");h.timers.advance(220);h.click("#continuePacks");assert.equal(state.screen,"players");assert.equal(state.players.length,0);assert.ok(h.document.querySelector(".los-selected-empty"));addPlayerViaForm(h,"Jordan");assert.equal(state.players.at(-1).name,"Jordan");assert.equal(h.document.querySelectorAll("[data-selected-player]").length,1)}finally{h.close()}
 });
 
 test("Who’s In real setup lifecycle owns a listening recognizer and final navigation advances once",()=>{
- for(const phrase of ["continue","next","start"]){const h=createHarness();try{const state=h.api.getState(),recognizer=h.recognition();h.click("#start");h.timers.advance(220);h.click("#startGame");h.timers.advance(220);h.click("#continuePacks");h.timers.advance(220);assert.equal(state.screen,"players",phrase);const voice=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().recognition;assert.equal(voice.state,"listening",phrase);assert.equal(voice.owner.screen,"players",phrase);assert.equal(h.recognition(),recognizer,phrase);recognizer.emit(phrase,{final:false,confidence:.99,resultIndex:0});assert.equal(state.screen,"players",phrase+" interim");recognizer.emit(phrase,{final:true,confidence:.99,resultIndex:0});assert.equal(state.screen,"ready",phrase);recognizer.emit(phrase,{final:true,confidence:.99,resultIndex:0});assert.equal(state.screen,"ready",phrase+" duplicate final");assert.equal(state.game,null)}finally{h.close()}}
+ for(const phrase of ["continue","next","start"]){const h=createHarness();try{const state=h.api.getState();h.click("#start");h.timers.advance(220);h.click("#continuePacks");h.timers.advance(220);assert.equal(state.screen,"players",phrase);state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];h.api.players();const recognizer=h.recognition(),voice=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().recognition;assert.equal(voice.state,"listening",phrase);assert.equal(voice.owner.screen,"players",phrase);recognizer.emit(phrase,{final:false,confidence:.99,resultIndex:0});assert.equal(state.screen,"players",phrase+" interim");recognizer.emit(phrase,{final:true,confidence:.99,resultIndex:0});assert.equal(state.screen,"ready",phrase);recognizer.emit(phrase,{final:true,confidence:.99,resultIndex:0});assert.equal(state.screen,"ready",phrase+" duplicate final");assert.equal(state.game,null)}finally{h.close()}}
 });
 
 test("Who’s In finalizes an exact interim command when WebKit ends speech without a final result",()=>{
@@ -420,8 +429,8 @@ test("Who’s In finalizes an exact interim command when WebKit ends speech with
 });
 
 test("numbered defaults apply only to automatically generated players",()=>{
- const fresh=createHarness();try{const state=fresh.api.getState();state.mode="original";state.players=[];state.screen="players";fresh.api.players();assert.deepEqual(Array.from(state.players,p=>p.name),["Player 1","Player 2","Player 3"]);fresh.click("#add");assert.equal(state.players.at(-1).name,"Player 4");fresh.speak("6 players",{final:true});assert.deepEqual(Array.from(state.players,p=>p.name),["Player 1","Player 2","Player 3","Player 4","Player 5","Player 6"])}finally{fresh.close()}
- const custom=createHarness();try{const state=custom.api.getState();state.mode="original";state.players=[{id:"p1",name:"Vicente"},{id:"p2",name:"T"}];state.screen="players";custom.api.players();custom.click("#add");assert.deepEqual(Array.from(state.players,p=>p.name),["Vicente","T","Player 3"]);const input=custom.document.querySelector('[data-p="p2"]');input.value="Teemoney";input.dispatchEvent(new custom.window.Event("input",{bubbles:true}));custom.api.players();assert.deepEqual(Array.from(state.players,p=>p.name),["Vicente","Teemoney","Player 3"])}finally{custom.close()}
+ const fresh=createHarness();try{const state=fresh.api.getState();state.mode="original";state.players=[];state.screen="players";fresh.api.players();assert.deepEqual(Array.from(state.players,p=>p.name),[]);assert.ok(fresh.document.querySelector(".los-selected-empty"));fresh.speak("6 players",{final:true});assert.deepEqual(Array.from(state.players,p=>p.name),["Player 1","Player 2","Player 3","Player 4","Player 5","Player 6"])}finally{fresh.close()}
+ const custom=createHarness();try{const state=custom.api.getState();state.mode="original";state.players=[{id:"p1",name:"Vicente"},{id:"p2",name:"T"}];state.screen="players";custom.api.players();custom.speak("change player two to Teemoney");custom.speak("add another player");assert.deepEqual(Array.from(state.players,p=>p.name),["Vicente","Teemoney","Player 3"])}finally{custom.close()}
 });
 
 test("used question IDs survive save/resume and remain ineligible",withHarness(h=>{
@@ -442,7 +451,7 @@ test("Unified Setup Voice Volume and Read Questions controls use canonical persi
 });
 
 test("Game Setup voice changes choices and Continue opens the correct next page",()=>{
- const h=createHarness();try{const state=h.api.getState();h.speak("start",{final:false,confidence:.2});assert.equal(state.screen,"home");h.speak("start",{final:true});assert.equal(state.screen,"setup");h.timers.advance(220);h.speak("solo");assert.equal(state.screen,"setup");assert.equal(state.mode,"solo");h.speak("multiplayer");assert.equal(state.mode,"original");h.speak("hard");assert.equal(state.difficulty,"hard");h.speak("20 seconds");assert.equal(state.questionSeconds,20);h.speak("5 minutes");assert.equal(state.duration,5);h.speak("read questions off");assert.equal(state.readQuestions,false);h.speak("continue",{final:false});assert.equal(state.screen,"setup");h.speak("continue",{final:true});assert.equal(state.screen,"packs");h.timers.advance(220);assert.equal(state.screen,"packs")}finally{h.close()}
+ const h=createHarness();try{const state=h.api.getState();h.api.go("setup");h.timers.advance(220);h.speak("solo");assert.equal(state.screen,"setup");assert.equal(state.mode,"solo");h.speak("multiplayer");assert.equal(state.mode,"original");h.speak("hard");assert.equal(state.difficulty,"hard");h.speak("20 seconds");assert.equal(state.questionSeconds,20);h.speak("5 minutes");assert.equal(state.duration,5);h.speak("read questions off");assert.equal(state.readQuestions,false);h.speak("continue",{final:false});assert.equal(state.screen,"setup");h.speak("continue",{final:true});assert.equal(state.screen,"packs");h.timers.advance(220);assert.equal(state.screen,"packs")}finally{h.close()}
 });
 
 test("detached legacy Continue cannot advance Game Setup and final Back returns Home once",()=>{
@@ -450,16 +459,16 @@ test("detached legacy Continue cannot advance Game Setup and final Back returns 
 });
 
 test("Who’s In voice player totals create practical editable rosters without a product cap",()=>{
- for(const total of [2,6,13,20,30,120]){const h=createHarness();try{const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];state.screen="players";h.api.players();h.speak(`${total} players`,{final:true});assert.equal(state.players.length,total);assert.equal(h.document.querySelectorAll("[data-p]").length,total);const last=h.document.querySelectorAll("[data-p]")[total-1];last.value=`Player ${total}`;last.dispatchEvent(new h.window.Event("input",{bubbles:true}));assert.equal(state.players.at(-1).name,`Player ${total}`)}finally{h.close()}}
+ for(const total of [2,6,13,20,30,120]){const h=createHarness();try{const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];state.screen="players";h.api.players();h.speak(`${total} players`,{final:true});assert.equal(state.players.length,total);assert.equal(h.document.querySelectorAll("[data-selected-player]").length,total);assert.equal(state.players.at(-1).name,total===2?"Blair":`Player ${total}`)}finally{h.close()}}
 });
 
 test("player-count commands use total semantics and protect meaningful trailing names",withHarness(h=>{
- const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];state.screen="players";h.api.players();h.speak("Add 13 players");assert.equal(state.players.length,13);h.speak("Make it 20 players");assert.equal(state.players.length,20);state.players[19].name="Jordan";state.players[19].autoName=false;h.api.players();h.speak("Set 6 players");assert.equal(state.players.length,20);assert.ok(h.api.getVoiceDiagnostics().some(x=>x.reason==="roster-count-would-remove-names"));state.players.slice(6).forEach(p=>p.name="");h.api.players();h.speak("6 players");assert.equal(state.players.length,6)
+ const state=h.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];state.screen="players";h.api.players();h.speak("Add 13 players");assert.equal(state.players.length,13);h.speak("Make it 20 players");assert.equal(state.players.length,20);Object.assign(state.players[19],{name:"Jordan",firstName:"Jordan",lastName:"",nickname:"",autoName:false});h.api.players();h.speak("Set 6 players");assert.equal(state.players.length,20);assert.ok(h.api.getVoiceDiagnostics().some(x=>x.reason==="roster-count-would-remove-names"));state.players.slice(6).forEach(p=>Object.assign(p,{name:"",firstName:"",lastName:"",nickname:""}));h.api.players();h.speak("6 players");assert.equal(state.players.length,6)
 }));
 
-test("unfinished Game Setup and Who’s In sessions resume as setup data, never fake games",()=>{
- const setup=createHarness();try{const state=setup.api.getState();state.screen="setup";state.audience="general";state.topics=[];setup.api.setup();setup.click('[data-setup-mode="original"]');setup.click('[data-setup-difficulty="hard"]');setup.click('[data-setup-seconds="20"]');setup.click('[data-setup-minutes="10"]');setup.click("#readQuestionsOff");setup.api.exitSetup?.();setup.speak("exit game");assert.equal(state.screen,"home");assert.ok(setup.document.querySelector("#resumeSaved"));setup.click("#resumeSaved");assert.equal(state.screen,"setup");assert.equal(state.game,null);assert.equal(state.mode,"original");assert.deepEqual(Array.from(state.contentPacks),["original"]);assert.equal(state.difficulty,"hard");assert.equal(state.questionSeconds,20);assert.equal(state.duration,10);assert.equal(state.readQuestions,false)}finally{setup.close()}
- const roster=createHarness();try{const state=roster.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];state.screen="players";roster.api.players();roster.click("#add");const input=[...roster.document.querySelectorAll("[data-p]")].at(-1);input.value="Casey";input.dispatchEvent(new roster.window.Event("input",{bubbles:true}));roster.click("[data-setup-exit]");assert.equal(state.screen,"home");roster.click("#resumeSaved");assert.equal(state.screen,"players");assert.equal(state.game,null);assert.deepEqual(Array.from(state.players,p=>p.name),["Alex","Blair","Casey"])}finally{roster.close()}
+test("unfinished setup data never creates a Home Resume Game control",()=>{
+ const setup=createHarness();try{const state=setup.api.getState();state.screen="setup";state.audience="general";state.topics=[];setup.api.setup();setup.click('[data-setup-difficulty="hard"]');setup.api.exitSetup?.();setup.speak("exit game");assert.equal(state.screen,"home");assert.equal(setup.document.querySelector("#resumeSaved"),null)}finally{setup.close()}
+ const roster=createHarness();try{const state=roster.api.getState();state.mode="original";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];state.screen="players";roster.api.players();addPlayerViaForm(roster,"Casey");roster.click("[data-setup-exit]");assert.equal(state.screen,"home");assert.equal(roster.document.querySelector("#resumeSaved"),null);assert.equal(state.game,null)}finally{roster.close()}
 });
 
 test("multiple final guesses retain the full timer and a later correct answer scores once",withHarness(h=>{
@@ -491,8 +500,8 @@ test("Stage 6.13 Back is final-only and moves exactly one setup screen",()=>{
  for(const [mode,screen,target] of [["original","players","packs"],["original","ready","players"],["solo","ready","packs"]]){const h=createHarness();try{const state=h.api.getState();state.mode=mode;state.screen=screen;h.api[screen]();h.speak("back",{final:false});assert.equal(state.screen,screen);h.speak("back",{final:true});assert.equal(state.screen,target);h.timers.advance(1000);assert.equal(state.screen,target);assert.notEqual(state.screen,"home")}finally{h.close()}}
 });
 
-test("fresh preferences never create Resume while explicitly abandoned setup does",()=>{
- const fresh=createHarness({storage:{los5_voice:"false",los5_volume:"0.4",los5_read_questions:"false"}});try{assert.equal(fresh.document.querySelector("#resumeSaved"),null);fresh.click("#start");fresh.timers.advance(220);assert.equal(fresh.api.getState().screen,"setup");assert.equal(fresh.window.localStorage.getItem("los5_setup_state")!==null,true);fresh.api.home();assert.equal(fresh.document.querySelector("#resumeSaved"),null,"ordinary setup rendering is not abandonment");fresh.api.go("setup");fresh.timers.advance(220);fresh.api.back();assert.ok(fresh.document.querySelector("#resumeSaved"),"explicit Back abandons resumable setup")}finally{fresh.close()}
+test("only an unfinished active game creates Home Resume",()=>{
+ const fresh=createHarness({storage:{los5_voice:"false",los5_volume:"0.4",los5_read_questions:"false"}});try{assert.equal(fresh.document.querySelector("#resumeSaved"),null);fresh.click("#start");fresh.timers.advance(220);assert.equal(fresh.api.getState().screen,"packs");fresh.api.back();assert.equal(fresh.api.getState().screen,"home");assert.equal(fresh.document.querySelector("#resumeSaved"),null,"game selection never creates a fake Resume Game");fresh.api.go("setup");fresh.timers.advance(220);fresh.api.back();assert.equal(fresh.document.querySelector("#resumeSaved"),null,"abandoned setup data is not a legitimate unfinished game")}finally{fresh.close()}
  const stale=createHarness({storage:{los5_setup_state:JSON.stringify({version:1,kind:"setup",screen:"setup",players:[]})}});try{assert.equal(stale.document.querySelector("#resumeSaved"),null,"obsolete setup records are not resumable")}finally{stale.close()}
 });
 
@@ -643,8 +652,8 @@ test("bare setup on off is rejected and a later named recognition alternative ex
  const h=createHarness();try{const state=h.api.getState();state.screen="setup";state.voiceOn=true;state.readQuestions=true;h.api.setup();h.speak("off",{final:true,alternatives:["read questions off"]});assert.equal(state.readQuestions,false);assert.equal(state.voiceOn,true);assert.equal(state.screen,"setup");assert.equal(h.api.getVoiceDiagnostics().filter(x=>x.stage==="setup-setting-command").length,1);assert.ok(h.api.getVoiceDiagnostics().some(x=>x.reason==="ambiguous-setup-toggle-label"))}finally{h.close()}
 });
 
-test("player Host style defaults explicitly and persists through setup and Champion replay",withHarness(h=>{
- const state=h.api.getState();state.mode="original";state.screen="players";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Vanessa",hostStyle:"feminine"}];h.api.players();assert.equal(state.players[0].hostStyle,"neutral");const select=h.document.querySelector('[data-host-style="p1"]');assert.equal(select.getAttribute("aria-label"),"Player 1 Host style");select.value="masculine";select.dispatchEvent(new h.window.Event("change",{bubbles:true}));assert.equal(state.players[0].hostStyle,"masculine");const saved=JSON.parse(h.window.localStorage.getItem("los5_setup_state"));assert.equal(saved.players[0].hostStyle,"masculine");h.api.startGame();assert.equal(state.game.players[0].hostStyle,"masculine");h.api.champion(state.game.players[0]);h.api.replayGame();assert.equal(state.players[0].hostStyle,"masculine");assert.equal(state.players[1].hostStyle,"feminine")
+test("Build 6.36 hides Host style while preserving legacy values and neutral defaults",withHarness(h=>{
+ const state=h.api.getState();state.mode="original";state.screen="players";state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Vanessa",hostStyle:"feminine"}];h.api.players();assert.equal(state.players[0].hostStyle,"neutral");assert.equal(h.document.querySelector("[data-host-style]"),null);assert.doesNotMatch(h.document.body.textContent,/MASCULINE|FEMININE|HOST STYLE/);const saved=JSON.parse(h.window.localStorage.getItem("los5_setup_state"));assert.equal(saved.players[0].hostStyle,"neutral");assert.equal(saved.players[1].hostStyle,"feminine");h.api.startGame();assert.equal(state.game.players[0].hostStyle,"neutral");assert.equal(state.game.players[1].hostStyle,"feminine");h.api.champion(state.game.players[0]);h.api.replayGame();assert.equal(state.players[0].hostStyle,"neutral");assert.equal(state.players[1].hostStyle,"feminine")
 }));
 
 test("physical Read Questions controls persist and govern actual question narration",()=>{
@@ -776,7 +785,7 @@ test("speech begun after zero cannot use another utterance's grace window",withH
 }));
 
 test("normal setup visibly requires the hierarchical multi-select Game Mix step",withHarness(h=>{
- const state=h.api.getState();state.screen="setup";h.api.setup();assert.equal(h.document.querySelector("[data-topic]"),null);h.click("#startGame");assert.equal(state.screen,"packs");assert.match(h.document.querySelector(".topbar-title").textContent,/CHOOSE YOUR GAME MIX/);for(const id of ["general","work","kids"])assert.ok(h.document.querySelector(`[data-audience="${id}"]`),id);for(const id of ["culture","transit","entertainment","brain"])assert.ok(h.document.querySelector(`[data-topic="${id}"]`),id);assert.equal(h.document.querySelector('[data-transit="sunline"]'),null);h.click('[data-topic="culture"]');h.click('[data-topic="transit"]');assert.ok(h.document.querySelector('[data-transit="sunline"]'));assert.deepEqual(Array.from(state.contentPacks),["street","transit"]);assert.match(h.document.querySelector('[data-topic="culture"]').textContent,/THE CULTURE/)
+ const state=h.api.getState();state.screen="setup";h.api.setup();assert.equal(h.document.querySelector("[data-topic]"),null);h.click("#startGame");assert.equal(state.screen,"packs");assert.match(h.document.querySelector(".topbar-title").textContent,/CHOOSE YOUR GAME/);for(const id of ["general","work","kids"])assert.ok(h.document.querySelector(`[data-audience="${id}"]`),id);for(const id of ["culture","transit","entertainment","brain"])assert.ok(h.document.querySelector(`[data-topic="${id}"]`),id);assert.equal(h.document.querySelector('[data-transit="sunline"]'),null);h.click('[data-topic="culture"]');h.click('[data-topic="transit"]');assert.ok(h.document.querySelector('[data-transit="sunline"]'));assert.deepEqual(Array.from(state.contentPacks),["street","transit"]);assert.match(h.document.querySelector('[data-topic="culture"]').textContent,/THE CULTURE/)
 }));
 
 test("Build 6.34 exposes multi-select Transit lanes only under Transit",withHarness(h=>{const state=h.api.getState();state.screen="packs";h.api.packs();for(const id of ["transit-general","fixed-route","paratransit","cdl-dmv","sunline"])assert.equal(h.document.querySelector(`[data-transit="${id}"]`),null,id);h.click('[data-topic="transit"]');for(const id of ["transit-general","fixed-route","paratransit","cdl-dmv","sunline"])assert.ok(h.document.querySelector(`[data-transit="${id}"]`),id);assert.deepEqual(Array.from(state.contentPacks),["transit"]);h.click('[data-transit="fixed-route"]');h.click('[data-transit="cdl-dmv"]');assert.deepEqual(Array.from(state.contentPacks),["fixed-route","cdl-dmv"]);h.click('[data-transit="fixed-route"]');assert.deepEqual(Array.from(state.contentPacks),["cdl-dmv"])}));

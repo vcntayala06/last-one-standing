@@ -663,6 +663,189 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
 }
 
 /* =========================================================
+   BUILD 6.36 — LOS VISUAL FOUNDATION
+   ========================================================= */
+:root{
+ --los-black:#050507;--los-ink:#0b0b12;--los-panel:rgba(15,14,24,.88);--los-gold:#f6c453;
+ --los-gold-hot:#ffd978;--los-silver:#d8d9e0;--los-purple:#8a43ff;--los-purple-deep:#35106b;
+ --los-radius-sm:12px;--los-radius:20px;--los-radius-lg:30px;
+ --los-shadow:0 24px 70px rgba(0,0,0,.48);--los-glow:0 0 32px rgba(138,67,255,.18)
+}
+.btn,.los-action,.los-icon-button,.los-tab,.los-mini-action,.los-close{transition:transform .16s ease,border-color .16s ease,background .16s ease,box-shadow .16s ease,opacity .16s ease}
+.btn:hover,.los-action:hover,.los-icon-button:hover,.los-tab:hover,.los-mini-action:hover{transform:translateY(-1px)}
+.btn:focus-visible,.los-action:focus-visible,.los-icon-button:focus-visible,.los-tab:focus-visible,.los-mini-action:focus-visible,.los-close:focus-visible,.los-player-select:focus-visible,.los-avatar-option:focus-visible{outline:3px solid var(--los-gold-hot);outline-offset:3px}
+.btn:disabled,.los-action:disabled{opacity:.42;cursor:not-allowed;transform:none}
+.card{border-radius:var(--los-radius);box-shadow:var(--los-shadow)}
+
+.los-home-screen{position:relative;isolation:isolate;overflow:hidden;padding:0;background:#030305}
+.los-home-screen::before{content:"";position:absolute;inset:0;z-index:-3;background:radial-gradient(circle at 18% 20%,rgba(130,56,255,.24),transparent 34%),linear-gradient(120deg,#020204 0%,#090714 54%,#160729 100%)}
+.los-home-screen::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(2,2,4,.96) 0%,rgba(2,2,4,.80) 34%,rgba(2,2,4,.12) 68%,rgba(2,2,4,.4) 100%),linear-gradient(0deg,rgba(2,2,4,.72),transparent 45%);pointer-events:none}
+.los-home-art{position:absolute;inset:0;z-index:-2;background:url("./assets/visual-6.36/los-home-hero.png") 58% center/cover no-repeat;filter:saturate(.94) contrast(1.04)}
+.los-home-layout{height:100%;width:min(1500px,100%);margin:auto;padding:max(28px,var(--los-safe-top)) max(30px,var(--los-safe-right)) max(24px,var(--los-safe-bottom)) max(30px,var(--los-safe-left));display:grid;grid-template-columns:minmax(310px,600px) 1fr;grid-template-rows:1fr auto;align-items:center;position:relative}
+.los-home-brand{align-self:end;padding-bottom:clamp(24px,8vh,84px)}
+.los-home-kicker,.los-sheet-kicker{font-size:clamp(.68rem,1.2vw,.86rem);font-weight:950;letter-spacing:.24em;color:var(--los-gold);text-transform:uppercase}
+.los-home-logo{margin-top:12px;font-size:clamp(3.5rem,7.8vw,8.1rem);font-weight:1000;line-height:.76;letter-spacing:-.055em;color:var(--los-silver);text-shadow:0 5px 0 #000,0 0 26px rgba(255,255,255,.08)}
+.los-home-logo span{color:var(--los-gold);text-shadow:0 5px 0 #000,0 0 34px rgba(246,196,83,.22)}
+.los-home-rule{margin-top:24px;color:#e4e0ea;font-size:clamp(.78rem,1.5vw,1rem);font-weight:900;letter-spacing:.13em}
+.los-home-menu{align-self:end;width:min(470px,100%);display:grid;gap:11px;padding-bottom:clamp(24px,8vh,84px)}
+.los-home-modes{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.los-action{min-height:54px;border:1px solid rgba(255,255,255,.16);border-radius:var(--los-radius-sm);padding:14px 18px;background:rgba(11,10,18,.82);color:#fff;font:950 clamp(.9rem,1.8vw,1.12rem)/1 system-ui;letter-spacing:.09em;box-shadow:0 12px 30px rgba(0,0,0,.3);cursor:pointer}
+.los-action-primary{min-height:64px;background:linear-gradient(180deg,#ffe18e,var(--los-gold));color:#171006;border-color:#ffe8a9;box-shadow:0 16px 42px rgba(0,0,0,.35),0 0 28px rgba(246,196,83,.22);font-size:clamp(1.03rem,2vw,1.25rem)}
+.los-action-secondary{background:linear-gradient(180deg,rgba(35,30,50,.92),rgba(10,9,16,.92));border-color:rgba(216,217,224,.24)}
+.los-home-utilities{position:absolute;top:max(22px,var(--los-safe-top));right:max(28px,var(--los-safe-right));display:flex;gap:10px}
+.los-icon-button{width:62px;height:58px;display:grid;place-items:center;border:1px solid rgba(216,217,224,.22);border-radius:16px;background:rgba(7,7,12,.75);color:var(--los-silver);cursor:pointer;backdrop-filter:blur(12px)}
+.los-icon-button span{font-size:1.25rem;line-height:1}.los-icon-button small{font-size:.56rem;font-weight:1000;letter-spacing:.13em}.los-icon-button.is-on{border-color:rgba(246,196,83,.7);color:var(--los-gold);box-shadow:0 0 24px rgba(246,196,83,.12)}
+.los-home-build{position:absolute;left:max(30px,var(--los-safe-left));bottom:max(15px,var(--los-safe-bottom));margin:0;background:rgba(4,4,8,.66);backdrop-filter:blur(10px)}
+.los-street-signs{position:absolute;right:clamp(20px,4vw,70px);top:clamp(96px,18vh,170px);z-index:0;display:flex;flex-direction:column;align-items:flex-end;filter:drop-shadow(0 8px 12px rgba(0,0,0,.55));pointer-events:none}
+.los-street-signs::after{content:"";width:8px;height:110px;background:linear-gradient(90deg,#555,#b9bbc2,#444);margin-right:20px}
+.los-street-signs span{min-width:128px;padding:8px 15px;border:2px solid #eceef3;border-radius:6px;background:#174c36;color:#fff;font:900 .8rem/1 system-ui;letter-spacing:.12em;text-align:center}.los-street-signs span+span{transform:rotate(-4deg) translate(-44px,5px)}
+
+.los-roster-screen{background:radial-gradient(circle at 70% 0%,rgba(138,67,255,.18),transparent 35%),radial-gradient(circle at 10% 100%,rgba(246,196,83,.08),transparent 34%),linear-gradient(145deg,#050507,#0b0813 58%,#050507)}
+.los-roster-screen .shell{max-width:1120px}.los-roster-screen .content{justify-content:flex-start}.los-roster{width:100%;max-width:1050px;margin:auto;display:grid;gap:18px;padding-block:8px 14px}.los-roster-heading{text-align:center}.los-roster-heading h1,.los-sheet h2{margin:6px 0 5px;font-size:clamp(2.4rem,7vw,5.2rem);line-height:.9;color:var(--los-gold);letter-spacing:-.04em}.los-roster-heading p{margin:0;color:var(--los-silver);font-weight:850;letter-spacing:.11em;font-size:.78rem}
+.los-player-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:max-content;gap:12px;max-height:min(52vh,540px);overflow:auto;padding:3px}
+.los-player-card{border:1px solid rgba(216,217,224,.15);border-radius:var(--los-radius);background:linear-gradient(145deg,rgba(32,27,46,.9),rgba(10,9,16,.94));overflow:hidden;box-shadow:0 14px 34px rgba(0,0,0,.28)}.los-player-card.selected{border-color:var(--los-gold);box-shadow:0 0 0 2px rgba(246,196,83,.13),var(--los-glow)}
+.los-player-select{width:100%;min-height:102px;display:grid;grid-template-columns:74px 1fr 34px;align-items:center;gap:13px;padding:12px;border:0;background:transparent;color:#fff;text-align:left;cursor:pointer}.los-player-card-copy{display:grid;gap:6px;min-width:0}.los-player-card-copy strong{font-size:clamp(1rem,2.4vw,1.3rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.los-player-card-copy small{color:var(--muted);font-size:.66rem;font-weight:900;letter-spacing:.1em}.los-check{width:30px;height:30px;border:1px solid rgba(255,255,255,.18);border-radius:50%;display:grid;place-items:center;color:var(--los-gold);font-weight:1000}.los-player-card.selected .los-check{background:var(--los-gold);color:#171006}
+.los-player-card-actions{display:flex;justify-content:flex-end;gap:8px;padding:0 12px 10px}.los-mini-action{min-width:44px;min-height:44px;border:1px solid rgba(255,255,255,.14);border-radius:9px;background:rgba(255,255,255,.045);color:var(--los-silver);padding:8px 10px;font-size:.63rem;font-weight:950;letter-spacing:.08em;cursor:pointer}
+.los-avatar-art{width:68px;height:76px;border-radius:14px;display:block;flex:none;background-position:var(--avatar-x) var(--avatar-y);background-repeat:no-repeat;border:1px solid rgba(246,196,83,.38);box-shadow:inset 0 0 24px rgba(0,0,0,.08),0 8px 22px rgba(0,0,0,.36)}.los-avatar-art.atlas-v2{background-image:url("./assets/visual-6.36/los-avatar-atlas-v2.png");background-size:500% 600%}.los-avatar-art.atlas-v3{background-image:url("./assets/visual-6.36/los-avatar-style-expansion-v3.png");background-size:600% 300%}
+.los-empty-state{min-height:245px;border:1px dashed rgba(216,217,224,.22);border-radius:var(--los-radius-lg);display:grid;place-items:center;align-content:center;gap:10px;text-align:center;background:rgba(255,255,255,.025);padding:28px}.los-empty-avatar{width:84px;height:84px;border-radius:28px;display:grid;place-items:center;background:rgba(138,67,255,.13);border:1px solid rgba(138,67,255,.42);color:var(--los-gold);font-size:3rem}.los-empty-state h2{margin:2px 0 0}.los-empty-state p{margin:0;color:var(--muted)}.los-add-player{width:min(420px,100%);justify-self:center}
+
+.los-overlay{position:fixed;inset:0;z-index:300;background:rgba(1,1,4,.82);display:grid;place-items:center;padding:max(16px,var(--los-safe-top)) max(16px,var(--los-safe-right)) max(16px,var(--los-safe-bottom)) max(16px,var(--los-safe-left));backdrop-filter:blur(13px)}
+.los-sheet{width:min(560px,100%);max-height:100%;overflow:auto;border:1px solid rgba(246,196,83,.28);border-radius:var(--los-radius-lg);background:radial-gradient(circle at 90% 0%,rgba(138,67,255,.18),transparent 35%),linear-gradient(145deg,#15121e,#08080d);box-shadow:0 35px 110px rgba(0,0,0,.72),var(--los-glow);padding:clamp(18px,4vw,30px);display:grid;gap:16px}.los-sheet header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.los-sheet h2{font-size:clamp(2rem,6vw,3.3rem);margin-bottom:0}.los-close{width:46px;height:46px;flex:none;border:1px solid rgba(255,255,255,.16);border-radius:14px;background:rgba(255,255,255,.05);color:#fff;font-size:1.5rem;cursor:pointer}.los-player-sheet label{display:grid;gap:7px;color:var(--los-silver);font-size:.72rem;font-weight:950;letter-spacing:.11em}.los-player-sheet label small{color:var(--muted);font-size:.58rem}.los-player-sheet input{width:100%;min-height:52px;border:1px solid rgba(255,255,255,.17);border-radius:12px;background:#08080d;color:#fff;padding:12px 14px;font-size:1rem}.los-player-sheet input:focus{outline:2px solid var(--los-gold);border-color:transparent}.los-player-avatar-edit{justify-self:center;display:grid;place-items:center;gap:7px;border:0;background:transparent;color:var(--los-gold);font-size:.67rem;font-weight:950;letter-spacing:.1em;cursor:pointer}
+.los-avatar-sheet{width:min(1120px,100%);height:min(94vh,900px);max-height:100%;overflow:hidden;grid-template-rows:auto auto minmax(0,1fr) auto;background:radial-gradient(circle at 50% -20%,rgba(138,67,255,.30),transparent 42%),linear-gradient(145deg,#15121e,#050507 72%);border-color:rgba(246,196,83,.42)}.los-avatar-sheet header{padding-bottom:2px;border-bottom:1px solid rgba(246,196,83,.12)}.los-avatar-sheet header p{margin:5px 0 10px;color:var(--los-silver);font-size:.8rem;letter-spacing:.02em}.los-avatar-sheet h2{text-shadow:0 0 24px rgba(138,67,255,.24)}.los-avatar-tabs{display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;padding:2px;flex:none}.los-tab{min-height:44px;flex:1;border:1px solid rgba(255,255,255,.14);border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,.065),rgba(255,255,255,.025));color:#fff;padding:9px;font-size:.7rem;font-weight:950;letter-spacing:.12em;cursor:pointer}.los-tab.selected{background:linear-gradient(180deg,#ffe184,var(--los-gold));color:#171006;border-color:var(--los-gold);box-shadow:0 0 24px rgba(246,196,83,.16)}.los-avatar-grid{min-height:0;display:grid;grid-template-columns:repeat(6,minmax(104px,1fr));grid-auto-rows:max-content;align-content:start;gap:9px;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;padding:4px 6px 8px}.los-avatar-option{position:relative;min-height:145px;display:grid;grid-template-rows:1fr auto;place-items:stretch;gap:0;border:1px solid rgba(255,255,255,.14);border-radius:13px;background:linear-gradient(165deg,rgba(45,36,62,.8),rgba(7,7,11,.96));color:#fff;padding:0;overflow:hidden;cursor:pointer;box-shadow:0 9px 22px rgba(0,0,0,.28)}.los-avatar-option::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,transparent 48%,rgba(3,3,6,.08) 60%,rgba(3,3,6,.96) 100%)}.los-avatar-option .los-avatar-art{width:100%;height:auto;aspect-ratio:1/1;border:0;border-radius:0;background-color:#100d17;box-shadow:none}.los-avatar-option small{position:relative;z-index:1;min-height:34px;display:grid;place-items:center;text-align:center;color:var(--los-silver);font-size:.6rem;font-weight:850;line-height:1.05;letter-spacing:.025em;padding:5px 6px;background:#08080d}.los-avatar-selected{position:absolute;z-index:2;top:9px;right:9px;width:29px;height:29px;border-radius:50%;display:grid;place-items:center;background:var(--los-gold);color:#171006;font-weight:1000;box-shadow:0 3px 15px rgba(0,0,0,.55);opacity:0;transform:scale(.75);transition:.16s ease}.los-avatar-option.selected{border-color:var(--los-gold);background:rgba(246,196,83,.09);box-shadow:0 0 0 2px rgba(246,196,83,.2),0 0 30px rgba(138,67,255,.26),0 18px 36px rgba(0,0,0,.4);transform:translateY(-2px)}.los-avatar-option.selected .los-avatar-selected{opacity:1;transform:scale(1)}.los-avatar-option:hover{border-color:rgba(246,196,83,.58);transform:translateY(-2px)}.los-save-avatar{width:min(460px,100%);justify-self:center;box-shadow:0 0 30px rgba(246,196,83,.16)}
+
+@media (orientation:portrait){
+ .los-home-screen::after{background:linear-gradient(0deg,rgba(2,2,4,.98) 0%,rgba(2,2,4,.82) 39%,rgba(2,2,4,.06) 74%,rgba(2,2,4,.28) 100%)}
+ .los-home-art{inset:-5% -45% 24% -20%;background-position:64% center}
+ .los-home-layout{grid-template-columns:1fr;grid-template-rows:1fr auto;padding:clamp(22px,5vw,34px)}
+ .los-home-brand{align-self:end;padding:0 0 18px;text-align:center}.los-home-kicker{font-size:.62rem}.los-home-logo{font-size:clamp(3.4rem,18vw,6.5rem)}.los-home-rule{font-size:.65rem;margin-top:15px}
+ .los-home-menu{width:100%;padding:0 0 max(35px,var(--los-safe-bottom));gap:9px}.los-home-modes{gap:9px}.los-action{min-height:52px}.los-action-primary{min-height:60px}
+ .los-home-utilities{top:max(17px,var(--los-safe-top));right:max(17px,var(--los-safe-right))}.los-icon-button{width:54px;height:52px}.los-street-signs{top:92px;right:14px;transform:scale(.72);transform-origin:top right}.los-home-build{left:max(17px,var(--los-safe-left));bottom:max(9px,var(--los-safe-bottom));font-size:.58rem}
+ .los-player-grid{grid-template-columns:1fr;max-height:48vh}.los-roster{gap:13px}.los-roster-heading h1{font-size:clamp(2.7rem,13vw,4.4rem)}.los-avatar-sheet{height:100%;padding:16px;gap:10px}.los-avatar-sheet header p{display:none}.los-avatar-grid{grid-template-columns:repeat(3,minmax(88px,1fr));gap:7px}.los-avatar-option{min-height:126px}.los-avatar-option .los-avatar-art{width:100%;height:auto}.los-avatar-option small{font-size:.56rem;min-height:32px}.los-avatar-tabs{gap:6px}.los-tab{padding:7px 5px;letter-spacing:.06em}.los-save-avatar{min-height:56px}
+}
+@media (orientation:portrait) and (min-width:600px){
+ .los-avatar-sheet{height:min(94vh,900px);padding:22px}.los-avatar-sheet header p{display:block}.los-avatar-grid{grid-template-columns:repeat(4,minmax(108px,1fr));gap:9px}.los-avatar-option{min-height:145px}.los-avatar-option small{min-height:34px;font-size:.6rem}
+}
+@media (orientation:landscape) and (max-height:540px){
+ .los-home-layout{grid-template-columns:minmax(300px,48%) 1fr;padding:16px max(22px,var(--los-safe-right)) 12px max(22px,var(--los-safe-left))}.los-home-brand,.los-home-menu{padding-bottom:22px}.los-home-logo{font-size:clamp(3.2rem,10vh,5rem)}.los-home-kicker{font-size:.58rem}.los-home-rule{margin-top:13px;font-size:.62rem}.los-home-menu{max-width:400px;justify-self:end}.los-action{min-height:44px;padding:9px 13px}.los-action-primary{min-height:50px}.los-home-utilities{top:12px;right:18px}.los-icon-button{width:52px;height:46px}.los-street-signs{top:70px;right:16px;transform:scale(.66);transform-origin:top right}
+ .los-roster-screen .topbar{display:none}.los-roster-screen .shell{grid-template-rows:1fr auto}.los-roster{grid-template-columns:230px 1fr 190px;align-items:center;gap:12px;padding:3px}.los-roster-heading{text-align:left}.los-roster-heading h1{font-size:2.5rem}.los-player-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:70vh}.los-player-select{min-height:78px;grid-template-columns:56px 1fr 28px;padding:8px}.los-avatar-art{width:54px;height:62px;border-radius:11px}.los-add-player{grid-column:3;align-self:end}.los-roster>.subtle{display:none}.los-avatar-sheet{height:100%;padding:12px;gap:8px}.los-avatar-sheet h2{font-size:1.8rem}.los-avatar-sheet header p{display:none}.los-avatar-grid{grid-template-columns:repeat(6,minmax(78px,1fr));gap:7px}.los-avatar-option{min-height:104px}.los-avatar-option .los-avatar-art{width:100%;height:auto;border-radius:0}.los-avatar-option small{min-height:29px;font-size:.53rem;padding:3px}.los-save-avatar{min-height:46px}
+}
+.los-home-screen .los-action-quiet{min-height:44px!important}
+
+/* Build 6.36 Home play-flow cleanup: one visible entry action plus utilities. */
+.los-home-locked .los-home-menu::after{content:"";position:absolute;z-index:2;left:20.8%;top:78.2%;width:58.6%;height:10.5%;background:#020204;pointer-events:none}
+.los-home-locked #start{z-index:4;display:grid;place-items:center;border:2px solid #ffe28b;border-radius:12px;background:linear-gradient(180deg,#ffe58b 0%,#efb92e 48%,#af6d04 100%);color:#090909;box-shadow:inset 0 2px rgba(255,255,255,.55),inset 0 -4px rgba(83,45,0,.35),0 0 24px rgba(244,182,29,.4);font:1000 clamp(1.6rem,4vw,3.25rem)/1 Impact,"Arial Narrow",sans-serif;letter-spacing:.08em;text-shadow:0 1px rgba(255,255,255,.28)}
+.los-home-locked #start::after{content:"PLAY"}
+.los-home-locked #resumeSaved,.los-home-locked #homeSettings{z-index:4;display:grid;place-items:center;border:2px solid rgba(151,142,161,.52);border-radius:8px;background:linear-gradient(180deg,#19171d,#07070a);color:#eeeaf2;box-shadow:inset 0 1px rgba(255,255,255,.12);font:950 clamp(.7rem,1.25vw,1.08rem)/1 "Arial Narrow",Impact,sans-serif;letter-spacing:.075em}
+.los-home-locked #resumeSaved{left:31%;top:79%;width:18%;height:8.4%;color:#b935ff;border-color:rgba(151,44,241,.75)}
+.los-home-locked #resumeSaved::after{content:"RESUME GAME"}
+.los-home-locked #homeSettings{left:42%;top:79%;width:16%;height:8.4%}
+.los-home-locked #homeSettings::after{content:"SETTINGS"}
+.los-home-locked.has-resume #homeSettings{left:50%;width:18%}
+.los-home-locked .los-home-menu::before{left:20.8%;top:77.8%;width:58.6%;height:21%;border:1px solid rgba(126,39,205,.3);border-radius:18px;background:radial-gradient(circle at 50% 0,rgba(101,27,161,.15),transparent 52%),linear-gradient(180deg,#08060d,#020204 72%);box-shadow:inset 0 1px rgba(255,255,255,.05),0 14px 34px rgba(0,0,0,.36)}
+.los-home-locked .los-home-menu::after{display:none}
+@media (orientation:portrait){
+ .los-home-locked .los-home-menu::after{left:21%;top:66%;width:58%;height:17.8%;background:#020204}
+ .los-home-locked #start{font-size:clamp(1.45rem,8vw,2.15rem)}
+ .los-home-locked #resumeSaved{left:23.5%;top:67%;width:52.8%;height:6.3%}
+ .los-home-locked #homeSettings{left:23.5%;top:70%;width:52.8%;height:6.3%}
+ .los-home-locked.has-resume #homeSettings{left:23.5%;top:74.2%;width:52.8%}
+ .los-home-locked .los-home-menu::before{left:21%;top:65.8%;width:58%;height:29.4%;border-radius:15px}
+}
+@media (orientation:landscape) and (max-width:700px){
+ .los-roster{grid-template-columns:120px minmax(0,1fr) 110px}.los-player-grid{grid-template-columns:1fr}.los-roster-heading h1{font-size:2rem}.los-player-card-copy small{display:none}
+}
+@media (prefers-reduced-motion:reduce){.btn,.los-action,.los-icon-button,.los-tab,.los-mini-action{transition:none}.btn:hover,.los-action:hover,.los-icon-button:hover,.los-tab:hover,.los-mini-action:hover{transform:none}}
+
+/* Build 6.36 scalable Who's In: saved profiles live in a contained picker. */
+.los-roster-screen .shell{max-width:1120px;padding-left:max(18px,var(--los-safe-left));padding-right:max(18px,var(--los-safe-right))}
+.los-roster-screen .content{min-height:0;overflow:visible}
+.los-roster{max-width:940px;min-height:0;align-content:center;gap:clamp(12px,2.3vh,22px)}
+.los-selected-players{min-height:126px;max-height:min(30vh,260px);display:flex;flex-wrap:wrap;align-content:flex-start;justify-content:center;gap:10px;overflow:auto;overscroll-behavior:contain;padding:7px}
+.los-selected-player{min-width:170px;max-width:260px;height:74px;display:grid;grid-template-columns:52px minmax(0,1fr) 44px;align-items:center;gap:10px;padding:7px 7px 7px 9px;border:1px solid rgba(246,196,83,.38);border-radius:15px;background:linear-gradient(145deg,rgba(35,29,49,.94),rgba(9,8,14,.96));box-shadow:0 10px 26px rgba(0,0,0,.3)}
+.los-selected-player .los-avatar-art{width:50px;height:58px;border-radius:10px}.los-selected-player strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.94rem}.los-selected-player button{width:44px;height:44px;border:1px solid rgba(255,255,255,.15);border-radius:50%;background:rgba(255,255,255,.055);color:#fff;font-size:1.35rem;cursor:pointer}.los-selected-player button:hover,.los-selected-player button:focus-visible{border-color:var(--los-gold);color:var(--los-gold)}
+.los-selected-empty{width:100%;min-height:112px;display:grid;place-items:center;align-content:center;gap:7px;border:1px dashed rgba(216,217,224,.22);border-radius:18px;color:var(--los-silver);text-align:center;background:rgba(255,255,255,.025)}.los-selected-empty strong{color:#fff;letter-spacing:.08em}.los-selected-empty span{font-size:.8rem;color:var(--muted)}
+.los-roster-actions{display:grid;grid-template-columns:repeat(2,minmax(0,310px));justify-content:center;gap:12px}.los-roster-actions .los-action{width:100%}.los-roster .roster-error{margin:-6px 0;min-height:20px}
+.los-player-picker{width:min(720px,100%);height:min(90dvh,820px);max-height:100%;overflow:hidden;grid-template-rows:auto auto minmax(0,1fr) auto}.los-player-picker header p{margin:7px 0 0;color:var(--los-silver);font-size:.78rem;letter-spacing:.06em}.los-player-picker header p strong{color:var(--los-gold)}
+.los-player-search{display:grid;gap:7px;color:var(--los-silver);font-size:.68rem;font-weight:950;letter-spacing:.11em}.los-player-search input{width:100%;min-height:50px;border:1px solid rgba(255,255,255,.17);border-radius:12px;background:#08080d;color:#fff;padding:11px 14px;font-size:1rem}.los-player-search input:focus{outline:2px solid var(--los-gold);border-color:transparent}
+.los-saved-player-list{min-height:0;display:grid;grid-auto-rows:max-content;align-content:start;gap:9px;overflow-y:auto;overscroll-behavior:contain;padding:3px 6px 8px 3px;scrollbar-gutter:stable}
+.los-saved-player-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;border:1px solid rgba(216,217,224,.15);border-radius:15px;background:linear-gradient(145deg,rgba(31,26,44,.92),rgba(8,8,13,.96));overflow:hidden}.los-saved-player-row.selected{border-color:var(--los-gold);box-shadow:0 0 0 2px rgba(246,196,83,.12)}
+.los-saved-player-toggle{min-width:0;min-height:78px;display:grid;grid-template-columns:58px minmax(0,1fr) 36px;align-items:center;gap:12px;border:0;background:transparent;color:#fff;padding:8px 9px;text-align:left;cursor:pointer}.los-saved-player-toggle .los-avatar-art{width:54px;height:62px;border-radius:11px}.los-saved-player-toggle span{min-width:0;display:grid;gap:3px}.los-saved-player-toggle strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:1.02rem}.los-saved-player-toggle small{color:var(--los-silver);font-size:.72rem}.los-saved-player-toggle em{color:var(--muted);font:900 .58rem/1 system-ui;letter-spacing:.09em;font-style:normal}.los-saved-player-row.selected em{color:var(--los-gold)}.los-saved-player-toggle b{width:31px;height:31px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.18);border-radius:50%;color:var(--los-gold)}.los-saved-player-row.selected .los-saved-player-toggle b{background:var(--los-gold);color:#171006}
+.los-saved-player-actions{position:relative;z-index:2;display:flex;gap:6px;padding-right:9px}.los-saved-player-actions .los-mini-action{padding-inline:8px}.los-picker-done{width:min(360px,100%);justify-self:center}.los-picker-empty{min-height:190px;display:grid;place-items:center;align-content:center;gap:8px;border:1px dashed rgba(216,217,224,.2);border-radius:16px;color:#fff;text-align:center}.los-picker-empty span{color:var(--muted);font-size:.82rem}
+@media (orientation:portrait){
+ .los-roster-screen .shell{padding-inline:14px}.los-roster{gap:12px;padding-block:3px}.los-roster-heading h1{font-size:clamp(2.6rem,13vw,4.2rem)}.los-selected-players{min-height:112px;max-height:28vh;justify-content:stretch}.los-selected-player{min-width:calc(50% - 5px);max-width:none;flex:1;height:68px;grid-template-columns:46px minmax(0,1fr) 44px;gap:7px}.los-selected-player .los-avatar-art{width:44px;height:52px}.los-selected-player strong{font-size:.83rem}.los-roster-actions{grid-template-columns:1fr}.los-roster-actions .los-action{min-height:54px}.los-roster>.subtle{display:none}.los-player-picker-overlay{padding:0}.los-player-picker{height:100dvh;width:100%;border-radius:0;padding:16px 14px;gap:11px}.los-player-picker h2{font-size:2.2rem}.los-saved-player-row{grid-template-columns:minmax(0,1fr)}.los-saved-player-actions{position:absolute;opacity:0;pointer-events:none}.los-saved-player-toggle{min-height:72px}
+}
+@media (orientation:landscape) and (max-height:540px){
+ .los-roster{grid-template-columns:210px minmax(0,1fr) 190px;grid-template-rows:auto auto;align-items:center;gap:10px}.los-roster-heading{grid-row:1/3;text-align:left}.los-roster-heading h1{font-size:2.55rem}.los-selected-players{min-height:0;max-height:55vh;justify-content:flex-start}.los-selected-player{min-width:calc(50% - 5px);height:62px;grid-template-columns:42px minmax(0,1fr) 44px;gap:6px}.los-selected-player .los-avatar-art{width:40px;height:48px}.los-roster-actions{grid-column:3;grid-row:1/3;grid-template-columns:1fr}.los-roster .roster-error{grid-column:2}.los-roster>.subtle{display:none}.los-player-picker{height:100%;width:min(760px,100%);padding:11px 16px;gap:8px}.los-player-picker h2{font-size:1.75rem}.los-player-picker header p{display:none}.los-player-search input{min-height:44px}.los-saved-player-toggle{min-height:62px;grid-template-columns:46px minmax(0,1fr) 32px}.los-saved-player-toggle .los-avatar-art{width:42px;height:48px}.los-picker-done{min-height:46px}
+}
+
+/* Build 6.36 locked Home: the approved artwork is the composition plate while
+   semantic controls remain live above it for pointer, keyboard, and AT use. */
+.los-home-locked{background:#000}
+.los-home-locked::before,.los-home-locked::after{display:none}
+.los-home-locked .los-home-art{inset:0;z-index:0;filter:none;background-image:url("./assets/visual-6.36/references/LOS_HOME_LOCKED_LANDSCAPE_CORRECTED.png");background-position:center;background-size:100% 100%}
+.los-home-locked .los-home-layout{position:absolute;inset:0;z-index:1;width:100%;height:100%;max-width:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr}
+.los-home-locked .los-home-logo,.los-home-locked .los-street-signs{position:absolute;left:38%;top:18%;width:24%;height:42%;margin:0;padding:0;opacity:.001;overflow:hidden;font-size:1rem;transform:none}
+.los-home-locked .los-street-signs .joann{transform:rotate(-8deg)}
+.los-home-locked .los-street-signs .maple{transform:rotate(7deg)}
+.los-home-locked .los-home-build{position:absolute;left:1.5%;top:2.5%;bottom:auto;width:14.4%;height:5.8%;display:grid;place-items:center;margin:0;padding:0;border:0;border-radius:0;background:transparent;color:transparent;font-size:1rem;box-shadow:none;backdrop-filter:none}
+.los-home-locked .los-home-menu,.los-home-locked .los-home-utilities{position:static;display:block;width:auto;padding:0;border:0;background:none;box-shadow:none;backdrop-filter:none}
+.los-home-locked .los-home-hotspot{position:absolute;display:block;min-width:44px;min-height:44px;margin:0;padding:0;border:0;border-radius:10px;background:transparent;color:transparent;box-shadow:none;cursor:pointer;opacity:1}
+.los-home-locked .los-home-hotspot:hover{background:rgba(255,255,255,.055);box-shadow:inset 0 0 0 2px rgba(255,211,67,.55),0 0 20px rgba(138,33,255,.35);transform:none}
+.los-home-locked .los-home-hotspot:focus-visible{outline:3px solid #ffd33e;outline-offset:2px;background:rgba(110,28,180,.18)}
+.los-home-locked .los-home-hotspot:disabled{cursor:not-allowed;opacity:1}
+.los-home-locked .los-hotspot-how{left:83.6%;top:2.5%;width:14.5%;height:6%}
+.los-home-locked .los-hotspot-quick{left:33%;top:65.4%;width:32.6%;height:12.1%}
+.los-home-locked .los-hotspot-choose{left:21.3%;top:78.9%;width:18%;height:9.2%}
+.los-home-locked .los-hotspot-resume{left:40%;top:78.9%;width:19.6%;height:9.2%}
+.los-home-locked .los-hotspot-settings{left:60.3%;top:78.9%;width:18.7%;height:9.2%}
+.los-home-locked .los-hotspot-achievements{left:21.3%;top:89.1%;width:19.3%;height:7.9%}
+.los-home-locked .los-hotspot-leaderboard{left:41.1%;top:89.1%;width:18.4%;height:7.9%}
+.los-home-locked .los-hotspot-exit{left:60.2%;top:89.1%;width:18.8%;height:7.9%}
+.los-home-locked .los-hotspot-mic{left:1.5%;top:78.6%;width:8.4%;height:15.8%;border-radius:50%}
+.los-home-locked .los-hotspot-sound{left:89.5%;top:78.6%;width:8.8%;height:15.8%;border-radius:50%}
+@media (orientation:portrait){
+ .los-home-locked .los-home-art{inset:0;background-image:url("./assets/visual-6.36/references/LOS_HOME_LOCKED_PORTRAIT_CORRECTED.png");background-position:center;background-size:100% 100%}
+ .los-home-locked .los-home-layout{padding:0;grid-template-columns:1fr;grid-template-rows:1fr}
+ .los-home-locked .los-home-build{left:2.9%;top:1.8%;width:23%;height:3.1%}
+ .los-home-locked .los-hotspot-how{left:77.2%;top:1.8%;width:19.7%;height:3.1%}
+ .los-home-locked .los-hotspot-quick{left:23.5%;top:59.6%;width:52.8%;height:6.2%}
+ .los-home-locked .los-hotspot-choose{left:23.5%;top:66.3%;width:52.8%;height:5.5%}
+ .los-home-locked .los-hotspot-resume{left:23.5%;top:72.2%;width:52.8%;height:5.5%}
+ .los-home-locked .los-hotspot-settings{left:23.5%;top:78.1%;width:52.8%;height:5.5%}
+ .los-home-locked .los-hotspot-achievements{left:23.5%;top:84%;width:25.8%;height:5.3%}
+ .los-home-locked .los-hotspot-leaderboard{left:50.1%;top:84%;width:26.2%;height:5.3%}
+ .los-home-locked .los-hotspot-exit{left:35.5%;top:90.1%;width:28%;height:4.5%}
+ .los-home-locked .los-hotspot-mic{left:3%;top:83.5%;width:17%;height:9.2%}
+ .los-home-locked .los-hotspot-sound{left:80%;top:83.5%;width:17%;height:9.2%}
+ .los-home-locked .los-home-logo,.los-home-locked .los-street-signs{left:25%;top:13%;width:50%;height:42%}
+}
+@media (orientation:landscape) and (max-height:540px){
+ .los-home-locked .los-hotspot-achievements,.los-home-locked .los-hotspot-leaderboard,.los-home-locked .los-hotspot-exit{top:auto;bottom:0;height:44px}
+}
+
+/* Build 6.36 locked-Home surgical overlays. */
+.los-home-locked .los-home-build{z-index:5;color:#ffc52e;background:#050507;border:2px solid #ffc52e;border-radius:14px;box-shadow:0 0 12px rgba(255,185,28,.26);font:950 clamp(.68rem,1.6vw,1.65rem)/1 "Arial Narrow",Impact,sans-serif;letter-spacing:.045em;text-shadow:0 1px #000}
+.los-home-locked .los-home-menu::before{content:"";position:absolute;z-index:1;left:20.8%;top:88.2%;width:58.6%;height:10.3%;background:#020204;pointer-events:none}
+.los-home-locked .los-hotspot-achievements,.los-home-locked .los-hotspot-leaderboard{display:none}
+.los-home-locked .los-hotspot-exit{z-index:3;display:grid;place-items:center;border:2px solid rgba(164,158,170,.48);border-radius:8px;background:linear-gradient(180deg,#17171a,#08080a);color:#e3dee7;font:950 clamp(.7rem,1.3vw,1.1rem)/1 "Arial Narrow",Impact,sans-serif;letter-spacing:.09em;box-shadow:inset 0 1px rgba(255,255,255,.12)}
+.los-home-locked .los-hotspot-exit::after{content:"SOLO"}
+.los-home-locked .los-hotspot-mic,.los-home-locked .los-hotspot-sound{z-index:4;top:77.5%;height:21%;border-radius:0;background:#030305;overflow:visible;color:#ffd33e}
+.los-home-locked .los-hotspot-mic::before,.los-home-locked .los-hotspot-sound::before{content:"";position:absolute;left:50%;top:0;translate:-50% 0;width:min(94%,108px);aspect-ratio:1;display:grid;place-items:center;border:3px solid #8f24ff;border-radius:50%;background-position:center;background-size:48% 48%,100% 100%;background-repeat:no-repeat;box-shadow:inset 0 0 0 7px #08080b,0 0 18px rgba(121,31,255,.85);line-height:1}
+.los-home-locked .los-hotspot-mic::before{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23ffd33e' stroke-width='2.2' stroke-linecap='round' d='M12 15a4 4 0 0 0 4-4V6a4 4 0 1 0-8 0v5a4 4 0 0 0 4 4Zm-7-4a7 7 0 0 0 14 0M12 18v3M9 21h6'/%3E%3C/svg%3E"),radial-gradient(circle at 40% 30%,#38383d 0,#111116 40%,#020204 72%)}
+.los-home-locked .los-hotspot-sound::before{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23ffd33e' d='M4 9v6h4l6 5V4L8 9H4z'/%3E%3Cpath fill='none' stroke='%23ffd33e' stroke-width='2' stroke-linecap='round' d='M17 8a6 6 0 0 1 0 8M19 5a10 10 0 0 1 0 14'/%3E%3C/svg%3E"),radial-gradient(circle at 40% 30%,#38383d 0,#111116 40%,#020204 72%)}
+.los-home-locked .los-hotspot-mic::after,.los-home-locked .los-hotspot-sound::after{position:absolute;left:50%;bottom:1%;translate:-50% 0;width:150%;color:#ffd33e;font:950 clamp(.54rem,1vw,.9rem)/1 "Arial Narrow",Impact,sans-serif;letter-spacing:.06em;text-align:center;text-shadow:0 1px 5px #000}
+.los-home-locked .los-hotspot-mic[aria-pressed="true"]::after{content:"MIC IS ON"}.los-home-locked .los-hotspot-mic[aria-pressed="false"]::after{content:"MIC IS OFF"}
+.los-home-locked .los-hotspot-sound[aria-pressed="true"]::after{content:"SOUND ON"}.los-home-locked .los-hotspot-sound[aria-pressed="false"]::after{content:"SOUND OFF"}
+.los-home-locked .los-hotspot-mic[aria-pressed="false"]::before,.los-home-locked .los-hotspot-sound[aria-pressed="false"]::before{color:#8c8790;border-color:#5e5668;filter:grayscale(1);box-shadow:inset 0 0 0 7px #08080b,0 0 12px rgba(80,72,92,.5)}
+@media (orientation:portrait){
+ .los-home-locked .los-home-build{border-radius:7px;font-size:clamp(.48rem,2.7vw,.72rem)}
+ .los-home-locked .los-home-menu::before{left:21%;top:83.55%;width:58%;height:11.5%;background:#020204}
+ .los-home-locked .los-hotspot-mic,.los-home-locked .los-hotspot-sound{top:82.7%;height:12.2%;background:#030305}
+ .los-home-locked .los-hotspot-mic::before,.los-home-locked .los-hotspot-sound::before{width:min(96%,76px);font-size:1.7rem}
+ .los-home-locked .los-hotspot-mic::after,.los-home-locked .los-hotspot-sound::after{font-size:clamp(.48rem,2.3vw,.67rem)}
+}
+
+/* =========================================================
    V1 STAGE 3 — PRESENTATION POLISH
    ========================================================= */
 .shell:has([data-mode]) .topbar-title,
@@ -1138,3 +1321,107 @@ radial-gradient(circle at 50% 0%,rgba(255,208,79,.09),transparent 28%),linear-gr
 .music-filter-panel{margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,.16)}
 .music-subcategory-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px}
 .music-subcategory{min-height:48px;font-size:.82rem;padding:10px 12px}
+.los-avatar-option.selected,.los-avatar-option:hover{transform:none}
+@media (orientation:landscape) and (min-height:541px){.los-avatar-sheet{width:min(940px,100%);height:min(96vh,1000px)}}
+
+/* Build 6.36 locked Home composition */
+.los-home-screen{min-height:100%;height:100%;background:#030306;overflow:hidden}
+.los-home-screen::before{background:radial-gradient(circle at 48% 42%,rgba(112,45,190,.17),transparent 35%),linear-gradient(120deg,#020204,#0b0714 56%,#16091f)}
+.los-home-screen::after{background:linear-gradient(90deg,rgba(2,2,5,.54) 0%,rgba(2,2,5,.12) 43%,rgba(2,2,5,.14) 68%,rgba(2,2,5,.58) 100%),linear-gradient(0deg,rgba(2,2,5,.74),transparent 43%)}
+.los-home-art{inset:0;background-image:url("./assets/visual-6.36/los-home-hero-landscape-v2.png");background-position:center;background-size:cover;filter:saturate(1.03) contrast(1.04)}
+.los-home-chrome{position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(90deg,rgba(255,255,255,.055),transparent 1.5%,transparent 98.5%,rgba(255,255,255,.045)),linear-gradient(0deg,rgba(246,196,83,.08),transparent 2px)}
+.los-home-top{position:absolute;z-index:3;top:max(20px,var(--los-safe-top));left:max(30px,var(--los-safe-left));right:max(30px,var(--los-safe-right));display:flex;align-items:center;justify-content:space-between;pointer-events:none}
+.los-home-top>*{pointer-events:auto}.los-home-build{position:static;margin:0;padding:8px 13px;border:1px solid rgba(246,196,83,.34);background:rgba(3,3,7,.72);color:var(--los-gold);box-shadow:0 8px 30px rgba(0,0,0,.32)}
+.los-home-text-action{min-height:44px;border:0;border-bottom:1px solid rgba(246,196,83,.55);background:transparent;color:#f3edf8;padding:8px 2px;font-size:.69rem;font-weight:950;letter-spacing:.15em;cursor:pointer;text-shadow:0 2px 8px #000}
+.los-home-layout{height:100%;width:min(1720px,100%);padding:max(74px,var(--los-safe-top)) max(5vw,var(--los-safe-right)) max(88px,var(--los-safe-bottom)) max(4vw,var(--los-safe-left));display:grid;grid-template-columns:minmax(390px,52%) minmax(330px,1fr);grid-template-rows:1fr;align-items:center;gap:clamp(30px,4vw,80px)}
+.los-home-brand{position:relative;z-index:2;align-self:center;width:min(540px,100%);padding:0;text-align:left;filter:drop-shadow(0 18px 30px rgba(0,0,0,.48))}
+.los-home-kicker{margin-left:7px;color:#fff0b8;font-size:clamp(.62rem,.8vw,.84rem);letter-spacing:.3em;text-shadow:0 2px 10px #000}
+.los-home-logo{display:grid;justify-items:start;gap:0;margin:12px 0 0;font-family:Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;font-size:clamp(4.8rem,7.6vw,9rem);font-style:italic;font-weight:1000;line-height:.68;letter-spacing:-.055em;transform:skew(-2deg);text-transform:uppercase}
+.los-home-logo>span{display:block;padding:0 .08em .09em 0;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.24);filter:drop-shadow(0 5px 0 #08070a) drop-shadow(0 10px 13px rgba(0,0,0,.72))}
+.los-home-logo .logo-last{background-image:linear-gradient(180deg,#fff0a8 0%,#dca928 32%,#76500d 61%,#f2ca53 78%,#6d4706 100%)}
+.los-home-logo .logo-one{margin-left:.17em;background-image:linear-gradient(180deg,#fff 0%,#b9bec9 31%,#515763 55%,#f0f2f5 76%,#747985 100%);font-size:1.08em}
+.los-home-logo .logo-standing{background-image:linear-gradient(180deg,#ffe786 0%,#c58d17 34%,#5d3a05 59%,#f2be38 78%,#664008 100%);font-size:.72em;letter-spacing:-.025em}
+.los-home-rule{margin:17px 0 0 8px;color:#eeeaf2;font-size:clamp(.65rem,.9vw,.82rem);font-weight:900;letter-spacing:.13em;text-shadow:0 2px 10px #000}.los-home-rule i{color:var(--los-gold);font-style:normal;margin-inline:.45em}
+.los-home-menu{position:relative;z-index:3;align-self:center;justify-self:end;width:min(420px,100%);padding:22px;border:1px solid rgba(223,213,235,.17);border-radius:24px;background:linear-gradient(145deg,rgba(9,7,14,.76),rgba(19,11,28,.6));box-shadow:0 24px 70px rgba(0,0,0,.46),inset 0 1px rgba(255,255,255,.08),0 0 40px rgba(110,40,190,.12);backdrop-filter:blur(13px);display:grid;gap:10px}
+.los-home-menu .los-action{min-height:52px;border-radius:12px;font-size:.83rem;letter-spacing:.12em}.los-home-menu .los-action-primary{min-height:72px;display:grid;place-items:center;gap:1px;background:linear-gradient(180deg,#ffe997 0%,#f4c94f 42%,#b97808 100%);border:1px solid #fff0a4;color:#171006;font-size:1.2rem;box-shadow:inset 0 2px rgba(255,255,255,.62),inset 0 -4px rgba(99,56,0,.26),0 10px 28px rgba(0,0,0,.38),0 0 28px rgba(246,196,83,.22)}.los-home-menu .los-action-primary small{font-size:.52rem;letter-spacing:.18em;opacity:.7}.los-action-resume{border-color:rgba(246,196,83,.48);background:rgba(246,196,83,.1);color:#ffe080}.los-action-quiet{min-height:44px!important;border-color:transparent!important;background:transparent!important;color:#c9c3d0!important}
+.los-home-modes{display:grid;grid-template-columns:1fr 1fr;gap:10px}.los-home-modes .los-action-secondary{border-color:rgba(200,202,211,.3);background:linear-gradient(180deg,rgba(65,61,73,.68),rgba(21,19,26,.82));box-shadow:inset 0 1px rgba(255,255,255,.09)}
+.los-home-utilities{position:absolute;z-index:4;left:max(30px,var(--los-safe-left));right:max(30px,var(--los-safe-right));top:auto;bottom:max(18px,var(--los-safe-bottom));display:flex;justify-content:space-between;pointer-events:none}
+.los-icon-button{pointer-events:auto;width:66px;height:66px;border-radius:50%;padding:8px;display:grid;place-items:center;align-content:center;gap:1px;border:1px solid rgba(216,217,224,.42);background:radial-gradient(circle at 38% 30%,rgba(255,255,255,.18),rgba(19,17,24,.88) 52%,rgba(3,3,6,.96));color:#e8e8ed;box-shadow:inset 0 1px rgba(255,255,255,.16),0 9px 25px rgba(0,0,0,.44)}.los-icon-button.is-on{border-color:var(--los-gold);color:var(--los-gold);box-shadow:inset 0 1px rgba(255,255,255,.2),0 0 24px rgba(126,53,218,.34),0 9px 25px rgba(0,0,0,.44)}.los-icon-button svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.los-icon-button small{font-size:.45rem;line-height:1;font-weight:950;letter-spacing:.07em}
+.los-street-signs{position:absolute;z-index:1;top:13%;right:6%;width:190px;height:150px;transform:none;filter:drop-shadow(0 8px 10px rgba(0,0,0,.55))}.los-street-signs::after{content:"";position:absolute;left:91px;top:42px;width:7px;height:104px;background:linear-gradient(90deg,#777,#eee 45%,#555);border-radius:3px}.los-street-signs span{position:absolute;min-width:164px;padding:9px 13px;border:2px solid #e9edf0;border-radius:5px;background:linear-gradient(180deg,#245d43,#123c2b);color:#fff;font:950 .72rem/1 system-ui;letter-spacing:.09em;text-align:center;box-shadow:inset 0 0 0 2px rgba(255,255,255,.08)}.los-street-signs .joann{left:0;top:8px}.los-street-signs .maple{left:12px;top:31px;transform:rotate(90deg);transform-origin:center}
+.los-home-dialog{width:min(560px,100%)}.los-home-dialog ol{margin:0;padding-left:1.35rem;display:grid;gap:12px;color:#eeeaf2;line-height:1.4}.los-home-dialog li::marker{color:var(--los-gold);font-weight:950}.los-home-dialog>p{margin:0;color:var(--muted)}.los-home-volume{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;color:var(--los-silver);font-size:.72rem;font-weight:950;letter-spacing:.08em}.los-home-volume input{min-height:44px;width:100%}
+@media (orientation:portrait){
+ .los-home-screen::after{background:linear-gradient(0deg,rgba(2,2,5,.94) 0%,rgba(2,2,5,.7) 31%,rgba(2,2,5,.08) 60%,rgba(2,2,5,.25) 100%)}
+ .los-home-art{inset:0;background-image:url("./assets/visual-6.36/los-home-hero-portrait-v2.png");background-position:center top;background-size:cover}
+ .los-home-top{top:max(12px,var(--los-safe-top));left:max(14px,var(--los-safe-left));right:max(14px,var(--los-safe-right))}.los-home-build{font-size:.54rem;padding:6px 9px}.los-home-text-action{font-size:.58rem}
+ .los-home-layout{padding:max(58px,var(--los-safe-top)) max(16px,var(--los-safe-right)) max(82px,var(--los-safe-bottom)) max(16px,var(--los-safe-left));grid-template-columns:1fr;grid-template-rows:minmax(190px,1fr) auto;gap:8px;align-items:end}
+ .los-home-brand{align-self:start;justify-self:start;width:min(92vw,430px);padding-top:clamp(14px,4vh,42px);text-align:left}.los-home-kicker{font-size:.54rem}.los-home-logo{font-size:clamp(3.7rem,18.5vw,6.8rem);margin-top:9px}.los-home-logo .logo-one{margin-left:.12em}.los-home-rule{font-size:.56rem;margin-top:10px;letter-spacing:.08em}
+ .los-home-menu{align-self:end;justify-self:center;width:min(430px,100%);padding:13px;gap:7px;border-radius:18px;background:linear-gradient(145deg,rgba(6,5,10,.82),rgba(18,9,25,.74))}.los-home-menu .los-action{min-height:46px}.los-home-menu .los-action-primary{min-height:59px;font-size:1.05rem}.los-home-menu .los-action-quiet{min-height:42px!important}.los-home-modes{gap:7px}
+ .los-home-utilities{left:max(14px,var(--los-safe-left));right:max(14px,var(--los-safe-right));bottom:max(10px,var(--los-safe-bottom))}.los-icon-button{width:58px;height:58px}.los-icon-button svg{width:21px;height:21px}.los-street-signs{top:11%;right:-14px;transform:scale(.62);transform-origin:top right}
+}
+@media (orientation:portrait) and (max-height:650px){
+ .los-home-layout{padding-top:48px;padding-bottom:70px;grid-template-rows:minmax(150px,1fr) auto}.los-home-brand{padding-top:2px}.los-home-kicker,.los-home-rule{display:none}.los-home-logo{font-size:clamp(3.15rem,16vw,4.6rem)}.los-home-menu{padding:9px}.los-home-menu .los-action{min-height:44px}.los-home-menu .los-action-primary{min-height:52px}.los-icon-button{width:54px;height:54px}.los-street-signs{top:9%;transform:scale(.52)}
+}
+@media (orientation:landscape) and (max-height:540px){
+ .los-home-art{inset:0;background-position:center;background-size:cover}.los-home-top{top:max(8px,var(--los-safe-top));left:max(16px,var(--los-safe-left));right:max(16px,var(--los-safe-right))}.los-home-build{font-size:.5rem;padding:5px 8px}.los-home-text-action{font-size:.55rem}
+ .los-home-layout{padding:max(42px,var(--los-safe-top)) max(76px,var(--los-safe-right)) max(54px,var(--los-safe-bottom)) max(28px,var(--los-safe-left));grid-template-columns:minmax(260px,48%) minmax(270px,1fr);gap:20px}.los-home-brand{align-self:center;width:min(390px,100%);padding:0}.los-home-logo{font-size:clamp(3.2rem,12.7vh,4.9rem)}.los-home-kicker{font-size:.52rem}.los-home-rule{font-size:.53rem;margin-top:9px}.los-home-menu{width:min(350px,100%);padding:10px;gap:6px;border-radius:16px}.los-home-menu .los-action{min-height:44px;padding:7px 10px;font-size:.7rem}.los-home-menu .los-action-primary{min-height:50px;font-size:.96rem}.los-home-menu .los-action-quiet{min-height:38px!important}.los-home-modes{gap:6px}
+ .los-home-utilities{left:max(14px,var(--los-safe-left));right:max(14px,var(--los-safe-right));bottom:max(7px,var(--los-safe-bottom))}.los-icon-button{width:48px;height:48px}.los-icon-button svg{width:18px;height:18px}.los-icon-button small{font-size:.38rem}.los-street-signs{top:14%;right:1%;transform:scale(.52);transform-origin:top right}
+}
+.los-home-screen .los-action-quiet{min-height:44px!important}
+
+/* Final Build 6.36 control layer follows the locked-reference hotspots. */
+.los-home-locked .los-home-utilities{z-index:10;pointer-events:none}
+.los-home-locked .los-hotspot-mic,.los-home-locked .los-hotspot-sound{z-index:11;pointer-events:auto;touch-action:manipulation}
+.los-home-locked .los-home-menu::before{content:"";position:absolute;z-index:2;left:20.8%;top:77.8%;width:58.6%;height:10.5%;border:1px solid rgba(126,39,205,.3);border-radius:14px;background:linear-gradient(180deg,#0a0710,#030205);box-shadow:inset 0 1px rgba(255,255,255,.05),0 9px 22px rgba(0,0,0,.32);pointer-events:none}
+.los-home-locked .los-home-menu::after{content:"";display:block;position:absolute;z-index:2;left:20.8%;top:89%;width:58.6%;height:9.4%;border-radius:12px;background:linear-gradient(180deg,rgba(5,3,8,.98),#020204);pointer-events:none}
+.topbar{position:relative}.topbar-tools{position:absolute;right:0;top:50%;translate:0 -50%;display:flex;justify-content:flex-end;align-items:center;min-width:0}
+.persistent-mic{position:relative;z-index:20;min-width:88px;min-height:44px;padding:7px 10px;display:inline-flex;align-items:center;justify-content:center;gap:7px;border-color:#8f24ff;background:#09080d;color:#ffd33e;font-size:.7rem;letter-spacing:.06em;touch-action:manipulation;box-shadow:0 0 14px rgba(121,31,255,.28)}
+.persistent-mic.is-off{border-color:#625a69;color:#aaa3ae;box-shadow:none}
+.persistent-mic span{font-size:1rem}.persistent-mic strong{white-space:nowrap}
+.game-topbar .topbar-tools{justify-self:end}.showdown-mic{position:absolute;z-index:20;top:max(14px,var(--los-safe-top));right:max(14px,var(--los-safe-right))}
+.los-settings-toggles{display:grid;grid-template-columns:1fr 1fr;gap:10px}.los-settings-toggles .los-action[aria-pressed="true"]{border-color:#a83cff;color:#ffd33e;background:rgba(116,30,177,.18)}
+@media (orientation:portrait){
+ .los-home-locked .los-home-menu::before{left:21%;top:65.8%;width:58%;height:12%;border-radius:12px}
+ .los-home-locked .los-home-menu::after{left:21%;top:78.2%;width:58%;height:17%;border-radius:12px}
+ .persistent-mic{min-width:76px;padding-inline:8px;font-size:.62rem}
+}
+@media (orientation:landscape) and (max-height:540px){.persistent-mic{min-width:44px;min-height:44px;padding:5px 7px;font-size:.58rem}.topbar-tools .persistent-mic strong{display:none}.showdown-mic{top:7px;right:10px}}
+@media (orientation:portrait) and (max-width:430px){.topbar-tools .persistent-mic{min-width:44px;width:44px;padding:5px}.topbar-tools .persistent-mic strong{display:none}}
+
+/* Build 6.36 final art-only Home: one cover scene plus responsive HTML UI. */
+.los-home-final{position:relative;padding:0!important;overflow:hidden;background:#030205!important}
+.los-home-final::before,.los-home-final::after{display:none!important}
+.los-home-final .los-home-plate{position:absolute;inset:0;background:url("./assets/visual-6.36/references/LOS_HOME_ARTONLY_6_36_LANDSCAPE.png") center center/cover no-repeat}
+.los-home-final .los-home-controls{position:absolute;z-index:3;inset:0;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:max(20px,var(--los-safe-top)) max(24px,var(--los-safe-right)) max(22px,var(--los-safe-bottom)) max(24px,var(--los-safe-left));pointer-events:none}
+.los-home-utility-row{width:100%;display:flex;justify-content:flex-end;align-items:center;gap:10px}.los-home-primary-row{display:grid;justify-items:center;gap:9px}
+.los-home-ui{pointer-events:auto;touch-action:manipulation;cursor:pointer;min-width:44px;min-height:44px;font-family:Impact,"Arial Narrow",system-ui,sans-serif;font-weight:950;letter-spacing:.075em}
+.los-home-how,.los-home-settings{border:1px solid rgba(246,196,83,.7);background:linear-gradient(180deg,rgba(22,18,29,.96),rgba(4,4,8,.96));color:#fff;box-shadow:inset 0 1px rgba(255,255,255,.11),0 8px 24px rgba(0,0,0,.4),0 0 18px rgba(130,35,206,.14)}
+.los-home-how{height:54px;display:flex;align-items:center;gap:10px;padding:7px 18px;border-radius:27px;font-size:clamp(.72rem,1.2vw,1rem)}.los-home-how span{width:32px;height:32px;display:grid;place-items:center;border:2px solid #aa34ff;border-radius:50%;color:#cf79ff;font:950 1.05rem/1 system-ui}.los-home-settings{width:54px;height:54px;display:grid;place-items:center;border-radius:50%;padding:0;color:var(--los-gold);font:900 1.55rem/1 system-ui}
+.los-home-play{width:clamp(280px,34vw,500px);min-height:clamp(72px,10vh,104px);border:2px solid #ffe79b;border-radius:16px;background:linear-gradient(180deg,#ffe996 0%,#f4c74f 38%,#d8900c 72%,#9b5500 100%);color:#080808;box-shadow:inset 0 3px rgba(255,255,255,.62),inset 0 -6px rgba(79,40,0,.4),0 12px 34px rgba(0,0,0,.5),0 0 26px rgba(246,196,83,.28);font-size:clamp(2.2rem,5vw,4.3rem);text-shadow:0 1px rgba(255,255,255,.25)}
+.los-home-ui:hover{filter:brightness(1.08)}.los-home-ui:focus-visible{outline:3px solid #fff;outline-offset:4px}
+.los-home-resume{position:static;z-index:4;min-width:170px;min-height:44px;padding:9px 14px;border:1px solid rgba(173,67,255,.72);border-radius:10px;background:rgba(5,3,9,.9);color:#e8c5ff;font-size:.7rem;font-weight:950;letter-spacing:.08em;pointer-events:auto;box-shadow:0 0 18px rgba(128,33,214,.25)}
+.los-home-volume{grid-template-columns:auto 48px 1fr auto}.los-volume-mute{width:44px;height:44px;border:1px solid rgba(168,60,255,.55);border-radius:50%;background:#09070d;color:#ffd04f;cursor:pointer}.los-build-info{color:#8e8797;font-size:.62rem;font-weight:900;letter-spacing:.15em;text-align:center}
+@media (orientation:portrait){
+ .los-home-final .los-home-plate{background-image:url("./assets/visual-6.36/references/LOS_HOME_ARTONLY_6_36_PORTRAIT.png");background-position:center center}
+ .los-home-final .los-home-controls{padding:max(15px,var(--los-safe-top)) max(13px,var(--los-safe-right)) max(18px,var(--los-safe-bottom)) max(13px,var(--los-safe-left))}.los-home-how{height:48px;padding:6px 12px;font-size:.66rem}.los-home-how span{width:29px;height:29px}.los-home-settings{width:48px;height:48px}.los-home-play{width:min(82vw,390px);min-height:76px;font-size:clamp(2.2rem,13vw,3.6rem)}
+}
+@media (orientation:landscape) and (max-height:540px){
+ .los-home-final .los-home-plate{background-position:center 48%}.los-home-final .los-home-controls{padding:8px max(14px,var(--los-safe-right)) 7px max(14px,var(--los-safe-left))}.los-home-utility-row{gap:7px}.los-home-how{height:44px;padding:4px 11px;font-size:.61rem}.los-home-how span{width:27px;height:27px;font-size:.86rem}.los-home-settings{width:44px;height:44px;font-size:1.25rem}.los-home-play{width:clamp(230px,36vw,330px);min-height:58px;font-size:clamp(1.8rem,8vh,2.7rem);border-radius:12px}.los-home-primary-row{gap:5px}.los-home-resume{min-height:44px;padding:6px 10px;font-size:.58rem}
+}
+
+/* Build 6.36 final sunset visual test: baked controls and cover-aligned hit areas. */
+.los-home-final .los-home-plate{background-image:url("./assets/visual-6.36/references/LOS_HOME_6_36_LANDSCAPE_FINAL.png");background-position:85% center;background-size:cover}
+.los-home-final .los-home-controls{position:absolute;z-index:3;inset:0;display:block;padding:0;pointer-events:none}
+.los-home-hotspot{position:absolute;display:block;min-width:44px;min-height:44px;margin:0;padding:0;border:0;border-radius:12px;background:transparent;color:transparent;pointer-events:auto;touch-action:manipulation;cursor:pointer}
+.los-home-hotspot:focus-visible{outline:4px solid #fff;outline-offset:3px;box-shadow:0 0 0 7px #8f20d7}
+@media (orientation:portrait){.los-home-final .los-home-plate{background-image:url("./assets/visual-6.36/references/LOS_HOME_6_36_PORTRAIT_FINAL.png");background-position:85% center}}
+@media (orientation:landscape) and (min-aspect-ratio:2/1){.los-home-final .los-home-plate{background-image:url("./assets/visual-6.36/references/LOS_HOME_6_36_ULTRAWIDE_FINAL.png");background-position:center center}}
+
+
+/* Final Who's In containment overrides after legacy stage rules. */
+.los-roster-screen .shell,.los-roster-screen .shell>*{min-width:0}
+.los-roster-screen .shell>*{width:100%}
+@media (orientation:portrait){
+ .los-saved-player-actions{position:relative;opacity:1;pointer-events:auto;justify-content:flex-end;padding:0 9px 8px}
+ .los-selected-players{max-height:36vh}
+ .los-selected-player{min-width:100%;flex-basis:100%}
+}

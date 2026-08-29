@@ -46,7 +46,7 @@ test("Work industry selection and Continue work by voice",withHarness(h=>{const 
 test("difficulty selection and Continue work by voice",withHarness(h=>{const s=h.api.getState();s.mode="work";h.api.go("difficulty");h.timers.advance(220);h.speak("hard");assert.equal(s.difficulty,"hard");h.speak("continue");assert.equal(s.screen,"packs")}));
 
 test("Back follows the setup transition map",()=>{
-  const cases=[["mode","home"],["industry","mode"],["fun","difficulty"],["packs","setup"],["players","packs"],["time","players"],["ready","players"]];
+  const cases=[["mode","home"],["industry","mode"],["fun","difficulty"],["packs","home"],["players","packs"],["time","players"],["ready","players"]];
   for(const [from,to] of cases){const h=createHarness();try{const s=h.api.getState();setValidPlayers(s);s.screen=from;({mode:h.api.mode,industry:h.api.industry,fun:h.api.fun,packs:h.api.packs,players:h.api.players,time:h.api.time,ready:h.api.ready}[from])();h.speak("back");assert.equal(s.screen,to,from)}finally{h.close()}}
 });
 
@@ -137,7 +137,7 @@ test("Stage 6.21 recognition error watchdog recovers when mobile onend never arr
 
 test("Stage 6.21 exact interim answers are prevalidated but never scored before final",withHarness(h=>{const s=activeQuestion(h);s.game.current={q:"What planet?",a:"Mars"};s.game.answered=false;h.speak("Mars",{final:false,confidence:.2});assert.equal(s.screen,"question");assert.equal(s.game.players[0].correct,0);assert.ok(h.api.getVoiceDiagnostics().some(x=>x.stage==="answer-interim-prevalidated"));h.speak("Mars",{final:true,confidence:.2});assert.equal(s.screen,"result");assert.equal(s.game.players[0].correct,1)}));
 
-test("Stage 6.35 phone voice-health HUD exposes enable-decision inputs",()=>{const h=createHarness({voiceHealth:true});try{const panel=h.document.getElementById("voiceHealthPanel"),text=panel?.textContent||"";assert.ok(panel);for(const value of ["6.35/question-answer-voice-quality-hardening","screen home","desired true","state listening","decision true · start-requested","setting true · stored unset","API SpeechRecognition · supported true · secure true","permissionBlocked false","owner home#0","interim:","final:","error:","suppressed:"])assert.match(text,new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")))}finally{h.close()}});
+test("Stage 6.36 phone voice-health HUD exposes enable-decision inputs",()=>{const h=createHarness({voiceHealth:true});try{const panel=h.document.getElementById("voiceHealthPanel"),text=panel?.textContent||"";assert.ok(panel);for(const value of ["6.36/visual-foundation-home-whos-in-avatar","screen home","desired true","state listening","decision true · start-requested","setting true · stored unset","API SpeechRecognition · supported true · secure true","permissionBlocked false","owner home#0","interim:","final:","error:","suppressed:"])assert.match(text,new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")))}finally{h.close()}});
 
 test("Stage 6.24 distinguishes persisted Voice Off from missing Safari speech API",()=>{
  const off=createHarness({storage:{los5_voice:"false"},voiceHealth:true});try{const s=off.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().recognition;assert.equal(s.voiceSetting,false);assert.equal(s.storedVoiceSetting,"false");assert.equal(s.desired,false);assert.equal(s.suppressionReason,"voice-setting-off");assert.equal(s.lastDesiredDecision.reason,"voice-setting-off")}finally{off.close()}

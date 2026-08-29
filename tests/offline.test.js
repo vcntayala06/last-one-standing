@@ -11,7 +11,7 @@ const {createAppServer}=require("../server");
 
 const ROOT=path.resolve(__dirname,"..");
 const REQUIRED_FILES=[
- "index.html","app.css","app.js","host-provider.js","service-worker-register.js","question-bank-data.js",
+ "index.html","app.css","app.js","assets/visual-6.36/references/LOS_HOME_6_36_LANDSCAPE_FINAL.png","assets/visual-6.36/references/LOS_HOME_6_36_PORTRAIT_FINAL.png","assets/visual-6.36/references/LOS_HOME_6_36_ULTRAWIDE_FINAL.png","assets/visual-6.36/los-avatar-atlas-v2.png","assets/visual-6.36/los-avatar-style-expansion-v3.png","host-provider.js","service-worker-register.js","question-bank-data.js",
  "question-bank-batch-1.js","question-bank-batch-2.js","question-bank-batch-3.js","question-bank-batch-4.js","question-bank-batch-5.js","question-bank-batch-6.js","question-bank-batch-7.js","question-bank-batch-8.js","question-bank-batch-9.js",
  "question-bank.js","manifest.webmanifest","apple-touch-icon.png","icon-192.png","icon-512.png"
 ];

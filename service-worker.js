@@ -1,12 +1,17 @@
 "use strict";
 
-const CACHE_VERSION="6.35-552e8005f180";
+const CACHE_VERSION="6.36-cf95d69d6c69";
 const CACHE_NAME=`last-one-standing-shell-${CACHE_VERSION}`;
 const APP_SHELL=[
  "./",
  "./index.html",
  "./app.css",
  "./app.js",
+ "./assets/visual-6.36/references/LOS_HOME_6_36_LANDSCAPE_FINAL.png",
+ "./assets/visual-6.36/references/LOS_HOME_6_36_PORTRAIT_FINAL.png",
+ "./assets/visual-6.36/references/LOS_HOME_6_36_ULTRAWIDE_FINAL.png",
+ "./assets/visual-6.36/los-avatar-atlas-v2.png",
+ "./assets/visual-6.36/los-avatar-style-expansion-v3.png",
  "./host-provider.js",
  "./service-worker-register.js",
  "./question-bank-data.js",
