@@ -12,7 +12,7 @@ const {createAppServer}=require("../server");
 const ROOT=path.resolve(__dirname,"..");
 const REQUIRED_FILES=[
  "index.html","app.css","app.js","assets/visual-6.36/references/LOS_HOME_6_36_LANDSCAPE_FINAL.png","assets/visual-6.36/references/LOS_HOME_6_36_PORTRAIT_FINAL.png","assets/visual-6.36/references/LOS_HOME_6_36_ULTRAWIDE_FINAL.png","assets/visual-6.36/los-avatar-atlas-v2.png","assets/visual-6.36/los-avatar-style-expansion-v3.png","host-provider.js","service-worker-register.js","question-bank-data.js",
- "question-bank-batch-1.js","question-bank-batch-2.js","question-bank-batch-3.js","question-bank-batch-4.js","question-bank-batch-5.js","question-bank-batch-6.js","question-bank-batch-7.js","question-bank-batch-8.js","question-bank-batch-9.js",
+ "question-bank-batch-1.js","question-bank-batch-2.js","question-bank-batch-3.js","question-bank-batch-4.js","question-bank-batch-5.js","question-bank-batch-6.js","question-bank-batch-7.js","question-bank-batch-8.js","question-bank-batch-9.js","question-bank-batch-10.js",
  "question-bank.js","manifest.webmanifest","apple-touch-icon.png","icon-192.png","icon-512.png"
 ];
 const REVISIONED_SHELL_FILES=REQUIRED_FILES.filter(file=>file!=="index.html");
@@ -105,12 +105,26 @@ test("service-worker update code cannot clear saved localStorage data",()=>{
 
 test("installed game reloads and reaches a Champion through manual play with network removed",{timeout:90000},async()=>{
  const server=createAppServer({rootDir:ROOT,env:{},loadEnvFile:false});
+ const began=Date.now(),mark=(step,detail={})=>console.log("[offline-champion]",JSON.stringify({step,elapsedMs:Date.now()-began,...detail}));
  let browser=null,context=null;
  try{
-  const base=await listen(server);browser=await launch();context=await browser.newContext();
+  mark("test-begins");const base=await listen(server);browser=await launch();context=await browser.newContext();
   const page=await context.newPage();
+  const diagnostics={consoleErrors:[],failedRequests:[]};page.on("console",message=>{if(message.type()==="error"){diagnostics.consoleErrors.push(message.text());mark("console-error",{message:message.text()})}});page.on("pageerror",error=>{diagnostics.consoleErrors.push(error.message);mark("page-error",{message:error.message})});page.on("requestfailed",request=>{const failure={url:request.url(),error:request.failure()?.errorText||"unknown"};diagnostics.failedRequests.push(failure);mark("request-failed",failure)});
   await page.goto(base,{waitUntil:"load"});
-  await page.evaluate(async()=>{await navigator.serviceWorker.ready;if(!navigator.serviceWorker.controller)await new Promise(resolve=>navigator.serviceWorker.addEventListener("controllerchange",resolve,{once:true}))});
+  mark("home-reached",{screen:await page.locator("body").getAttribute("data-screen")});
+  await page.evaluate(async()=>{
+   const activation=(async()=>{await navigator.serviceWorker.ready;if(!navigator.serviceWorker.controller)await new Promise(resolve=>navigator.serviceWorker.addEventListener("controllerchange",resolve,{once:true}))})();
+   const timeout=new Promise((_,reject)=>{
+    setTimeout(async()=>{
+     const registrations=await navigator.serviceWorker.getRegistrations();
+     const states=registrations.map(r=>({scope:r.scope,installing:r.installing?.state||null,waiting:r.waiting?.state||null,active:r.active?.state||null}));
+     reject(new Error("Service worker activation stalled: "+JSON.stringify(states)));
+    },15000);
+   });
+   await Promise.race([activation,timeout]);
+  });
+  mark("service-worker-active");
   await page.reload({waitUntil:"load"});
   assert.equal(await page.evaluate(()=>!!navigator.serviceWorker.controller),true);
 
@@ -118,18 +132,26 @@ test("installed game reloads and reaches a Champion through manual play with net
   await page.evaluate(payload=>{localStorage.setItem("los5_voice","false");localStorage.setItem("los5_read_questions","false");localStorage.setItem("los5_active_game",JSON.stringify(payload))},saved);
 
   await context.setOffline(true);
+  mark("network-disabled");
   const offlinePage=await context.newPage();
+  offlinePage.on("console",message=>{if(message.type()==="error")diagnostics.consoleErrors.push(message.text())});offlinePage.on("pageerror",error=>diagnostics.consoleErrors.push(error.message));offlinePage.on("requestfailed",request=>diagnostics.failedRequests.push({url:request.url(),error:request.failure()?.errorText||"unknown"}));
   await offlinePage.goto(`${base}/?offline-test=1`,{waitUntil:"load"});
+  mark("offline-home-reached",{screen:await offlinePage.locator("body").getAttribute("data-screen")});
   await offlinePage.locator("#resumeSaved").click();
+  mark("game-resumed");
   await offlinePage.locator("#typedAnswer").waitFor({state:"visible",timeout:10000});
+  mark("first-question-reached");
   assert.equal(await offlinePage.locator("#typedAnswer").isEnabled(),true);
-  const correctAnswer=await offlinePage.evaluate(()=>{const prompt=document.querySelector(".question-text")?.textContent?.trim(),sources=[window.LOS_QUESTION_BANK_DATA,window.LOS_QUESTION_BANK_BATCH_1,window.LOS_QUESTION_BANK_BATCH_2,window.LOS_QUESTION_BANK_BATCH_3,window.LOS_QUESTION_BANK_BATCH_4,window.LOS_QUESTION_BANK_BATCH_5,window.LOS_QUESTION_BANK_BATCH_6,window.LOS_QUESTION_BANK_BATCH_7,window.LOS_QUESTION_BANK_BATCH_8,window.LOS_QUESTION_BANK_BATCH_9];return sources.flatMap(source=>source.questions).find(question=>question.prompt===prompt)?.answer?.canonical||null});
+  const correctAnswer=await offlinePage.evaluate(()=>{const prompt=document.querySelector(".question-text")?.textContent?.trim(),sources=[window.LOS_QUESTION_BANK_DATA,window.LOS_QUESTION_BANK_BATCH_1,window.LOS_QUESTION_BANK_BATCH_2,window.LOS_QUESTION_BANK_BATCH_3,window.LOS_QUESTION_BANK_BATCH_4,window.LOS_QUESTION_BANK_BATCH_5,window.LOS_QUESTION_BANK_BATCH_6,window.LOS_QUESTION_BANK_BATCH_7,window.LOS_QUESTION_BANK_BATCH_8,window.LOS_QUESTION_BANK_BATCH_9,window.LOS_QUESTION_BANK_BATCH_10];return sources.flatMap(source=>source.questions).find(question=>question.prompt===prompt)?.answer?.canonical||null});
   assert.ok(correctAnswer,"offline question resolves to its canonical answer");
   await offlinePage.locator("#typedAnswer").fill(correctAnswer);
   await offlinePage.locator("#lockAnswer").click();
+  mark("answer-submitted",{answer:correctAnswer});
   await offlinePage.locator(".result-correct").waitFor({state:"visible"});
+  mark("correct-result-reached");
   assert.match(await offlinePage.locator(".standing-row").filter({hasText:"Alex"}).textContent(),/✓\s*1/);
   await offlinePage.locator(".champion-name").waitFor({state:"visible",timeout:25000});
+  mark("champion-reached",diagnostics);
   assert.equal(await offlinePage.locator(".champion-name").textContent(),"Alex");
   assert.equal(await offlinePage.locator(".complete-stage").count(),1);
  }finally{if(context)await context.setOffline(false).catch(()=>{});await Promise.allSettled([context?.close(),browser?.close(),close(server)])}

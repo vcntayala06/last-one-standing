@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_VERSION="6.37-d2d4d2dc1424";
+const CACHE_VERSION="6.38-5755b97a8e4c";
 const CACHE_NAME=`last-one-standing-shell-${CACHE_VERSION}`;
 const APP_SHELL=[
  "./",
@@ -24,6 +24,7 @@ const APP_SHELL=[
  "./question-bank-batch-7.js",
  "./question-bank-batch-8.js",
  "./question-bank-batch-9.js",
+ "./question-bank-batch-10.js",
  "./question-bank.js",
  "./manifest.webmanifest",
  "./apple-touch-icon.png",
