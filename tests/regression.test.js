@@ -22,10 +22,10 @@ function setupQuestion(h, question = { q: "What planet is known as the Red Plane
   return state;
 }
 
-function activeTimedQuestion(h) {
+function activeTimedQuestion(h, seconds = 15) {
   const state = h.api.getState();
   state.screen = "question";
-  state.questionSeconds = 15;
+  state.questionSeconds = seconds;
   state.game = {
     players: [{ id: "p1", name: "Alex", correct: 0, wrong: 0, timeout: 0, strikes: 0, eliminated: false }],
     startingCount: 1, idx: 0, qnum: 0, used: [], current: null, answered: false,
@@ -60,6 +60,52 @@ test("Stanley Cup and canonical accepted-answer metadata reach gameplay scoring"
 
 test("accepted English, Spanish, and legacy alts are precise but transcription-safe",withHarness(h=>{
  assert.equal(h.api.accepted("PACIFIC OCEAN!",{a:"Pacific Ocean",accept:["pacific"],es:["océano pacífico"],alts:["the pacific"]}),true);assert.equal(h.api.accepted("oceano pacifico",{a:"Pacific Ocean",es:["océano pacífico"]}),true);assert.equal(h.api.accepted("three hundred and sixty six",{a:"366",alts:["three hundred and sixty six"]}),true);assert.equal(h.api.accepted("Atlantic Ocean",{a:"Pacific Ocean",accept:["pacific"]}),false)
+}));
+
+test("Build 6.37 controlled typed typo matching is forgiving without over-accepting",withHarness(h=>{
+ const pass=[["Sebroke","Seabrook"],["Pacfic Ocean","Pacific Ocean"],["Micheal Jordan","Michael Jordan"],["Sacramnto","Sacramento"],["Beyoncee","Beyoncé"]];
+ for(const [typed,answer] of pass)assert.equal(h.api.typedAnswerMatchTrace(typed,{a:answer}).accepted,true,`${typed} -> ${answer}`);
+ assert.equal(h.api.typedAnswerMatchTrace("Atlantic Ocean",{a:"Pacific Ocean"}).accepted,false);
+ assert.equal(h.api.typedAnswerMatchTrace("Lincoln",{a:"Clinton"}).accepted,false);
+ for(const [typed,answer] of [["cat","car"],["42","43"],["USA","USC"],["1998","1999"]])assert.equal(h.api.typedAnswerMatchTrace(typed,{a:answer}).accepted,false,`${typed} must not match ${answer}`)
+}));
+
+test("Build 6.37 typed typo fallback handles generic rushed spelling patterns",withHarness(h=>{
+ const cases=[["Alxander","Alexander","missing letter"],["Jennnifer","Jennifer","extra letter"],["Chrsitopher","Christopher","adjacent transposition"],["Alexzndor","Alexander","two wrong letters"],["Alixondar","Alexander","vowel misspelling"]];
+ for(const [typed,answer,label] of cases)assert.equal(h.api.typedAnswerMatchTrace(typed,{a:answer}).accepted,true,`${label}: ${typed} -> ${answer}`)
+}));
+
+test("Build 6.37 typed typo fallback rejects an ambiguous best candidate",withHarness(h=>{
+ const result=h.api.typedAnswerMatchTrace("histopher",{a:"Christopher",accept:["Kristopher"]});assert.equal(result.accepted,false);assert.equal(result.reason,"ambiguous-typed-typo");assert.equal(result.candidateScores.length,2)
+}));
+
+test("Build 6.37 Question keeps mic and text available together without autofocus",withHarness(h=>{
+ const state=activeTimedQuestion(h),input=h.document.getElementById("typedAnswer"),lock=h.document.getElementById("lockAnswer");
+ assert.ok(h.recognition()?.started);assert.ok(input);assert.ok(lock);assert.equal(input.disabled,false);assert.equal(lock.disabled,false);assert.notEqual(h.document.activeElement,input);
+ input.value="not it";input.dispatchEvent(new h.window.KeyboardEvent("keydown",{key:"Enter",bubbles:true,cancelable:true}));assert.equal(state.screen,"question");assert.equal(input.value,"");assert.ok(h.recognition()?.started)
+}));
+
+test("Build 6.37 mic-off and unavailable-mic Questions remain fully typeable",()=>{
+ for(const options of [{},{speechApi:"none"}]){const h=createHarness(options);try{const state=h.api.getState();state.voiceOn=options.speechApi!=="none"?false:true;activeTimedQuestion(h);assert.ok(h.document.getElementById("typedAnswer"));assert.equal(h.document.getElementById("typedAnswer").disabled,false);assert.ok(h.document.getElementById("lockAnswer"));if(options.speechApi==="none")assert.equal(h.recognition(),null)}finally{h.close()}}
+});
+
+test("Build 6.37 removes global P Pause while preserving normal answer entry and submitted Pass",withHarness(h=>{
+ const state=activeTimedQuestion(h),input=h.document.getElementById("typedAnswer");input.focus();
+ for(const text of ["p","P","Pacific Ocean","Peso Pluma","Purple","Pass"]){input.value="";for(const character of text){const down=new h.window.KeyboardEvent("keydown",{key:character,code:character.toLowerCase()==="p"?"KeyP":"",bubbles:true,cancelable:true});input.dispatchEvent(down);assert.equal(down.defaultPrevented,false,`${text}:keydown`);if(!down.defaultPrevented)input.value+=character;const up=new h.window.KeyboardEvent("keyup",{key:character,code:character.toLowerCase()==="p"?"KeyP":"",bubbles:true,cancelable:true});input.dispatchEvent(up);assert.equal(up.defaultPrevented,false,`${text}:keyup`);assert.equal(state.screen,"question",text)}assert.equal(input.value,text)}
+ const windowDown=new h.window.KeyboardEvent("keydown",{key:"p",code:"KeyP",bubbles:true,cancelable:true});h.window.dispatchEvent(windowDown);assert.equal(state.screen,"question","activeElement protects a retargeted window event");
+ input.blur();h.window.dispatchEvent(new h.window.KeyboardEvent("keyup",{key:"p",code:"KeyP",bubbles:true,cancelable:true}));assert.equal(state.screen,"question","keyup never pauses");h.window.dispatchEvent(new h.window.KeyboardEvent("keydown",{key:"p",code:"KeyP",bubbles:true,cancelable:true}));assert.equal(state.screen,"question","global P does nothing outside editing");input.focus();input.value="Pass";assert.equal(state.game.answered,false,"typing Pass alone does not act");h.click("#lockAnswer");assert.equal(state.screen,"result");assert.equal(state.game.lastOutcomeDetail,"pass")
+}));
+
+test("Build 6.37 selected answer time starts only after the three-second fallback",()=>{
+ for(const seconds of [10,20]){const h=createHarness();try{const state=h.api.getState();state.voiceOn=false;state.readQuestions=false;activeTimedQuestion(h,seconds);assert.equal(state.game.questionRemaining,seconds);h.timers.advance(2999);assert.equal(state.game.questionRemaining,seconds);h.timers.advance(1);assert.equal(state.game.questionRemaining,seconds);h.timers.advance(seconds*1000-1);assert.equal(state.screen,"question");assert.equal(state.game.questionRemaining,1);h.timers.advance(1);assert.equal(state.screen,"result");assert.equal(state.game.players[0].timeout,1)}finally{h.close()}}
+});
+
+test("Build 6.37 successful Host reading does not consume answer time",async()=>{
+ let finishHost;const provider={available:true,play:()=>new Promise(resolve=>{finishHost=resolve}),cancel(){},setVolume(){}};const h=createHarness({hostProvider:provider});try{const state=h.api.getState();activeTimedQuestion(h,10);h.timers.advance(12000);assert.equal(state.game.questionRemaining,10);finishHost();await new Promise(resolve=>setImmediate(resolve));h.timers.advance(9999);assert.equal(state.game.questionRemaining,1);assert.equal(state.screen,"question")}finally{h.close()}
+});
+
+test("Build 6.37 correct typed answer during reading ends the turn immediately",withHarness(h=>{
+ const state=activeTimedQuestion(h),input=h.document.getElementById("typedAnswer");input.value=state.game.current.a;h.click("#lockAnswer");assert.equal(state.screen,"result");assert.equal(state.game.players[0].correct,1)
 }));
 
 test("protected question routing scores a high-confidence exact interim only once", withHarness(h => {
@@ -131,6 +177,12 @@ test("Build 6.36 saved-player picker multi-selects searches and prevents duplica
 
 test("Build 6.36 voice selects saved profiles by stable ID and rejects ambiguous names",withHarness(h=>{
  const state=h.api.getState(),profiles=[{id:"a",firstName:"Alex",lastName:"Able",nickname:"Ace",name:"Ace"},{id:"b",firstName:"Alex",lastName:"Baker",nickname:"Bee",name:"Bee"},{id:"m",firstName:"Maria",lastName:"Lopez",nickname:"Mari",name:"Mari"}];h.window.localStorage.setItem("los636_player_profiles",JSON.stringify(profiles));state.screen="players";state.mode="original";state.players=[];h.api.players();h.speak("Select Maria");assert.deepEqual(Array.from(state.players,p=>p.id),["m"]);h.speak("Maria is playing");assert.deepEqual(Array.from(state.players,p=>p.id),["m"]);h.speak("Alex");assert.deepEqual(Array.from(state.players,p=>p.id),["m"]);assert.ok(h.api.getVoiceDiagnostics().some(row=>row.reason==="ambiguous-saved-player-name"));h.speak("Add Ace");assert.deepEqual(Array.from(state.players,p=>p.id),["m","a"])
+}));
+
+test("Build 6.37 Who's In voice selection updates the open picker immediately and stays idempotent",withHarness(h=>{
+ const state=h.api.getState(),profiles=[{id:"v",firstName:"Vicente",lastName:"Ayala",nickname:"Vince",name:"Vince"},{id:"m",firstName:"Maria",lastName:"Lopez",nickname:"Mari",name:"Mari"},{id:"g1",firstName:"George",lastName:"King",nickname:"Geo",name:"Geo"},{id:"g2",firstName:"George",lastName:"Lopez",nickname:"Jorge",name:"Jorge"}];h.window.localStorage.setItem("los636_player_profiles",JSON.stringify(profiles));state.screen="players";state.mode="original";state.players=[];h.api.players();h.click("#selectPlayers");
+ const selected=id=>h.document.querySelector(`[data-picker-player="${id}"]`)?.getAttribute("aria-pressed");for(const phrase of ["Vicente","Select Vicente","Add Vicente","Vicente is playing"]){h.speak(phrase,{final:true});assert.equal(selected("v"),"true",phrase);assert.equal(h.document.querySelector('[data-saved-profile="v"]').classList.contains("selected"),true,phrase);assert.equal(h.document.querySelector(".los-player-picker header p strong").textContent,"1",phrase);assert.deepEqual(Array.from(state.players,p=>p.id),["v"],phrase)}
+ h.speak("Add Maria",{final:true});assert.equal(selected("m"),"true");assert.deepEqual(Array.from(state.players,p=>p.id),["v","m"]);assert.equal(h.document.querySelector(".los-player-picker header p strong").textContent,"2");assert.equal(profiles.length,4,"voice Add does not create a profile");h.speak("George",{final:true});assert.deepEqual(Array.from(state.players,p=>p.id),["v","m"]);h.speak("Geo",{final:true});assert.equal(selected("g1"),"true");assert.deepEqual(Array.from(state.players,p=>p.id),["v","m","g1"]);h.speak("Done",{final:true});assert.equal(h.document.querySelector(".los-player-picker"),null);assert.deepEqual(Array.from(state.players,p=>p.id),["v","m","g1"]);assert.equal(h.document.querySelectorAll("[data-selected-player]").length,3)
 }));
 
 test("player voice commands add, rename, delete, and incrementally spell", withHarness(h => {
@@ -287,7 +339,7 @@ test("fake timers deterministically drive question timeout", withHarness(h => {
   const state = setupQuestion(h);
   state.questionSeconds = 10;
   h.api.question();
-  h.timers.advance(10000);
+  h.timers.advance(13000);
   assert.equal(state.game.players[0].timeout, 1);
   assert.equal(state.game.players[0].strikes, 1);
   assert.equal(state.screen, "result");
@@ -296,7 +348,7 @@ test("fake timers deterministically drive question timeout", withHarness(h => {
 test("Pause and Resume preserve the exact question and remaining seconds", withHarness(h => {
   const state = activeTimedQuestion(h);
   const original = state.game.current;
-  h.timers.advance(4000);
+  h.timers.advance(7000);
   assert.equal(state.game.questionRemaining, 11);
   h.api.pauseGame();
   h.timers.advance(5000);
@@ -311,7 +363,7 @@ test("Pause and Resume preserve the exact question and remaining seconds", withH
 test("Quit Game from an active question pauses it and opens confirmation", withHarness(h => {
   const state = activeTimedQuestion(h);
   const original = state.game.current;
-  h.timers.advance(3000);
+  h.timers.advance(6000);
   h.speak("quit game");
   assert.equal(state.screen, "paused");
   assert.equal(state.game.current, original);
@@ -356,9 +408,9 @@ test("mouse/touch Home Play routes through Choose Your Game and Who’s In", () 
   }finally{h.close()}
 });
 
-test("keyboard answer focuses, ignores empty Enter, and submits once", withHarness(h => {
+test("keyboard answer does not autofocus, ignores empty Enter, and submits once", withHarness(h => {
   const state=setupQuestion(h);state.voiceOn=false;h.api.question(true);h.timers.advance(80);
-  const input=h.document.querySelector("#typedAnswer");assert.equal(h.document.activeElement,input);
+  const input=h.document.querySelector("#typedAnswer");assert.notEqual(h.document.activeElement,input);
   input.dispatchEvent(new h.window.KeyboardEvent("keydown",{key:"Enter",bubbles:true,cancelable:true}));assert.equal(state.game.answered,false);
   input.value="Mars";input.dispatchEvent(new h.window.KeyboardEvent("keydown",{key:"Enter",bubbles:true,cancelable:true}));input.dispatchEvent(new h.window.KeyboardEvent("keydown",{key:"Enter",bubbles:true,cancelable:true}));
   assert.equal(state.game.players[0].correct,1);assert.equal(state.game.answered,true);assert.equal(state.screen,"result")
@@ -412,8 +464,8 @@ test("Home exposes one Play route without visible Multiplayer or Solo choices",(
  const h=createHarness();try{const state=h.api.getState();h.api.home();assert.equal(h.document.querySelectorAll("#start").length,1);assert.equal(h.document.querySelector("#start").getAttribute("aria-label"),"Play");for(const selector of ["#multiplayer","#solo","[data-setup-mode]","[data-mode]"])assert.equal(h.document.querySelector(selector),null);h.click("#start");h.timers.advance(220);assert.equal(state.screen,"packs");assert.equal(state.mode,"original");assert.equal(h.document.querySelector(".topbar-title").textContent,"CHOOSE YOUR GAME");assert.equal(h.document.querySelector("#continuePacks").textContent,"PLAY");assert.equal(h.document.body.textContent.includes("SOLO"),false);assert.equal(h.document.body.textContent.includes("MULTIPLAYER"),false)}finally{h.close()}
 });
 
-test("Build 6.36 Home How to Play and Settings are functional without duplicating utilities",withHarness(h=>{
- const state=h.api.getState();h.api.home();assert.equal(h.document.querySelectorAll("#homeMic,#homeSound").length,0);assert.equal(h.document.querySelectorAll("#start,#homeHow,#homeSettings").length,3);h.click("#homeHow");assert.match(h.document.querySelector(".los-home-dialog").textContent,/HOW TO PLAY/);assert.equal(h.document.activeElement.getAttribute("aria-label"),"Close How to Play");h.click(".los-home-dialog [data-close]");h.click("#homeSettings");const range=h.document.querySelector('.los-home-volume input[type="range"]');range.value="0.4";range.dispatchEvent(new h.window.Event("input",{bubbles:true}));assert.equal(state.volume,.4);assert.equal(h.document.querySelector(".los-home-volume strong").textContent,"40%");h.click("[data-settings-mute]");assert.equal(state.volume,0);h.click("[data-settings-mute]");assert.equal(state.volume,.4);h.click("[data-settings-mic]");assert.equal(state.voiceOn,false);assert.match(h.document.querySelector(".los-build-info").textContent,/6\.36/);h.click(".los-home-dialog [data-close]");assert.equal(h.document.querySelector(".los-home-dialog"),null)
+test("Build 6.37 Home How to Play and Settings are functional without duplicating utilities",withHarness(h=>{
+ const state=h.api.getState();h.api.home();assert.equal(h.document.querySelectorAll("#homeMic,#homeSound").length,0);assert.equal(h.document.querySelectorAll("#start,#homeHow,#homeSettings").length,3);h.click("#homeHow");assert.match(h.document.querySelector(".los-home-dialog").textContent,/HOW TO PLAY/);assert.equal(h.document.activeElement.getAttribute("aria-label"),"Close How to Play");h.click(".los-home-dialog [data-close]");h.click("#homeSettings");const range=h.document.querySelector('.los-home-volume input[type="range"]');range.value="0.4";range.dispatchEvent(new h.window.Event("input",{bubbles:true}));assert.equal(state.volume,.4);assert.equal(h.document.querySelector(".los-home-volume strong").textContent,"40%");h.click("[data-settings-mute]");assert.equal(state.volume,0);h.click("[data-settings-mute]");assert.equal(state.volume,.4);h.click("[data-settings-mic]");assert.equal(state.voiceOn,false);assert.match(h.document.querySelector(".los-build-info").textContent,/6\.37/);h.click(".los-home-dialog [data-close]");assert.equal(h.document.querySelector(".los-home-dialog"),null)
 }));
 
 test("multiplayer Continue opens content packs before the dedicated roster page",()=>{
@@ -472,24 +524,24 @@ test("unfinished setup data never creates a Home Resume Game control",()=>{
 });
 
 test("multiple final guesses retain the full timer and a later correct answer scores once",withHarness(h=>{
- const state=activeTimedQuestion(h);state.game.current={q:"What planet?",a:"Mars"};h.timers.advance(8000);assert.equal(state.game.questionRemaining,7);h.speak("Venus",{final:true});assert.equal(state.screen,"question");assert.equal(state.game.answered,false);assert.equal(state.game.players[0].strikes,0);h.speak("Jupiter",{final:true});assert.equal(state.game.speechLog.length,2);h.timers.advance(4000);assert.equal(state.game.questionRemaining,3);h.speak("Mars",{final:true});assert.equal(state.screen,"result");assert.equal(state.game.players[0].correct,1);assert.equal(state.game.players[0].strikes,0);assert.equal(state.game.lastSpeechLog.length,3)
+ const state=activeTimedQuestion(h);state.game.current={q:"What planet?",a:"Mars"};h.timers.advance(11000);assert.equal(state.game.questionRemaining,7);h.speak("Venus",{final:true});assert.equal(state.screen,"question");assert.equal(state.game.answered,false);assert.equal(state.game.players[0].strikes,0);h.speak("Jupiter",{final:true});assert.equal(state.game.speechLog.length,2);h.timers.advance(4000);assert.equal(state.game.questionRemaining,3);h.speak("Mars",{final:true});assert.equal(state.screen,"result");assert.equal(state.game.players[0].correct,1);assert.equal(state.game.players[0].strikes,0);assert.equal(state.game.lastSpeechLog.length,3)
 }));
 
 test("background speech and interim transcripts cannot end a turn",withHarness(h=>{
- const state=activeTimedQuestion(h);state.game.current={q:"What planet?",a:"Mars"};const remaining=state.game.questionRemaining;h.speak("the television is talking over there",{final:false});assert.equal(state.game.speechLog.length,0);h.speak("the television is talking over there",{final:true});assert.equal(state.screen,"question");assert.equal(state.game.answered,false);assert.equal(state.game.players[0].strikes,0);h.timers.advance(1000);assert.equal(state.game.questionRemaining,remaining-1);h.speak("Mars",{final:true});assert.equal(state.game.players[0].correct,1)
+ const state=activeTimedQuestion(h);state.game.current={q:"What planet?",a:"Mars"};h.timers.advance(3000);const remaining=state.game.questionRemaining;h.speak("the television is talking over there",{final:false});assert.equal(state.game.speechLog.length,0);h.speak("the television is talking over there",{final:true});assert.equal(state.screen,"question");assert.equal(state.game.answered,false);assert.equal(state.game.players[0].strikes,0);h.timers.advance(1000);assert.equal(state.game.questionRemaining,remaining-1);h.speak("Mars",{final:true});assert.equal(state.game.players[0].correct,1)
 }));
 
 test("timeout and explicit Pass or Skip create only one unsuccessful outcome",()=>{
- for(const phrase of ["Pass","I pass","Pass this","Skip","Skip it","Skip this one"]){const h=createHarness();try{const state=activeTimedQuestion(h);state.game.current={q:"What planet?",a:"Mars"};h.speak(phrase,{final:false});assert.equal(state.screen,"question",phrase);h.speak(phrase,{final:true});assert.equal(state.screen,"result",phrase);assert.equal(state.game.players[0].strikes,1,phrase);h.speak(phrase,{final:true});assert.equal(state.game.players[0].strikes,1,phrase)}finally{h.close()}}
- const timeout=createHarness();try{const state=activeTimedQuestion(timeout);state.game.current={q:"What planet?",a:"Mars"};timeout.speak("Venus");timeout.speak("Jupiter");timeout.timers.advance(15000);assert.equal(state.screen,"result");assert.equal(state.game.players[0].strikes,1);assert.equal(state.game.players[0].timeout,1);assert.equal(timeout.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().audio.buzzerFired,true)}finally{timeout.close()}
+ for(const phrase of ["Pass","I pass","Pass this","Pass it","Skip","Skip it","Skip this","Skip this one"]){const h=createHarness();try{const state=activeTimedQuestion(h);state.game.current={q:"What planet?",a:"Mars"};const r=h.recognition();r.emit(phrase,{final:false});assert.equal(state.screen,"result",phrase);assert.equal(state.game.players[0].strikes,1,phrase);r.emit(phrase,{final:true});assert.equal(state.game.players[0].strikes,1,phrase)}finally{h.close()}}
+ const timeout=createHarness();try{const state=activeTimedQuestion(timeout);state.game.current={q:"What planet?",a:"Mars"};timeout.speak("Venus");timeout.speak("Jupiter");timeout.timers.advance(18000);assert.equal(state.screen,"result");assert.equal(state.game.players[0].strikes,1);assert.equal(state.game.players[0].timeout,1);assert.equal(timeout.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().audio.buzzerFired,true)}finally{timeout.close()}
 });
 
 test("proper-name pronunciation tolerance remains identity precise",withHarness(h=>{
  for(const [heard,answer] of [["Arita Franklin","Aretha Franklin"],["Denzel Washingten","Denzel Washington"],["Lionel Messy","Lionel Messi"],["Frida Kalo","Frida Kahlo"],["Jose Marti","José Martí"]])assert.equal(h.api.accepted(heard,{a:answer}),true,`${heard} → ${answer}`);for(const heard of ["Franklin Roosevelt","Aretha","Franklin"])assert.equal(h.api.accepted(heard,{a:"Aretha Franklin"}),false,heard)
 }));
 
-test("Pause button and keyboard freeze audio, recognition ownership, and exact remaining time",withHarness(h=>{
- const state=activeTimedQuestion(h);h.timers.advance(4000);const remaining=state.game.questionRemaining;h.click("#pause");assert.equal(state.screen,"paused");assert.equal(h.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().audio.tick,"off");assert.equal(h.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().answerListening,false);h.timers.advance(20000);assert.equal(state.game.questionRemaining,remaining);h.click("#resume");assert.equal(state.screen,"question");assert.equal(state.game.questionRemaining,remaining);h.window.dispatchEvent(new h.window.KeyboardEvent("keydown",{key:"p",bubbles:true,cancelable:true}));assert.equal(state.screen,"paused");h.timers.advance(5000);assert.equal(state.game.questionRemaining,remaining);h.speak("resume",{final:true});assert.equal(state.screen,"question");h.timers.advance(1000);assert.equal(state.game.questionRemaining,remaining-1)
+test("visible and voice Pause freeze audio recognition and exact remaining time",withHarness(h=>{
+ const state=activeTimedQuestion(h);h.timers.advance(4000);const remaining=state.game.questionRemaining;h.click("#pause");assert.equal(state.screen,"paused");assert.equal(h.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().audio.tick,"off");assert.equal(h.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().answerListening,false);h.timers.advance(20000);assert.equal(state.game.questionRemaining,remaining);h.click("#resume");assert.equal(state.screen,"question");assert.equal(state.game.questionRemaining,remaining);h.window.dispatchEvent(new h.window.KeyboardEvent("keydown",{key:"p",bubbles:true,cancelable:true}));assert.equal(state.screen,"question");h.speak("pause",{final:true});assert.equal(state.screen,"paused");h.timers.advance(5000);assert.equal(state.game.questionRemaining,remaining);h.speak("resume",{final:true});assert.equal(state.screen,"question");h.timers.advance(1000);assert.equal(state.game.questionRemaining,remaining-1)
 }));
 
 test("Player-Up diagnostics prove one render generation for each turn",withHarness(h=>{
@@ -510,7 +562,7 @@ test("one visible Player-Up presentation contains the only countdown",withHarnes
 }));
 
 test("answer diagnostics explain exact, rejected, resumed, and near-timeout recognition",withHarness(h=>{
- const state=activeTimedQuestion(h);state.game.current={id:"trace-1",q:"What planet?",a:"Mars",accept:["the planet Mars"],es:["Marte"],alts:["Mars planet"]};h.speak("Venus",{final:true});let trace=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.answers().at(-1);assert.equal(trace.accepted,false);assert.equal(trace.rejectionReason,"no-controlled-concept-or-identity-match");assert.equal(trace.questionId,"trace-1");assert.equal(trace.acceptedSpanish.length,1);assert.equal(trace.acceptedSpanish[0],"Marte");h.timers.advance(13000);assert.equal(state.game.questionRemaining,2);h.speak("Mars",{final:true});trace=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.answers().at(-1);assert.equal(trace.accepted,true);assert.equal(trace.matchMethod,"exact-canonical");assert.equal(state.game.players[0].correct,1)
+ const state=activeTimedQuestion(h);state.game.current={id:"trace-1",q:"What planet?",a:"Mars",accept:["the planet Mars"],es:["Marte"],alts:["Mars planet"]};h.speak("Venus",{final:true});let trace=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.answers().at(-1);assert.equal(trace.accepted,false);assert.equal(trace.rejectionReason,"no-controlled-concept-or-identity-match");assert.equal(trace.questionId,"trace-1");assert.equal(trace.acceptedSpanish.length,1);assert.equal(trace.acceptedSpanish[0],"Marte");h.timers.advance(16000);assert.equal(state.game.questionRemaining,2);h.speak("Mars",{final:true});trace=h.window.__LOS_PLAYTEST_DIAGNOSTICS__.answers().at(-1);assert.equal(trace.accepted,true);assert.equal(trace.matchMethod,"exact-canonical");assert.equal(state.game.players[0].correct,1)
 }));
 
 test("controlled same-meaning answers accept identity equivalents and reject related concepts",withHarness(h=>{
@@ -657,7 +709,7 @@ test("Build 6.36 hides Host style while preserving legacy values and neutral def
 }));
 
 test("physical Read Questions controls persist and govern actual question narration",()=>{
- for(const enabled of [false,true]){const pending=[],provider={available:true,calls:[],play(cue){this.calls.push(cue);return new Promise(resolve=>pending.push(resolve))},cancel(){pending.splice(0).forEach(resolve=>resolve())},setVolume(){}},h=createHarness({hostProvider:provider});try{const state=h.api.getState();state.screen="setup";state.voiceOn=true;state.readQuestions=!enabled;state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];h.api.setup();h.click(enabled?"#readQuestionsOn":"#readQuestionsOff");assert.equal(state.readQuestions,enabled);assert.equal(h.window.localStorage.getItem("los5_read_questions"),String(enabled));assert.equal(h.document.getElementById(enabled?"readQuestionsOn":"readQuestionsOff").getAttribute("aria-pressed"),"true");assert.equal(state.voiceOn,true);h.api.startGame();h.api.question();assert.equal(provider.calls.some(x=>x.event==="questionRead"),enabled);assert.equal(h.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().answerTimer,enabled?"stopped":"running")}finally{h.close()}}
+ for(const enabled of [false,true]){const pending=[],provider={available:true,calls:[],play(cue){this.calls.push(cue);return new Promise(resolve=>pending.push(resolve))},cancel(){pending.splice(0).forEach(resolve=>resolve())},setVolume(){}},h=createHarness({hostProvider:provider});try{const state=h.api.getState();state.screen="setup";state.voiceOn=true;state.readQuestions=!enabled;state.players=[{id:"p1",name:"Alex"},{id:"p2",name:"Blair"}];h.api.setup();h.click(enabled?"#readQuestionsOn":"#readQuestionsOff");assert.equal(state.readQuestions,enabled);assert.equal(h.window.localStorage.getItem("los5_read_questions"),String(enabled));assert.equal(h.document.getElementById(enabled?"readQuestionsOn":"readQuestionsOff").getAttribute("aria-pressed"),"true");assert.equal(state.voiceOn,true);h.api.startGame();h.api.question();assert.equal(provider.calls.some(x=>x.event==="questionRead"),enabled);assert.equal(h.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().answerTimer,"stopped");if(!enabled){h.timers.advance(3000);assert.equal(h.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().answerTimer,"running")}}finally{h.close()}}
 });
 
 test("Stage 6.15 production flow preserves every major screen in sequence",withHarness(h=>{
@@ -777,11 +829,11 @@ test("rejected answer diagnostics expose normalized input concepts aliases rules
 }));
 
 test("speech begun before zero can finalize after zero exactly once",withHarness(h=>{
- const state=activeTimedQuestion(h),r=h.recognition();state.game.current={id:"late-20",q:"What comes next: 4, 8, 12, 16?",a:"20"};h.timers.advance(14000);r.speechStart();h.timers.advance(1000);assert.equal(state.screen,"question");assert.equal(state.game.questionRemaining,0);r.emit("20",{final:true});assert.equal(state.screen,"result");assert.equal(state.game.players[0].correct,1);assert.equal(state.game.players[0].timeout,0);assert.equal(h.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().audio.buzzerFired,false);r.emit("20",{final:true});h.timers.advance(1500);assert.equal(state.game.players[0].correct,1);assert.equal(state.game.players[0].timeout,0)
+ const state=activeTimedQuestion(h),r=h.recognition();state.game.current={id:"late-20",q:"What comes next: 4, 8, 12, 16?",a:"20"};h.timers.advance(17000);r.speechStart();h.timers.advance(1000);assert.equal(state.screen,"question");assert.equal(state.game.questionRemaining,0);r.emit("20",{final:true});assert.equal(state.screen,"result");assert.equal(state.game.players[0].correct,1);assert.equal(state.game.players[0].timeout,0);assert.equal(h.window.__LOS_PLAYTEST_DIAGNOSTICS__.snapshot().audio.buzzerFired,false);r.emit("20",{final:true});h.timers.advance(1500);assert.equal(state.game.players[0].correct,1);assert.equal(state.game.players[0].timeout,0)
 }));
 
 test("speech begun after zero cannot use another utterance's grace window",withHarness(h=>{
- const state=activeTimedQuestion(h),r=h.recognition();state.game.current={id:"late-start",q:"What comes next: 4, 8, 12, 16?",a:"20"};h.timers.advance(14000);r.speechStart();h.timers.advance(1000);r.speechStart();r.emit("20",{final:true});assert.equal(state.screen,"question");assert.equal(state.game.players[0].correct,0);h.timers.advance(1200);assert.equal(state.screen,"result");assert.equal(state.game.players[0].timeout,1);assert.equal(state.game.players[0].correct,0)
+ const state=activeTimedQuestion(h),r=h.recognition();state.game.current={id:"late-start",q:"What comes next: 4, 8, 12, 16?",a:"20"};h.timers.advance(17000);r.speechStart();h.timers.advance(1000);r.speechStart();r.emit("20",{final:true});assert.equal(state.screen,"question");assert.equal(state.game.players[0].correct,0);h.timers.advance(1200);assert.equal(state.screen,"result");assert.equal(state.game.players[0].timeout,1);assert.equal(state.game.players[0].correct,0)
 }));
 
 test("normal setup visibly requires the hierarchical multi-select Game Mix step",withHarness(h=>{

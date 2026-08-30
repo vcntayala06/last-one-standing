@@ -50,7 +50,7 @@ test("recovery button availability reflects Voice, API, Host, and permission sta
 });
 
 test("manual recovery preserves the running question timer and never scores by itself",()=>{
- const h=createHarness();try{const state=activeQuestion(h);h.timers.advance(2000);const remaining=state.game.questionRemaining,player=state.game.players[0];h.click("#retryMic");assert.equal(state.game.questionRemaining,remaining);assert.equal(player.correct,0);assert.equal(player.wrong,0);assert.equal(player.strikes,0);h.timers.advance(1000);assert.equal(state.game.questionRemaining,remaining-1)}finally{h.close()}
+ const h=createHarness();try{const state=activeQuestion(h);h.timers.advance(3000);assert.equal(state.game.questionRemaining,state.questionSeconds);h.timers.advance(2000);const remaining=state.game.questionRemaining,player=state.game.players[0];h.click("#retryMic");assert.equal(state.game.questionRemaining,remaining);assert.equal(player.correct,0);assert.equal(player.wrong,0);assert.equal(player.strikes,0);h.timers.advance(1000);assert.equal(state.game.questionRemaining,remaining-1)}finally{h.close()}
 });
 
 test("a rejected transcript remains transcript activity rather than microphone failure",()=>{

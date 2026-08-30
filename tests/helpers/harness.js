@@ -121,10 +121,10 @@ function instrument(source) {
   if (at < 0) throw new Error("Unable to instrument app.js");
   const exposure = `\nObject.assign(globalThis.__LOS_TEST__, {\n` +
     ` getState:()=>state, setState:patch=>Object.assign(state,patch), getRecognition:()=>recognition, getVoiceDiagnostics:()=>voiceCore.diagnostics.slice(),\n` +
-    ` routeVoiceCentral, centralQuestionIntent, accepted, answerMatchTrace, question, finish, startGame,\n` +
+    ` routeVoiceCentral, centralQuestionIntent, accepted, answerMatchTrace, typedAnswerMatchTrace, question, finish, startGame,\n` +
     ` setup, packs, continueFromPacks, startUnifiedGame, players, playersContinue, fun, time, pauseGame, resumeGame, confirmEnd, leaveGame,\n` +
     ` setVolume, go, back, home, mode, selectMode, industry, difficulty, ready, handoff, result, pickQuestion, showdownIntro, champion, replayGame, advance,\n` +
-    ` startVoice, stopVoice, saveActiveGame, loadActiveGame, resumeSavedGame, clearActiveGame, saveSetupState, loadSetupState, clearSetupState,\n` +
+    ` startVoice, stopVoice, questionPassCommand, performQuestionPass, isEditableKeyboardContext, selectSavedProfileForGame, selectSavedPlayerByVoice, saveActiveGame, loadActiveGame, resumeSavedGame, clearActiveGame, saveSetupState, loadSetupState, clearSetupState,\n` +
     ` EXTRA_CATEGORIES, QUESTIONS, QUESTION_BANK, HOST_LINES, GameAudio, transition, getHostSystem:()=>hostSystem\n` +
     `});\n`;
   return source.slice(0, at) + exposure + source.slice(at);
