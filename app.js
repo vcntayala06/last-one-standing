@@ -317,7 +317,7 @@ function clearRuntime(){clearPendingPlayersNavigation();clearPendingAnswerCandid
 function isSetupScreen(){return ["setup","packs","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen)}
 function exitSetup(){if(state.game)return;markSetupAbandoned(state.screen);state.game=null;home()}
 function bindSetupShell(){document.querySelectorAll("[data-setup-exit]").forEach(button=>button.onclick=exitSetup)}
-function micToggleMarkup(extra=""){return `<button type="button" class="btn persistent-mic ${state.voiceOn?"is-on":"is-off"} ${extra}" data-mic-toggle aria-pressed="${state.voiceOn}" aria-label="${state.voiceOn?"Turn microphone off":"Turn microphone on"}"><span aria-hidden="true">◉</span><strong>MIC ${state.voiceOn?"ON":"OFF"}</strong></button>`}
+function micToggleMarkup(extra=""){return `<button type="button" class="btn persistent-mic ${state.voiceOn?"is-on":"is-off"} ${extra}" data-mic-toggle aria-pressed="${state.voiceOn}" aria-label="${state.voiceOn?"Turn microphone off":"Turn microphone on"}"><svg class="los-mic-icon" aria-hidden="true" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="13" rx="4" fill="currentColor"/><path d="M5.5 11.5v.8a6.5 6.5 0 0 0 13 0v-.8M12 19v3M8.5 22h7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><strong>MIC ${state.voiceOn?"ON":"OFF"}</strong><span class="los-mic-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></button>`}
 function syncMicControls(){document.querySelectorAll("[data-mic-toggle]").forEach(button=>{button.classList.toggle("is-on",state.voiceOn);button.classList.toggle("is-off",!state.voiceOn);button.setAttribute("aria-pressed",String(state.voiceOn));button.setAttribute("aria-label",state.voiceOn?"Turn microphone off":"Turn microphone on");const label=button.querySelector("strong");if(label)label.textContent=`MIC ${state.voiceOn?"ON":"OFF"}`})}
 function setVoiceEnabled(on,{rerenderQuestion=true}={}){state.voiceOn=!!on;localStorage.setItem(STORAGE.voice,String(state.voiceOn));voiceCore.retryAttempt=0;if(state.voiceOn){voiceCore.permissionBlocked=false;startVoice(state.screen)}else stopVoice("user-mic-off");syncMicControls();if(state.screen==="question"&&rerenderQuestion&&state.game&&!state.game.answered)question(true);return state.voiceOn}
 document.addEventListener("click",event=>{const button=event.target.closest?.("[data-mic-toggle]");if(button){event.preventDefault();setVoiceEnabled(!state.voiceOn)}})
@@ -1463,8 +1463,27 @@ function startGame(){
 }
 function activePlayers(){return state.game.players.filter(p=>!p.eliminated)}
 function nextActive(from){const g=state.game;for(let i=1;i<=g.players.length;i++){const x=(from+i)%g.players.length;if(!g.players[x].eliminated)return x}return from}
+const LOS_VISUAL_COORDINATES=Object.freeze({
+ handoff:{avatar:[[.037,.032,.132,.132],[.058,.024,.222,.222],[.046,.026,.108,.108]],identity:[[.152,.046,.255,.14],[.28,.038,.32,.10],[.125,.042,.24,.15]],mic:[[.777,.082,.18,.085],[.606,.054,.34,.054],[.795,.087,.157,.092]],name:[[.28,.52,.44,.21],[.17,.555,.66,.115],[.28,.52,.44,.21]],timer:[[.438,.723,.124,.22],[.3825,.67,.235,.235],[.445,.716,.11,.26]],pause:[[.87,.19,.09,.06],[.72,.12,.23,.055],[.88,.20,.075,.07]]},
+ question:{avatar:[[.052,.111,.028,.052],[.033,.113,.055,.031],[.059,.101,.025,.059]],identity:[[.052,.109,.18,.064],[.033,.111,.217,.034],[.059,.098,.148,.067]],mic:[[.784,.0925,.176,.082],[.717,.126,.256,.042],[.809,.084,.143,.085]],questionText:[[.167,.306,.666,.30],[.167,.276,.666,.338],[.20,.30,.60,.27]],timer:[[.4486,.7535,.1047,.1892],[.4049,.7428,.1753,.1017],[.453,.743,.0762,.179]],answerField:[[.1884,.6504,.6232,.0903],[.1711,.6914,.6536,.0461],[.2035,.6346,.5887,.095]],pass:[[.1872,.7705,.2321,.102],[.1679,.756,.2232,.0598],[.2067,.752,.2276,.109]],lockIn:[[.5766,.7705,.238,.102],[.6004,.756,.2295,.0598],[.5506,.752,.2422,.109]],pause:[[.88,.19,.075,.06],[.72,.17,.23,.045],[.90,.18,.06,.06]]},
+ finalQuestion:{avatar:[[.037,.032,.132,.132],[.055,.022,.22,.22],[.046,.026,.108,.108]],identity:[[.152,.046,.255,.14],[.28,.04,.33,.10],[.125,.042,.24,.15]],mic:[[.777,.082,.18,.085],[.615,.05,.34,.055],[.795,.087,.157,.092]],questionText:[[.22,.43,.56,.20],[.21,.47,.58,.17],[.22,.43,.56,.20]],answerField:[[.215,.665,.57,.095],[.23,.662,.54,.076],[.255,.665,.478,.095]],pass:[[.215,.797,.25,.105],[.22,.754,.26,.084],[.255,.798,.205,.103]],lockIn:[[.528,.797,.26,.105],[.52,.754,.26,.084],[.515,.798,.217,.103]],pause:[[.87,.19,.09,.06],[.72,.11,.23,.055],[.88,.20,.075,.07]]},
+ result:{avatar:[[.037,.032,.132,.132],[.055,.022,.22,.22],[.046,.026,.108,.108]],identity:[[.152,.046,.255,.14],[.28,.04,.33,.10],[.125,.042,.24,.15]],mic:[[.777,.082,.18,.085],[.615,.05,.34,.055],[.795,.087,.157,.092]],answer:[[.198,.619,.605,.149],[.139,.649,.722,.113],[.198,.619,.605,.149]],pause:[[.87,.19,.09,.06],[.72,.11,.23,.055],[.88,.20,.075,.07]]},
+ standings:{mic:[[.777,.082,.18,.085],[.615,.05,.34,.055],[.795,.087,.157,.092]],rows:[[.262,.408,.475,.353],[.172,.448,.655,.302],[.262,.408,.475,.353]],next:[[.356,.811,.288,.07],[.273,.908,.454,.05],[.356,.811,.288,.07]],pause:[[.87,.19,.09,.06],[.72,.11,.23,.055],[.88,.20,.075,.07]]},
+ eliminated:{mic:[[.777,.082,.18,.085],[.615,.05,.34,.055],[.795,.087,.157,.092]],name:[[.212,.408,.576,.20],[.164,.435,.672,.18],[.212,.408,.576,.20]],pause:[[.87,.19,.09,.06],[.72,.11,.23,.055],[.88,.20,.075,.07]]},
+ matchup:{mic:[[.777,.082,.18,.085],[.615,.05,.34,.055],[.795,.087,.157,.092]],players:[[.177,.446,.646,.279],[.105,.509,.79,.275],[.177,.446,.646,.279]],pause:[[.87,.19,.09,.06],[.72,.11,.23,.055],[.88,.20,.075,.07]]},
+ winner:{mic:[[.83,.03,.15,.07],[.62,.03,.34,.05],[.83,.03,.15,.07]],avatar:[[.38,.40,.24,.427],[.27,.41,.46,.233],[.38,.40,.24,.427]],name:[[.32,.39,.36,.48],[.17,.39,.66,.46],[.32,.39,.36,.48]],back:[[.37,.895,.26,.08],[.23,.90,.54,.07],[.37,.895,.26,.08]]},
+ pause:{mic:[[.82,.02,.16,.08],[.61,.03,.35,.05],[.82,.02,.16,.08]],resume:[[.28,.47,.44,.12],[.15,.51,.70,.10],[.28,.47,.44,.12]],leave:[[.28,.62,.44,.12],[.15,.64,.70,.10],[.28,.62,.44,.12]],end:[[.28,.77,.44,.12],[.15,.77,.70,.10],[.28,.77,.44,.12]]}
+});
+function losCoordinate(screen,region,extraStyle=""){const points=LOS_VISUAL_COORDINATES[screen]?.[region];if(!points)return"";const names=["l","p","u"],vars=points.flatMap((box,i)=>box.map((value,j)=>`--los-${names[i]}-${["x","y","w","h"][j]}:${value*100}%`)).join(";");return`los-coordinate-region" style="${vars}${extraStyle?`;${extraStyle}`:""}"`}
+function gameplayArtPlate(){return `<div class="los-gameplay-plate" aria-hidden="true"></div>`}
+function gameplayPauseMarkup(screen="question"){return `<button id="pause" type="button" class="los-gameplay-pause ${losCoordinate(screen,"pause")}" aria-label="Pause game">PAUSE</button>`}
+function gameplayArtHeader(p,micClass="los-gameplay-mic",screen="question"){
+ const name=String(p?.name||"PLAYER"),nameSize=name.length>24?"name-long":"name-regular";
+ if(screen==="question")return `<div class="los-question-player-box ${losCoordinate(screen,"identity")}"><div class="los-question-player-avatar">${avatarArt(p?.avatar)}</div><div class="los-question-player-name-wrap"><strong class="${nameSize}">${esc(name)}</strong></div></div>${micToggleMarkup(`${micClass} ${losCoordinate(screen,"mic")}`)}${gameplayPauseMarkup(screen)}`;
+ return `<div class="los-gameplay-avatar ${losCoordinate(screen,"avatar")}">${avatarArt(p?.avatar)}</div><div class="los-gameplay-identity ${losCoordinate(screen,"identity")}"><span>PLAYER</span><strong class="${nameSize}">${esc(name)}</strong></div>${micToggleMarkup(`${micClass} ${losCoordinate(screen,"mic")}`)}${gameplayPauseMarkup(screen)}`
+}
 function gamebar(showName=true){
- const p=state.game.players[state.game.idx];return `<header class="game-topbar"><div class="controls"><button id="pause" class="btn">PAUSE</button></div>${showName?`<div class="game-player">${esc(p.name)}</div>`:""}<div class="topbar-tools">${micToggleMarkup("game-mic")}</div></header>`
+ const p=state.game.players[state.game.idx];return `<header class="game-topbar"><div class="controls"></div>${showName?`<div class="game-player">${esc(p.name)}</div>`:""}<div class="topbar-tools">${micToggleMarkup("game-mic")}</div></header>`
 }
 function bindGamebar(){document.getElementById("pause").onclick=pauseGame}
 function handoff(){
@@ -1474,7 +1493,7 @@ function playerUpCountdown(playerId,opening=false){
  clearRuntime();const session=enterScreen("handoff","turn-handoff","internal-game-event"),g=state.game,p=g.players.find(x=>x.id===playerId)||g.players[g.idx];GameAudio.playSfx("lockIn",{eventId:`lock-in-handoff:${session}:${p.id}`});
  const renderGeneration=++playerUpRenderGeneration,renderDiagnostic={phase:"message",screen:"player-up",renderGeneration,runtimeSession:session,activePlayer:p.name,playerId:p.id,at:Date.now(),previousScreen:transitionDiagnostics.at(-1)?.from||null,domText:"",visible:true};playerUpDiagnostics.push(renderDiagnostic);if(playerUpDiagnostics.length>150)playerUpDiagnostics.shift();if(transitionDebugEnabled)console.debug("[LOS player-up]",renderDiagnostic);
  const nameSize=p.name.length>24?"name-long":"name-regular";
- app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(false)}<div class="handoff"><div class="handoff-intro" id="playerUpMessage"><div class="handoff-player-name ${nameSize}">${esc(p.name)}</div><div class="handoff-hype">YOU’RE UP!</div><div class="handoff-sub">${g.showdown?"FINAL SHOWDOWN":""}</div></div><div id="handoffCount" class="handoff-count urgent" aria-live="polite"></div></div></div></section>`;
+ app.innerHTML=`<section class="screen los-player-up-screen"><div class="los-player-up-plate" aria-hidden="true"></div>${gameplayPauseMarkup("handoff")}<div class="los-player-up-avatar ${losCoordinate("handoff","avatar")}">${avatarArt(p.avatar)}</div><div class="los-player-up-identity ${losCoordinate("handoff","identity")}"><span>PLAYER</span><strong class="${nameSize}">${esc(p.name)}</strong></div>${micToggleMarkup(`los-player-up-mic ${losCoordinate("handoff","mic")}`)}<div class="handoff los-player-up-live"><div class="handoff-intro ${losCoordinate("handoff","name")}" id="playerUpMessage"><div class="handoff-hype sr-only">YOU’RE UP!</div><div class="handoff-player-name ${nameSize}">${esc(p.name)}</div><div class="handoff-sub sr-only">${g.showdown?"FINAL SHOWDOWN":""}</div></div><div class="los-player-up-timer ${losCoordinate("handoff","timer")}"><div id="handoffCount" class="handoff-count urgent" aria-live="polite"></div><span>SEC</span></div></div></section>`;
  const playerUpMessage=document.getElementById("playerUpMessage");renderDiagnostic.domText=playerUpMessage?.innerText||playerUpMessage?.textContent||"";bindGamebar();startVoice("handoff");
  const enteredAt=Date.now(),postHostBeatMs=450,minFallbackVisibleMs=1200;
  let countdownStarted=false,countdownScheduled=false,advanced=false;
@@ -1525,21 +1544,25 @@ function question(resumeCurrent=false){
  let rem=remStart;
  g.questionRemaining=rem;g.questionStartedWith=remStart;
  const questionSize=g.current.q.length>90?"question-long":g.current.q.length>55?"question-medium":"question-short";
- app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(true)}<div class="question-area"><div class="question-text ${questionSize}">${esc(g.current.q)}</div>
-     <div class="question-inputs">${state.voiceOn&&speechSupported()?`<button id="retryMic" class="btn mic-retry" type="button">TRY MIC AGAIN</button>`:""}<div class="keyboard-answer"><input id="typedAnswer" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="TYPE YOUR ANSWER" aria-label="TYPE YOUR ANSWER"><button id="lockAnswer" class="btn primary">LOCK IN</button></div></div><div id="answerAttemptFeedback" class="answer-attempt-feedback" aria-live="polite"></div><div id="timer" class="timer ${rem<=5?"urgent":""}" style="--timer-progress:${rem/remStart}" aria-label="${rem} seconds remaining">${rem}</div></div></div></section>`;
+ const questionArtClass=g.showdown?"los-final-question-art":"los-question-art",voiceClass=state.voiceOn?"los-voice-on":"los-voice-off";
+ const coordinateScreen=g.showdown?"finalQuestion":"question";
+ app.innerHTML=`<section class="screen los-gameplay-art-screen ${questionArtClass} ${voiceClass}">${gameplayArtPlate()}${gameplayArtHeader(g.players[g.idx],"los-gameplay-mic",coordinateScreen)}<div class="game-shell">${gamebar(true)}<div class="question-area"><div class="question-text ${questionSize} ${losCoordinate(coordinateScreen,"questionText")}">${esc(g.current.q)}</div>
+     <div class="question-inputs ${losCoordinate(coordinateScreen,"answerField")}">${state.voiceOn&&speechSupported()?`<button id="retryMic" class="btn mic-retry" type="button">TRY MIC AGAIN</button>`:""}<div class="keyboard-answer"><input id="typedAnswer" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="TYPE YOUR ANSWER" aria-label="TYPE YOUR ANSWER"></div></div><button id="passAnswer" type="button" class="los-question-art-control los-pass-control ${losCoordinate(coordinateScreen,"pass")}" aria-label="Pass question"><span class="sr-only">PASS</span></button><button id="lockAnswer" type="button" class="los-question-art-control los-lock-control ${losCoordinate(coordinateScreen,"lockIn")}" aria-label="Lock it in"><span class="sr-only">LOCK IT IN</span></button><div id="answerAttemptFeedback" class="answer-attempt-feedback" aria-live="polite"></div><div id="timer" class="timer ${rem<=5?"urgent":""} ${losCoordinate(coordinateScreen,"timer",`--timer-progress:${rem/remStart}`)}" aria-label="${rem} seconds remaining"><span class="los-timer-value">${rem}</span></div></div></div></section>`;
  bindGamebar();
+ if(!g.showdown){const playerField=document.querySelector(".los-question-art .los-question-player-name-wrap"),playerName=playerField?.querySelector("strong");fitFocalText(playerName,{container:playerField,minPx:12,multiline:false});if(typeof requestAnimationFrame==="function")requestAnimationFrame(()=>{if(state.screen==="question")fitFocalText(playerName,{container:playerField,minPx:12,multiline:false})})}
  fitQuestionText();if(typeof requestAnimationFrame==="function")requestAnimationFrame(()=>{if(state.screen==="question")fitQuestionText()});
  const retryMic=document.getElementById("retryMic");if(retryMic){retryMic.onclick=manualRecoverVoice;updateRetryMicAvailability()}
- const input=document.getElementById("typedAnswer"),lock=document.getElementById("lockAnswer");answerListening=true;startVoice("question");
+ const input=document.getElementById("typedAnswer"),lock=document.getElementById("lockAnswer"),pass=document.getElementById("passAnswer");answerListening=true;startVoice("question");
  const submitTyped=()=>{const v=input?.value?.trim();if(!v||g.answered)return;const command=questionPassCommand(v);if(command){input.value="";performQuestionPass(command);return}const match=typedAnswerMatchTrace(v,g.current);if(match.accepted){recordAnswerAttempt(v,true,1,true,match);finish("correct")}else{recordAnswerAttempt(v,false,1,true,match);input.value=""}};
  if(lock)lock.onclick=submitTyped;
+ if(pass)pass.onclick=()=>performQuestionPass("pass");
  if(input)input.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();submitTyped()}});
  let clockStarted=false;const startClock=()=>{
   if(clockStarted||state.screen!=="question"||runtimeSessionId!==session||g.answered)return;clockStarted=true;questionReading=false;audioDiagnostics.buzzerFired=false;GameAudio.playSfx("questionStart",{eventId:`question-start:${questionSessionId}`});tickSound(rem);
   questionTimer=setInterval(()=>{
    rem--;g.questionRemaining=Math.max(0,rem);
    const t=document.getElementById("timer");
-   if(t){t.textContent=Math.max(0,rem);t.classList.toggle("urgent",rem<=5);t.style.setProperty("--timer-progress",String(Math.max(0,rem)/remStart));t.setAttribute("aria-label",`${Math.max(0,rem)} seconds remaining`)}
+   if(t){const value=t.querySelector(".los-timer-value");if(value)value.textContent=Math.max(0,rem);else t.textContent=Math.max(0,rem);t.classList.toggle("urgent",rem<=5);t.style.setProperty("--timer-progress",String(Math.max(0,rem)/remStart));t.setAttribute("aria-label",`${Math.max(0,rem)} seconds remaining`)}
    if(rem>0)tickSound(rem);
    if(rem<=0){clearInterval(questionTimer);questionTimer=null;const pending=state.voiceOn&&voiceCore.answerUtterance?.startedBeforeDeadline&&voiceCore.answerUtterance.questionSessionId===questionSessionId;if(pending){voiceDiagnostic("answer-finalization-grace-started",{questionSessionId,durationMs:1200,utterance:voiceCore.answerUtterance.id});answerGraceTimer=setTimeout(()=>{answerGraceTimer=null;if(state.screen==="question"&&!g.answered){answerListening=false;voiceDiagnostic("answer-finalization-grace-expired",{questionSessionId});finish("timeout")}},1200)}else finish("timeout")}
   },1000)
@@ -1569,6 +1592,15 @@ function marks(p){
   :`<span class="strike-empty">—</span>`).join(" ")
 }
 function standings(){return `<div class="standings">${[...state.game.players].sort((a,b)=>(a.eliminated-b.eliminated)||(a.strikes-b.strikes)||(b.correct-a.correct)).map(p=>`<div class="standing-row ${p.eliminated?"out":""}"><strong>${esc(p.name)}</strong><span>✓ ${p.correct}</span><span class="standing-strikes">${marks(p)}</span><span>${p.eliminated?"OUT":"IN"}</span></div>`).join("")}</div>`}
+function currentStandingsMarkup(g){
+ const players=[...g.players].sort((a,b)=>(a.eliminated-b.eliminated)||(a.strikes-b.strikes)||(b.correct-a.correct));
+ return `<div class="standings los-current-standings-live ${losCoordinate("standings","rows")}">${players.map(p=>`<div class="standing-row ${p.eliminated?"out":""}"><strong>${esc(p.name)}</strong><span class="standing-strikes">${Math.min(3,Number(p.strikes)||0)?Array(Math.min(3,Number(p.strikes)||0)).fill("✕").join(" "):"—"}</span></div>`).join("")}</div><div class="los-next-up ${losCoordinate("standings","next")}">${esc(g.players[nextActive(g.idx)]?.name||g.players[g.idx]?.name||"PLAYER")}</div>`
+}
+function showCurrentStandings(g){
+ const screen=document.querySelector(".los-result-art"),body=screen?.querySelector(".result-body");if(!screen||!body)return false;
+ screen.classList.remove("show-eliminated");screen.classList.add("show-standings");
+ body.replaceChildren();body.insertAdjacentHTML("afterbegin",currentStandingsMarkup(g));return true
+}
 function fitFocalText(element,{container=element?.parentElement,minPx=24,multiline=true,fits:customFits=null}={}){
  if(!element||!container)return null;const text=(element.textContent||"").trim(),singleWord=!/\s/.test(text);element.style.removeProperty("font-size");element.classList.remove("focal-emergency-break");element.classList.toggle("focal-single-word",singleWord);element.classList.toggle("focal-multiline",!singleWord&&multiline);
  const maxPx=parseFloat(getComputedStyle(element).fontSize)||minPx,fits=()=>customFits?customFits():element.scrollWidth<=container.clientWidth+1&&element.scrollHeight<=container.clientHeight+1;
@@ -1580,9 +1612,9 @@ function fitQuestionText(){
  return fitFocalText(question,{container:area,minPx:20,multiline:true,fits:()=>{const a=area.getBoundingClientRect(),q=question.getBoundingClientRect(),t=timer.getBoundingClientRect();return question.scrollWidth<=question.clientWidth+1&&q.left>=a.left-1&&q.right<=a.right+1&&q.top>=a.top-1&&q.bottom<=t.top-10}})
 }
 function fitResultAnswer(){
- const body=document.querySelector(".result-body"),answer=document.querySelector(".answer-big");if(!body||!answer)return;
- const tiers=["result-fit-1","result-fit-2","result-fit-3","result-fit-4"],fits=()=>body.scrollHeight<=body.clientHeight+1&&answer.scrollWidth<=answer.clientWidth+1;
- answer.classList.remove(...tiers);const result=fitFocalText(answer,{container:body,minPx:18,multiline:true,fits});answer.dataset.fitTier=String(result?.fontPx<result?.maxPx?1:0);return result
+ const body=document.querySelector(".result-body"),answer=document.querySelector(".answer-big"),panel=answer?.parentElement;if(!body||!answer||!panel)return;
+ const tiers=["result-fit-1","result-fit-2","result-fit-3","result-fit-4"],fits=()=>answer.scrollWidth<=panel.clientWidth+1&&answer.scrollHeight<=panel.clientHeight+1;
+ answer.classList.remove(...tiers);const result=fitFocalText(answer,{container:panel,minPx:18,multiline:true,fits});answer.dataset.fitTier=String(result?.fontPx<result?.maxPx?1:0);return result
 }
 function showHostReaction(event){
  const visibleEvents=new Set(["fastCorrect","tough","streak","categoryRun","comeback","lead","tie","streetKnowledge","movieKnowledge","musicKnowledge","transitKnowledge","disneyKnowledge"]),entry=hostSystem?.history.at(-1);if(!visibleEvents.has(event)||entry?.event!==event||!entry.text||["frequency-skip","no-safe-line"].includes(entry.result))return false;
@@ -1596,19 +1628,22 @@ function result(outcome,resumeDelay=null,revealAnswer=false){
  const label=outcome==="correct"?"CORRECT!":outcome==="pass"?(g.lastOutcomeDetail==="skip"?"SKIP":"PASS"):outcome==="timeout"?"TIME’S UP!":"NOT QUITE";
  const strike=outcome!=="correct", eliminated=strike&&p.eliminated;
  const phase=g.showdown?"FINAL SHOWDOWN":"CURRENT STANDINGS";
- app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(true)}
- <div class="result-body">
+ const resultArt=eliminated?"los-eliminated-art":outcome==="correct"?"los-correct-art":outcome==="timeout"?"los-times-up-art":outcome==="pass"?"show-standings":"los-wrong-art";
+ app.innerHTML=`<section class="screen los-gameplay-art-screen los-result-art ${resultArt}">${gameplayArtPlate()}${gameplayArtHeader(p,"los-gameplay-mic","result")}<div class="game-shell">${gamebar(true)}
+  <div class="result-body">
+    <div class="los-eliminated-live"><strong class="${losCoordinate("eliminated","name")}">${esc(p.name)}</strong><span>${esc(p.name)}</span></div>
    <div class="result-word result-${outcome}">${label}</div>
-   <div class="answer-panel">
+    <div class="answer-panel ${losCoordinate("result","answer")}">
      <div class="answer-label">CORRECT ANSWER</div>
      <div class="answer-big answer-${String(q?.a||"").length>16?"long":String(q?.a||"").length>10?"medium":"short"}">${esc(displayAnswer(q?.a||""))}</div>
    </div>
    ${strike?`<div class="strike-box">${outcome==="wrong"?`<div class="result-impact" aria-hidden="true">×</div>`:""}<div>${eliminated?"THIRD STRIKE — ELIMINATED":"STRIKE"}</div><div class="strike-marks">${marks(p)}</div><div>${eliminated?esc(p.name)+" IS OUT":p.strikes+" OF 3 STRIKES"}</div></div>`:""}
-   <div class="phase-heading">${phase}</div>
-   ${standings()}
+    <div class="phase-heading">${phase}</div>
+    ${standings()}
+    <div class="los-next-up">${esc(g.players[nextActive(g.idx)]?.name||p.name)}</div>
  </div></div></section>`;
- bindGamebar();fitResultAnswer();if(typeof requestAnimationFrame==="function")requestAnimationFrame(()=>{if(state.screen==="result"&&document.querySelector(".answer-big")?.isConnected)fitResultAnswer()});startVoice("result");
- const delay=resumeDelay??(g.showdown?(eliminated?5200:3900):eliminated?5200:strike?4200:3200),scheduleAdvance=()=>{if(state.screen!=="result"||runtimeSessionId!==session)return;resultDelayRemaining=delay;flowTimer=setTimeout(()=>{if(state.screen==="result"&&runtimeSessionId===session)advance()},delay)};
+  bindGamebar();if(outcome==="pass")showCurrentStandings(g);else{fitResultAnswer();if(typeof requestAnimationFrame==="function")requestAnimationFrame(()=>{if(state.screen==="result"&&document.querySelector(".answer-big")?.isConnected)fitResultAnswer()})}startVoice("result");
+  const delay=resumeDelay??(g.showdown?(eliminated?5200:3900):eliminated?5200:strike?4200:3200),scheduleAdvance=()=>{if(state.screen!=="result"||runtimeSessionId!==session)return;resultDelayRemaining=delay;if(!g.showdown){if(eliminated)handoffTimers.push(setTimeout(()=>document.querySelector(".los-result-art")?.classList.add("show-eliminated"),Math.min(1600,delay-1)));handoffTimers.push(setTimeout(()=>showCurrentStandings(g),Math.max(1,delay-1600)))}flowTimer=setTimeout(()=>{if(state.screen==="result"&&runtimeSessionId===session)advance()},delay)};
  g.lastOutcome=outcome;
  if(revealAnswer){hostSystem?.emit("answerReveal",{answer:q?.a||"",name:p.name,mode:state.mode});if(hostSystem?.isSpeaking())hostSystem.whenIdle().then(scheduleAdvance);else scheduleAdvance()}else scheduleAdvance()
 }
@@ -1645,10 +1680,10 @@ function showdownIntro(){
  g.idx=0;g.showdown=true;g.qnum=0;
  const session=enterScreen("showdown","final-showdown","internal-game-event"),enteredAt=Date.now(),minimumVisibleMs=3600;saveActiveGame();
  const secs=Math.max(5,(Number(state.questionSeconds)||15)-5);
- app.innerHTML=`<section class="screen showdown-screen">${micToggleMarkup("showdown-mic")}<div class="showdown-stage">
+   app.innerHTML=`<section class="screen showdown-screen los-gameplay-art-screen los-showdown-matchup-art">${gameplayArtPlate()}${gameplayArtHeader(g.players[0],"showdown-mic","matchup")}<div class="showdown-stage">
    <div class="showdown-kicker">ONLY TWO REMAIN</div>
    <div class="showdown-title">FINAL<br>SHOWDOWN</div>
-   <div class="showdown-vs">
+    <div class="showdown-vs ${losCoordinate("matchup","players")}">
      <div class="finalist-card"><div class="showdown-name">${esc(g.players[0].name)}</div><div class="showdown-strikes"><span class="strike-empty">—</span> <span class="strike-empty">—</span> <span class="strike-empty">—</span></div></div>
      <div class="vs">VS</div>
      <div class="finalist-card"><div class="showdown-name">${esc(g.players[1].name)}</div><div class="showdown-strikes"><span class="strike-empty">—</span> <span class="strike-empty">—</span> <span class="strike-empty">—</span></div></div>
@@ -1666,13 +1701,13 @@ function applause(){
 }
 function champion(p){
  clearRuntime();stopMusic();clearActiveGame();enterScreen("complete","champion","internal-game-event");
- app.innerHTML=`<section class="screen complete-screen"><div class="confetti" id="confetti"></div><div class="complete-stage">
+  app.innerHTML=`<section class="screen complete-screen los-gameplay-art-screen los-winner-art">${gameplayArtPlate()}${micToggleMarkup(`los-winner-mic ${losCoordinate("winner","mic")}`)}<div class="los-winner-avatar ${losCoordinate("winner","avatar")}">${avatarArt(p.avatar)}</div><div class="confetti" id="confetti"></div><div class="complete-stage">
    <div class="complete-kicker champion-los">LAST ONE<br>STANDING</div>
-   <div class="champion-box">
+    <div class="champion-box ${losCoordinate("winner","name")}">
      <div class="champion-name">${esc(p.name)}</div>
      <div class="champion-label">CHAMPION</div>
    </div>
-   <div class="champion-actions"><button id="playAgain" class="btn primary large" data-voice="PLAY AGAIN" aria-label="Play again with the same setup">PLAY AGAIN</button><button id="home" class="btn large" data-voice="HOME" aria-label="Back to Home">HOME</button></div>
+    <div class="champion-actions ${losCoordinate("winner","back")}"><button id="playAgain" class="btn primary large" data-voice="PLAY AGAIN" aria-label="Play again with the same setup">PLAY AGAIN</button><button id="home" class="btn large" data-voice="HOME" aria-label="Back to Home">HOME</button></div>
  </div></section>`;
  document.getElementById("playAgain").onclick=replayGame;document.getElementById("home").onclick=championHome;
  fitFocalText(document.querySelector(".champion-name"),{container:document.querySelector(".champion-box"),minPx:28,multiline:true});if(typeof requestAnimationFrame==="function")requestAnimationFrame(()=>{if(state.screen==="complete")fitFocalText(document.querySelector(".champion-name"),{container:document.querySelector(".champion-box"),minPx:28,multiline:true})});
@@ -1698,7 +1733,7 @@ function confetti(){
  spawn();celebrationTimers.push(setInterval(spawn,900))
 }
 function showPauseOverlay(){
- document.getElementById("pauseOverlay")?.remove();const o=document.createElement("div");o.className="overlay";o.id="pauseOverlay";o.innerHTML=`<div class="pause-card card" role="dialog" aria-modal="true" aria-labelledby="pauseTitle"><div class="pause-title" id="pauseTitle">GAME PAUSED</div><div class="pause-volume"><span>VOLUME</span><input id="pauseVol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="pauseVolPct">${Math.round(state.volume*100)}%</strong></div><button id="resume" class="btn primary large">RESUME</button><button id="leave" class="btn">LEAVE GAME</button><button id="end" class="btn danger">QUIT</button></div>`;document.body.appendChild(o);document.getElementById("resume").onclick=resumeGame;document.getElementById("leave").onclick=leaveGame;document.getElementById("end").onclick=confirmEnd;document.getElementById("pauseVol").oninput=e=>{setVolume(Number(e.target.value));document.getElementById("pauseVolPct").textContent=Math.round(state.volume*100)+"%"};document.getElementById("resume").focus();startVoice("paused")
+ document.getElementById("pauseOverlay")?.remove();const o=document.createElement("div");o.className="overlay los-pause-art";o.id="pauseOverlay";o.innerHTML=`${gameplayArtPlate()}${micToggleMarkup(`los-pause-mic ${losCoordinate("pause","mic")}`)}<div class="pause-card card" role="dialog" aria-modal="true" aria-labelledby="pauseTitle"><div class="pause-title sr-only" id="pauseTitle">GAME PAUSED</div><div class="pause-volume sr-only"><span>VOLUME</span><input id="pauseVol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="pauseVolPct">${Math.round(state.volume*100)}%</strong></div><button id="resume" class="btn primary large ${losCoordinate("pause","resume")}" aria-label="Resume game">RESUME</button><button id="leave" class="btn ${losCoordinate("pause","leave")}" aria-label="Save and leave game">SAVE &amp; LEAVE</button><button id="end" class="btn danger ${losCoordinate("pause","end")}" aria-label="End game">END GAME</button></div>`;document.body.appendChild(o);document.getElementById("resume").onclick=resumeGame;document.getElementById("leave").onclick=leaveGame;document.getElementById("end").onclick=confirmEnd;document.getElementById("pauseVol").oninput=e=>{setVolume(Number(e.target.value));document.getElementById("pauseVolPct").textContent=Math.round(state.volume*100)+"%"};document.getElementById("resume").focus();startVoice("paused")
 }
 function pauseGame(){
  if(!state.game)return;if(state.screen!=="paused"){pausedFrom=state.screen;if(pausedFrom==="question")pausedRemaining=state.game.questionRemaining??state.questionSeconds;if(pausedFrom==="result")pausedResultDelay=resultDelayRemaining;clearRuntime();GameAudio.pause();enterScreen("paused","pause",pendingTransitionCause.trigger)}showPauseOverlay()
@@ -1726,6 +1761,15 @@ function installLayoutBoundsDebug(){
  globalThis.__LOS_LAYOUT_DEBUG__={snapshot,refresh:schedule};schedule()
 }
 function viewport(){document.documentElement.style.setProperty("--app-h",Math.max(document.documentElement.clientHeight||0,window.innerHeight||0)+"px")}
+async function installLocalBuildProof(){
+ if(!["localhost","127.0.0.1","::1"].includes(location.hostname))return;
+ try{
+  const response=await fetch("/__los_build_proof",{cache:"no-store"});if(!response.ok)return;const proof=await response.json(),short=value=>String(value||"").slice(0,12);
+  const badge=document.createElement("aside");badge.id="losLocalBuildProof";badge.setAttribute("aria-label","Local development build proof");badge.style.cssText="position:fixed;z-index:2147483647;left:8px;bottom:8px;width:170px;padding:7px 9px;border:1px solid #56f39a;border-radius:7px;background:rgba(0,8,7,.9);color:#d9ffe9;font:700 9px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.01em;box-shadow:0 0 12px rgba(86,243,154,.28);pointer-events:none;text-align:left";
+  badge.innerHTML=`<strong style="display:block;color:#56f39a;font-size:10px;letter-spacing:.12em">LOCAL TEST</strong><span style="display:block">app.js: ${short(proof.sha256?.["app.js"])}</span><span style="display:block">app.css: ${short(proof.sha256?.["app.css"])}</span><span style="display:block">Question runtime: ${short(proof.sha256?.["LOS_QUESTION_6_36_LANDSCAPE_RUNTIME.png"])}</span>`;
+  document.body.appendChild(badge);globalThis.__LOS_LOCAL_BUILD_PROOF__=proof
+ }catch(error){console.warn("Local build proof unavailable.",error)}
+}
 window.addEventListener("resize",viewport,{passive:true});window.visualViewport?.addEventListener("resize",viewport,{passive:true});
 window.addEventListener("resize",scheduleActiveTextFit,{passive:true});window.addEventListener("orientationchange",scheduleActiveTextFit,{passive:true});window.visualViewport?.addEventListener("resize",scheduleActiveTextFit,{passive:true});
 document.addEventListener("visibilitychange",()=>{if(!document.defaultView)return;if(document.visibilityState==="hidden")suspendVoiceForLifecycle("visibilitychange");else resumeVoiceForLifecycle("visibilitychange")});
@@ -1737,7 +1781,7 @@ function isEditableKeyboardElement(value){const element=value?.nodeType===3?valu
 function isEditableKeyboardContext(event){return isEditableKeyboardElement(event?.target)||isEditableKeyboardElement(document.activeElement)}
 window.addEventListener("keydown",event=>{ensureAudio();hostSystem?.provider?.activate?.();pendingTransitionCause={trigger:"keyboard",reason:event.key||"key"};if(isEditableKeyboardContext(event))return;if(state.screen==="question"&&!event.repeat&&event.key==="Escape"){event.preventDefault();pauseGame()}},{capture:true});
 document.documentElement.dataset.build=BUILD_INFO.stage;
-try{hostSystem=createHostSystem();viewport();home();installLayoutBoundsDebug();if(VOICE_HEALTH_MODE){renderVoiceHealthPanel();setInterval(renderVoiceHealthPanel,1000)}}
+try{hostSystem=createHostSystem();viewport();home();installLocalBuildProof();installLayoutBoundsDebug();if(VOICE_HEALTH_MODE){renderVoiceHealthPanel();setInterval(renderVoiceHealthPanel,1000)}}
 catch(err){
  console.error("LOS startup error",err);
  app.innerHTML=`<section class="screen"><div class="shell"><div class="content"><div class="card"><h1>LAST ONE STANDING</h1><p>Build 6.0.1 could not start.</p><p class="subtle">${esc(err?.message||"Unknown startup error")}</p></div></div></div></section>`

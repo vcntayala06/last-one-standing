@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#080b16">
+  <title>Streaming Voice Test</title>
+  <style>
+    :root{color-scheme:dark;font-family:system-ui,-apple-system,sans-serif;background:#080b16;color:#fff}*{box-sizing:border-box}body{margin:0;padding:max(18px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom));background:#080b16}main{max-width:760px;margin:auto}h1{font-size:clamp(1.8rem,8vw,3rem);line-height:1;margin:.3em 0}.status{padding:12px;border:1px solid #536078;border-radius:10px;background:#101727}.actions{display:flex;gap:10px;margin:14px 0}.actions button{min-height:52px;padding:10px 18px;border:0;border-radius:10px;font-weight:900;font-size:1rem}.start{background:#ffd04f;color:#111}.stop{background:#d52f4c;color:#fff}button:disabled{opacity:.45}.panel{margin:12px 0;padding:12px;border-radius:10px;background:#101727;border:1px solid #27334a;min-height:76px}.label{color:#9fb0ca;font-size:.8rem;font-weight:800;letter-spacing:.08em}.transcript{font-size:1.35rem;overflow-wrap:anywhere;margin-top:7px}.prompts{columns:2;padding-left:26px}.timings{display:grid;grid-template-columns:1fr auto;gap:5px 12px;font-variant-numeric:tabular-nums}.log{height:190px;overflow:auto;white-space:pre-wrap;font:12px/1.4 ui-monospace,monospace}.error{color:#ff8798}@media(max-width:480px){.prompts{columns:1}.actions button{flex:1}}
+  </style>
+</head>
+<body>
+<main>
+  <h1>STREAMING VOICE TEST</h1>
+  <div class="status">Status: <strong id="status">disconnected</strong></div>
+  <div class="actions"><button id="start" class="start">START LISTENING</button><button id="stop" class="stop" disabled>STOP</button></div>
+  <section class="panel"><div class="label">LIVE TRANSCRIPT:</div><div id="live" class="transcript">—</div></section>
+  <section class="panel"><div class="label">FINAL TRANSCRIPT:</div><div id="final" class="transcript">—</div></section>
+  <section class="panel"><div class="label">TEST PHRASES</div><ol class="prompts"><li>Start</li><li>Stop</li><li>The Eagles</li><li>The eye</li><li>Five</li><li>A complete stop</li><li>Come to a complete stop</li><li>Martin Luther King</li><li>United States of America</li><li>I don't know</li></ol></section>
+  <section class="panel"><div class="label">TIMINGS</div><div id="timings" class="timings"></div></section>
+  <section class="panel"><div class="label">EVENT LOG</div><div id="log" class="log"></div></section>
+</main>
+<script src="./voice-stream-test.js"></script>
+</body>
+</html>

@@ -3,12 +3,14 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
+    "start:voice-stream": "node voice-stream-server.js",
     "test": "node --test tests/regression.test.js tests/characterization.test.js tests/audio.test.js tests/host.test.js tests/host-provider.test.js tests/host-server.test.js tests/question-bank.test.js",
     "test:questions": "node --test tests/question-bank.test.js",
     "test:provider": "node --test tests/host-provider.test.js tests/host-server.test.js",
     "test:responsive": "node --test tests/responsive.test.js",
     "test:known-bugs": "node --test tests/known-bugs.test.js",
-    "test:all": "node --test tests/*.test.js"
+    "test:all": "node --test tests/*.test.js",
+    "test:voice-stream": "node --test tests/voice-stream.test.js"
   },
   "devDependencies": {
     "jsdom": "^26.1.0",

@@ -133,12 +133,22 @@ test("Pass and Skip each produce one strike and distinct result detail", withHar
   state.game.current={q:"What planet?",a:"Mars"};h.api.question(true);h.api.centralQuestionIntent("pass", true, 1);
   assert.equal(state.game.players[0].strikes, 1);
   assert.equal(state.game.lastOutcomeDetail, "pass");
+  assert.equal(h.document.querySelector(".los-result-art")?.classList.contains("los-wrong-art"),false);
+  assert.equal(h.document.querySelector(".los-result-art")?.classList.contains("show-standings"),true);
 
   state = setupQuestion(h);
   state.game.current={q:"What planet?",a:"Mars"};h.api.question(true);h.api.centralQuestionIntent("skip", true, 1);
   assert.equal(state.game.players[0].strikes, 1);
   assert.equal(state.game.lastOutcomeDetail, "skip");
+  assert.equal(h.document.querySelector(".los-result-art")?.classList.contains("los-wrong-art"),false);
 }));
+
+test("button PASS and voice PASS share the neutral pass result while wrong answers retain WRONG",()=>{
+ const button=createHarness();try{const state=setupQuestion(button);state.game.current={q:"What planet?",a:"Mars"};button.api.question(true);button.click("#passAnswer");assert.equal(state.game.lastOutcome,"pass");assert.equal(state.game.lastOutcomeDetail,"pass");assert.equal(button.document.querySelector(".los-result-art")?.classList.contains("show-standings"),true);assert.equal(button.document.querySelector(".los-result-art")?.classList.contains("los-wrong-art"),false)}finally{button.close()}
+ const voice=createHarness();try{const state=setupQuestion(voice);state.game.current={q:"What planet?",a:"Mars"};voice.api.question(true);voice.speak("PASS");assert.equal(state.game.lastOutcome,"pass");assert.equal(state.game.lastOutcomeDetail,"pass");assert.equal(voice.document.querySelector(".los-result-art")?.classList.contains("show-standings"),true);assert.equal(voice.document.querySelector(".los-result-art")?.classList.contains("los-wrong-art"),false)}finally{voice.close()}
+ const showdown=createHarness();try{const state=setupQuestion(showdown);state.game.showdown=true;state.game.current={q:"What planet?",a:"Mars"};showdown.api.question(true);showdown.speak("pass");assert.equal(state.game.lastOutcome,"pass");assert.equal(showdown.document.querySelector(".los-result-art")?.classList.contains("show-standings"),true);assert.equal(showdown.document.querySelector(".los-result-art")?.classList.contains("los-wrong-art"),false)}finally{showdown.close()}
+ const wrong=createHarness();try{const state=setupQuestion(wrong);state.game.current={q:"What planet?",a:"Mars"};wrong.api.question(true);wrong.api.finish("wrong");assert.equal(state.game.lastOutcome,"wrong");assert.equal(wrong.document.querySelector(".los-result-art")?.classList.contains("los-wrong-art"),true)}finally{wrong.close()}
+});
 
 test("finish is idempotent when duplicate recognition results arrive", withHarness(h => {
   const state = setupQuestion(h);

@@ -1,6 +1,20 @@
 "use strict";
 
-if("serviceWorker" in navigator){
+const LOS_LOCAL_HOSTS=new Set(["localhost","127.0.0.1","::1"]),LOS_IS_LOCAL=LOS_LOCAL_HOSTS.has(location.hostname);
+
+if(LOS_IS_LOCAL){
+ Promise.all([
+ "serviceWorker" in navigator?navigator.serviceWorker.getRegistrations().then(registrations=>Promise.all(registrations.map(registration=>registration.unregister()))):Promise.resolve(),
+  "caches" in window?caches.keys().then(names=>Promise.all(names.map(name=>caches.delete(name)))):Promise.resolve()
+ ]).then(()=>{
+  document.documentElement.dataset.losLocalServiceWorker=navigator.serviceWorker?.controller?"controlled":"none";
+  document.documentElement.dataset.losLocalCacheStorage="cleared";
+ }).catch(error=>{
+  document.documentElement.dataset.losLocalServiceWorker=navigator.serviceWorker?.controller?"controlled":"none";
+  document.documentElement.dataset.losLocalCacheStorage="cleanup-error";
+  console.warn("Local cache cleanup could not complete.",error);
+ });
+}else if("serviceWorker" in navigator){
  window.addEventListener("load",()=>{
   let hadController=Boolean(navigator.serviceWorker.controller);
   const showUpdateReady=()=>{

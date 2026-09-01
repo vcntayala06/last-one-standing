@@ -4,9 +4,13 @@ const http=require("node:http");
 const fs=require("node:fs");
 const path=require("node:path");
 const crypto=require("node:crypto");
+const childProcess=require("node:child_process");
 
 const MIME={".html":"text/html; charset=utf-8",".js":"text/javascript; charset=utf-8",".css":"text/css; charset=utf-8",".json":"application/json; charset=utf-8",".png":"image/png",".webmanifest":"application/manifest+json; charset=utf-8",".txt":"text/plain; charset=utf-8"};
-const PUBLIC_FILES=new Set(["index.html","app.js","app.css","assets/visual-6.36/los-home-hero.png","assets/visual-6.36/references/LOS_HOME_6_36_LANDSCAPE_FINAL.png","assets/visual-6.36/references/LOS_HOME_6_36_PORTRAIT_FINAL.png","assets/visual-6.36/references/LOS_HOME_6_36_ULTRAWIDE_FINAL.png","assets/visual-6.36/los-avatar-atlas-v2.png","assets/visual-6.36/los-avatar-style-expansion-v3.png","host-provider.js","question-bank-data.js","question-bank-batch-1.js","question-bank-batch-2.js","question-bank-batch-3.js","question-bank-batch-4.js","question-bank-batch-5.js","question-bank-batch-6.js","question-bank-batch-7.js","question-bank-batch-8.js","question-bank-batch-9.js","question-bank-batch-10.js","question-bank.js","manifest.webmanifest","apple-touch-icon.png","icon-192.png","icon-512.png","service-worker.js","service-worker-register.js"]);
+const APPROVED_VISUAL_SCREENS=["HOME","YOURE_UP","QUESTION","CORRECT","WRONG","TIMES_UP","CURRENT_STANDINGS","ELIMINATED","FINAL_SHOWDOWN_MATCHUP","FINAL_SHOWDOWN_QUESTION","PAUSE","WINNER"];
+const APPROVED_VISUAL_REFERENCES=APPROVED_VISUAL_SCREENS.flatMap(screen=>["LANDSCAPE","PORTRAIT","ULTRAWIDE"].map(format=>`assets/visual-6.36/references/LOS_${screen}_6_36_${format}_FINAL.png`));
+const APPROVED_VISUAL_RUNTIME=APPROVED_VISUAL_SCREENS.filter(screen=>screen!=="HOME").flatMap(screen=>["LANDSCAPE","PORTRAIT","ULTRAWIDE"].map(format=>`assets/visual-6.36/references/LOS_${screen}_6_36_${format}_RUNTIME.png`));
+const PUBLIC_FILES=new Set(["index.html","app.js","app.css","assets/visual-6.36/los-home-hero.png",...APPROVED_VISUAL_REFERENCES,...APPROVED_VISUAL_RUNTIME,"assets/visual-6.36/los-avatar-atlas-v2.png","assets/visual-6.36/los-avatar-style-expansion-v3.png","host-provider.js","question-bank-data.js","question-bank-batch-1.js","question-bank-batch-2.js","question-bank-batch-3.js","question-bank-batch-4.js","question-bank-batch-5.js","question-bank-batch-6.js","question-bank-batch-7.js","question-bank-batch-8.js","question-bank-batch-9.js","question-bank-batch-10.js","question-bank.js","manifest.webmanifest","apple-touch-icon.png","icon-192.png","icon-512.png","service-worker.js","service-worker-register.js"]);
 function readEnvFile(root,env){
  const file=path.join(root,".env");if(!fs.existsSync(file))return env;
  for(const line of fs.readFileSync(file,"utf8").split(/\r?\n/)){const match=line.match(/^\s*([A-Z][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);if(match&&env[match[1]]==null)env[match[1]]=match[2].replace(/^['"]|['"]$/g,"")}
@@ -35,6 +39,7 @@ async function bodyJson(req,limit=16384){
 }
 function createAppServer(options={}){
  const root=path.resolve(options.rootDir||__dirname),baseEnv={...(options.env||process.env)},env=options.loadEnvFile===false?baseEnv:readEnvFile(root,baseEnv),fetchImpl=options.fetchImpl||globalThis.fetch;
+ const serverStartedAt=new Date().toISOString(),sha256=relative=>crypto.createHash("sha256").update(fs.readFileSync(path.join(root,relative))).digest("hex"),gitValue=args=>{try{return childProcess.execFileSync("git",args,{cwd:root,encoding:"utf8",stdio:["ignore","pipe","ignore"]}).trim()}catch{return"unavailable"}};
  const apiKey=String(env.ELEVENLABS_API_KEY||""),voiceId=String(env.ELEVENLABS_VOICE_ID||""),model=String(env.ELEVENLABS_MODEL_ID||"eleven_flash_v2_5");
  const timeoutMs=Math.max(500,Number(env.LOS_HOST_REQUEST_TIMEOUT_MS)||8000),cache=createLru(Math.max(1,Number(env.LOS_HOST_CACHE_SIZE)||96));
  const configured=!!(apiKey&&voiceId&&fetchImpl);let lastHostRequest={result:"not-requested",source:null,providerRequest:"not-attempted",at:null,event:null,upstreamStatus:null,bytes:0,mimeType:null,latencyMs:null,retryAttempted:false};
@@ -61,6 +66,11 @@ function createAppServer(options={}){
  return http.createServer(async(req,res)=>{
   const url=new URL(req.url||"/","http://localhost");
   try{
+   const requestHost=String(req.headers.host||"").split(":")[0].toLowerCase(),isLocalRequest=requestHost==="localhost"||requestHost==="127.0.0.1"||requestHost==="[::1]";
+   if(req.method==="GET"&&url.pathname==="/__los_build_proof"){
+    if(!isLocalRequest)return json(res,404,{error:"Not found"});
+    return json(res,200,{repoPath:root,serverPid:process.pid,branch:gitValue(["branch","--show-current"]),head:gitValue(["rev-parse","HEAD"]),sha256:{"app.js":sha256("app.js"),"app.css":sha256("app.css"),"LOS_QUESTION_6_36_LANDSCAPE_RUNTIME.png":sha256("assets/visual-6.36/references/LOS_QUESTION_6_36_LANDSCAPE_RUNTIME.png")},serverStartedAt})
+   }
    if(req.method==="GET"&&url.pathname==="/api/host-status")return json(res,200,{available:configured,status:configured?(lastHostRequest.result==="audio-ready"||lastHostRequest.result==="cache-hit"?"available":lastHostRequest.result==="not-requested"?"pending":"unavailable"):"unavailable",configured,provider:"elevenlabs",model,voice:configured?"configured":"missing",cache:"bounded-memory",lastHostRequest});
    const healthCheck=req.method==="POST"&&url.pathname==="/api/host-health";
    if(req.method==="POST"&&(url.pathname==="/api/host-speech"||healthCheck)){
@@ -85,7 +95,7 @@ function createAppServer(options={}){
    const relative=decodeURIComponent(url.pathname==="/"?"/index.html":url.pathname).replace(/^\/+/,"");if(!PUBLIC_FILES.has(relative))return json(res,404,{error:"Not found"});
    const file=path.resolve(root,relative);if(file!==root&&!file.startsWith(root+path.sep))return json(res,403,{error:"Forbidden"});
    const stat=await fs.promises.stat(file).catch(()=>null);if(!stat?.isFile())return json(res,404,{error:"Not found"});
-   res.writeHead(200,{"content-type":MIME[path.extname(file).toLowerCase()]||"application/octet-stream","content-length":stat.size,"cache-control":"no-cache"});if(req.method==="HEAD")return res.end();fs.createReadStream(file).pipe(res);
+   const headers={"content-type":MIME[path.extname(file).toLowerCase()]||"application/octet-stream","content-length":stat.size,"cache-control":isLocalRequest?"no-store, max-age=0":"no-cache"};if(isLocalRequest)headers.pragma="no-cache";res.writeHead(200,headers);if(req.method==="HEAD")return res.end();fs.createReadStream(file).pipe(res);
   }catch(error){if(error?.name==="AbortError"){lastHostRequest={...lastHostRequest,result:"timeout",at:Date.now(),failureType:"AbortError"};return json(res,504,{error:"Host provider timed out"})}lastHostRequest={...lastHostRequest,result:"server-failure",at:Date.now(),failureType:String(error?.name||"Error"),failureMessage:String(error?.message||"Host speech failed").slice(0,180)};return json(res,error.status||500,{error:error.status?error.message:"Host speech failed"})}
  });
 }

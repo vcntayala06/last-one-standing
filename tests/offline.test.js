@@ -10,10 +10,11 @@ const {chromium}=require("playwright");
 const {createAppServer}=require("../server");
 
 const ROOT=path.resolve(__dirname,"..");
+const GAMEPLAY_RUNTIME_FILES=["YOURE_UP","QUESTION","CORRECT","WRONG","TIMES_UP","CURRENT_STANDINGS","ELIMINATED","FINAL_SHOWDOWN_MATCHUP","FINAL_SHOWDOWN_QUESTION","PAUSE","WINNER"].flatMap(screen=>["LANDSCAPE","PORTRAIT","ULTRAWIDE"].map(format=>`assets/visual-6.36/references/LOS_${screen}_6_36_${format}_RUNTIME.png`));
 const REQUIRED_FILES=[
  "index.html","app.css","app.js","assets/visual-6.36/references/LOS_HOME_6_36_LANDSCAPE_FINAL.png","assets/visual-6.36/references/LOS_HOME_6_36_PORTRAIT_FINAL.png","assets/visual-6.36/references/LOS_HOME_6_36_ULTRAWIDE_FINAL.png","assets/visual-6.36/los-avatar-atlas-v2.png","assets/visual-6.36/los-avatar-style-expansion-v3.png","host-provider.js","service-worker-register.js","question-bank-data.js",
  "question-bank-batch-1.js","question-bank-batch-2.js","question-bank-batch-3.js","question-bank-batch-4.js","question-bank-batch-5.js","question-bank-batch-6.js","question-bank-batch-7.js","question-bank-batch-8.js","question-bank-batch-9.js","question-bank-batch-10.js",
- "question-bank.js","manifest.webmanifest","apple-touch-icon.png","icon-192.png","icon-512.png"
+ "question-bank.js","manifest.webmanifest","apple-touch-icon.png","icon-192.png","icon-512.png",...GAMEPLAY_RUNTIME_FILES
 ];
 const REVISIONED_SHELL_FILES=REQUIRED_FILES.filter(file=>file!=="index.html");
 
