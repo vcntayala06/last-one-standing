@@ -1,6 +1,6 @@
 "use strict";
 
-const LOS_LOCAL_HOSTS=new Set(["localhost","127.0.0.1","::1"]),LOS_IS_LOCAL=LOS_LOCAL_HOSTS.has(location.hostname);
+const LOS_LOCAL_HOSTS=new Set(["localhost","127.0.0.1","::1"]),LOS_OFFLINE_TEST=/(?:[?&])offline-test(?:=|&|$)/.test(location.search),LOS_IS_LOCAL=LOS_LOCAL_HOSTS.has(location.hostname)&&!LOS_OFFLINE_TEST;
 
 if(LOS_IS_LOCAL){
  Promise.all([

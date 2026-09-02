@@ -10,11 +10,15 @@ const {chromium}=require("playwright");
 const {createAppServer}=require("../server");
 
 const ROOT=path.resolve(__dirname,"..");
-const GAMEPLAY_RUNTIME_FILES=["YOURE_UP","QUESTION","CORRECT","WRONG","TIMES_UP","CURRENT_STANDINGS","ELIMINATED","FINAL_SHOWDOWN_MATCHUP","FINAL_SHOWDOWN_QUESTION","PAUSE","WINNER"].flatMap(screen=>["LANDSCAPE","PORTRAIT","ULTRAWIDE"].map(format=>`assets/visual-6.36/references/LOS_${screen}_6_36_${format}_RUNTIME.png`));
+const GAMEPLAY_RUNTIME_FILES=["YOURE_UP","QUESTION","CORRECT","WRONG","TIMES_UP","CURRENT_STANDINGS","ELIMINATED","FINAL_SHOWDOWN_MATCHUP","PAUSE","WINNER"].flatMap(screen=>["LANDSCAPE","PORTRAIT","ULTRAWIDE"].map(format=>`assets/visual-6.36/references/LOS_${screen}_6_36_${format}_RUNTIME.png`));
+const WEST_COAST_RUNTIME_FILES=[
+ "assets/west-coast/runtime/final-showdown-question/Final_Showdown_Landscape_LOCKED.png","assets/west-coast/runtime/final-showdown-question/Final_Showdown_Portrait_LOCKED.png","assets/west-coast/runtime/final-showdown-question/Final_Showdown_Ultrawide_LOCKED.png",
+ "assets/west-coast/runtime/choose-your-game/Choose_Your_Game_Landscape_Runtime_LOCKED.png","assets/west-coast/runtime/choose-your-game/Choose_Your_Game_Portrait_Runtime_LOCKED.png","assets/west-coast/runtime/choose-your-game/Choose_Your_Game_Ultrawide_Runtime_LOCKED.png"
+];
 const REQUIRED_FILES=[
  "index.html","app.css","app.js","assets/visual-6.36/references/LOS_HOME_6_36_LANDSCAPE_FINAL.png","assets/visual-6.36/references/LOS_HOME_6_36_PORTRAIT_FINAL.png","assets/visual-6.36/references/LOS_HOME_6_36_ULTRAWIDE_FINAL.png","assets/visual-6.36/los-avatar-atlas-v2.png","assets/visual-6.36/los-avatar-style-expansion-v3.png","host-provider.js","service-worker-register.js","question-bank-data.js",
  "question-bank-batch-1.js","question-bank-batch-2.js","question-bank-batch-3.js","question-bank-batch-4.js","question-bank-batch-5.js","question-bank-batch-6.js","question-bank-batch-7.js","question-bank-batch-8.js","question-bank-batch-9.js","question-bank-batch-10.js",
- "question-bank.js","manifest.webmanifest","apple-touch-icon.png","icon-192.png","icon-512.png",...GAMEPLAY_RUNTIME_FILES
+ "question-bank.js","manifest.webmanifest","apple-touch-icon.png","icon-192.png","icon-512.png",...GAMEPLAY_RUNTIME_FILES,...WEST_COAST_RUNTIME_FILES
 ];
 const REVISIONED_SHELL_FILES=REQUIRED_FILES.filter(file=>file!=="index.html");
 
@@ -112,7 +116,7 @@ test("installed game reloads and reaches a Champion through manual play with net
   mark("test-begins");const base=await listen(server);browser=await launch();context=await browser.newContext();
   const page=await context.newPage();
   const diagnostics={consoleErrors:[],failedRequests:[]};page.on("console",message=>{if(message.type()==="error"){diagnostics.consoleErrors.push(message.text());mark("console-error",{message:message.text()})}});page.on("pageerror",error=>{diagnostics.consoleErrors.push(error.message);mark("page-error",{message:error.message})});page.on("requestfailed",request=>{const failure={url:request.url(),error:request.failure()?.errorText||"unknown"};diagnostics.failedRequests.push(failure);mark("request-failed",failure)});
-  await page.goto(base,{waitUntil:"load"});
+  await page.goto(`${base}/?offline-test=1`,{waitUntil:"load"});
   mark("home-reached",{screen:await page.locator("body").getAttribute("data-screen")});
   await page.evaluate(async()=>{
    const activation=(async()=>{await navigator.serviceWorker.ready;if(!navigator.serviceWorker.controller)await new Promise(resolve=>navigator.serviceWorker.addEventListener("controllerchange",resolve,{once:true}))})();

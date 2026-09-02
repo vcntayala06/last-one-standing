@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_VERSION="6.38-6912cc3da6c1";
+const CACHE_VERSION="6.38-b70facac5dfa";
 const CACHE_NAME=`last-one-standing-shell-${CACHE_VERSION}`;
 const APP_SHELL=[
  "./",
@@ -34,9 +34,12 @@ const APP_SHELL=[
  "./assets/visual-6.36/references/LOS_FINAL_SHOWDOWN_MATCHUP_6_36_LANDSCAPE_RUNTIME.png",
  "./assets/visual-6.36/references/LOS_FINAL_SHOWDOWN_MATCHUP_6_36_PORTRAIT_RUNTIME.png",
  "./assets/visual-6.36/references/LOS_FINAL_SHOWDOWN_MATCHUP_6_36_ULTRAWIDE_RUNTIME.png",
- "./assets/visual-6.36/references/LOS_FINAL_SHOWDOWN_QUESTION_6_36_LANDSCAPE_RUNTIME.png",
- "./assets/visual-6.36/references/LOS_FINAL_SHOWDOWN_QUESTION_6_36_PORTRAIT_RUNTIME.png",
- "./assets/visual-6.36/references/LOS_FINAL_SHOWDOWN_QUESTION_6_36_ULTRAWIDE_RUNTIME.png",
+ "./assets/west-coast/runtime/final-showdown-question/Final_Showdown_Landscape_LOCKED.png",
+ "./assets/west-coast/runtime/final-showdown-question/Final_Showdown_Portrait_LOCKED.png",
+ "./assets/west-coast/runtime/final-showdown-question/Final_Showdown_Ultrawide_LOCKED.png",
+ "./assets/west-coast/runtime/choose-your-game/Choose_Your_Game_Landscape_Runtime_LOCKED.png",
+ "./assets/west-coast/runtime/choose-your-game/Choose_Your_Game_Portrait_Runtime_LOCKED.png",
+ "./assets/west-coast/runtime/choose-your-game/Choose_Your_Game_Ultrawide_Runtime_LOCKED.png",
  "./assets/visual-6.36/references/LOS_PAUSE_6_36_LANDSCAPE_RUNTIME.png",
  "./assets/visual-6.36/references/LOS_PAUSE_6_36_PORTRAIT_RUNTIME.png",
  "./assets/visual-6.36/references/LOS_PAUSE_6_36_ULTRAWIDE_RUNTIME.png",
