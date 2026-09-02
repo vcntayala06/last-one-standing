@@ -852,7 +852,27 @@ test("Build 6.29 saved pack values migrate into the Build 6.30 hierarchy",()=>{c
 
 test("Work and Kids audience safety is enforced before mixed-topic weighting",withHarness(h=>{const bank=h.api.QUESTION_BANK;for(const audience of ["work","kids"])for(let i=0;i<60;i++){const q=bank.select({audience,packs:["street","music","movies","transit"],difficulty:"medium",random:()=>i/61});assert.ok(q,audience);assert.equal(audience==="kids"?q.kidsSafe:q.workSafe,true,`${audience}:${q.id}`);if(audience==="work")assert.ok(q.editions.includes("work"),q.id)}}));
 
-test("Build 6.30 reveals the preserved Music filters only under Entertainment and Music",withHarness(h=>{const state=h.api.getState();state.screen="packs";state.musicSubcategories=[];h.api.packs();assert.equal(h.document.querySelector("[data-music-subcategory]"),null);h.click('[data-topic="entertainment"]');for(const id of ["movies","music","disney"])assert.ok(h.document.querySelector(`[data-entertainment="${id}"]`),id);h.click('[data-entertainment="music"]');for(const id of ["hip-hop","r-and-b","pop","rock","classic-rock","rock-and-roll","funk","soul","motown","lowrider-oldies","latin-oldies","regional-mexican","today","1970s","1980s","1990s","2000s"])assert.ok(h.document.querySelector(`[data-music-subcategory="${id}"]`),id);h.click('[data-music-subcategory="lowrider-oldies"]');h.click('[data-music-subcategory="today"]');assert.deepEqual(Array.from(state.musicSubcategories),["lowrider-oldies","today"]);assert.equal(h.document.querySelector('[data-all-music]').getAttribute("aria-pressed"),"false");h.click('[data-all-music]');assert.deepEqual(Array.from(state.musicSubcategories),[]);h.click('[data-entertainment="music"]');assert.equal(h.document.querySelector("[data-music-subcategory]"),null)}));
+test("Build 6.30 reveals the preserved Music filters through the approved Entertainment hierarchy",withHarness(h=>{
+ const state=h.api.getState();state.screen="packs";state.musicSubcategories=[];h.api.packs();
+ assert.equal(h.document.querySelector("[data-music-subcategory]"),null);
+ h.click('[data-topic="entertainment"]');
+ assert.equal(h.document.querySelector("[data-pack-subcategory-screen]")?.dataset.packSubcategoryScreen,"entertainment");
+ for(const id of ["movies","music","disney"])assert.ok(h.document.querySelector(`[data-entertainment="${id}"]`),id);
+ h.click('[data-entertainment="music"]');
+ assert.equal(h.document.querySelector("[data-pack-subcategory-screen]")?.dataset.packSubcategoryScreen,"music");
+ for(const id of ["hip-hop","r-and-b","pop","rock","classic-rock","rock-and-roll","funk","soul","motown","lowrider-oldies","latin-oldies","regional-mexican","today","1970s","1980s","1990s","2000s"])assert.ok(h.document.querySelector(`[data-music-subcategory="${id}"]`),id);
+ h.click('[data-music-subcategory="lowrider-oldies"]');h.click('[data-music-subcategory="today"]');
+ assert.deepEqual(Array.from(state.musicSubcategories),["lowrider-oldies","today"]);
+ assert.equal(h.document.querySelector('[data-all-music]').getAttribute("aria-pressed"),"false");
+ h.click("#subcategoryBack");
+ assert.equal(h.document.querySelector("[data-pack-subcategory-screen]")?.dataset.packSubcategoryScreen,"entertainment");
+ for(const id of ["movies","music","disney"])assert.ok(h.document.querySelector(`[data-entertainment="${id}"]`),id);
+ h.click('[data-entertainment="music"]');
+ assert.deepEqual(Array.from(state.musicSubcategories),[]);
+ assert.equal(state.entertainmentSubcategories.includes("music"),false);
+ assert.equal(h.document.querySelector("[data-pack-subcategory-screen]")?.dataset.packSubcategoryScreen,"entertainment");
+ assert.equal(h.document.querySelector("[data-music-subcategory]"),null)
+}));
 
 test("Build 6.29 persists Music filters and defaults older saves to All Music",()=>{const h=createHarness();try{const state=h.api.getState();state.screen="setup";state.contentPacks=["music"];state.musicSubcategories=["hip-hop","1990s"];h.api.saveSetupState("setup");const saved=h.api.loadSetupState();assert.deepEqual(Array.from(saved.musicSubcategories),["hip-hop","1990s"]);state.players=[{id:"p1",name:"Alex"}];state.game={players:[{id:"p1",name:"Alex",strikes:0}],idx:0,used:[]};h.api.saveActiveGame();assert.deepEqual(Array.from(h.api.loadActiveGame().musicSubcategories),["hip-hop","1990s"])}finally{h.close()}const old=createHarness({storage:{los5_active_game:JSON.stringify({version:1,mode:"original",contentPacks:["music"],players:[{id:"p1",name:"Alex"}],game:{players:[{id:"p1",name:"Alex",strikes:0}],idx:0,used:[]}})}});try{old.api.resumeSavedGame();assert.deepEqual(Array.from(old.api.getState().musicSubcategories),[])}finally{old.close()}});
 
