@@ -317,7 +317,7 @@ function clearRuntime(){clearPendingPlayersNavigation();clearPendingAnswerCandid
 function isSetupScreen(){return ["setup","packs","mode","industry","difficulty","fun","players","time","ready"].includes(state.screen)}
 function exitSetup(){if(state.game)return;markSetupAbandoned(state.screen);state.game=null;home()}
 function bindSetupShell(){document.querySelectorAll("[data-setup-exit]").forEach(button=>button.onclick=exitSetup)}
-function micToggleMarkup(extra=""){return `<button type="button" class="btn persistent-mic ${state.voiceOn?"is-on":"is-off"} ${extra}" data-mic-toggle aria-pressed="${state.voiceOn}" aria-label="${state.voiceOn?"Turn microphone off":"Turn microphone on"}"><svg class="los-mic-icon" aria-hidden="true" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="13" rx="4" fill="currentColor"/><path d="M5.5 11.5v.8a6.5 6.5 0 0 0 13 0v-.8M12 19v3M8.5 22h7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><strong>MIC ${state.voiceOn?"ON":"OFF"}</strong><span class="los-mic-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></button>`}
+function micToggleMarkup(extra=""){return `<button type="button" class="btn persistent-mic ${state.voiceOn?"is-on":"is-off"} ${extra}" data-mic-toggle aria-pressed="${state.voiceOn}" aria-label="${state.voiceOn?"Turn microphone off":"Turn microphone on"}"><span aria-hidden="true">◉</span><strong>MIC ${state.voiceOn?"ON":"OFF"}</strong></button>`}
 function syncMicControls(){document.querySelectorAll("[data-mic-toggle]").forEach(button=>{button.classList.toggle("is-on",state.voiceOn);button.classList.toggle("is-off",!state.voiceOn);button.setAttribute("aria-pressed",String(state.voiceOn));button.setAttribute("aria-label",state.voiceOn?"Turn microphone off":"Turn microphone on");const label=button.querySelector("strong");if(label)label.textContent=`MIC ${state.voiceOn?"ON":"OFF"}`})}
 function setVoiceEnabled(on,{rerenderQuestion=true}={}){state.voiceOn=!!on;localStorage.setItem(STORAGE.voice,String(state.voiceOn));voiceCore.retryAttempt=0;if(state.voiceOn){voiceCore.permissionBlocked=false;startVoice(state.screen)}else stopVoice("user-mic-off");syncMicControls();if(state.screen==="question"&&rerenderQuestion&&state.game&&!state.game.answered)question(true);return state.voiceOn}
 document.addEventListener("click",event=>{const button=event.target.closest?.("[data-mic-toggle]");if(button){event.preventDefault();setVoiceEnabled(!state.voiceOn)}})
@@ -1484,7 +1484,7 @@ function gameplayArtHeader(p,micClass="los-gameplay-mic",screen="question"){
  return `<div class="los-gameplay-avatar ${losCoordinate(screen,"avatar")}">${avatarArt(p?.avatar)}</div><div class="los-gameplay-identity ${losCoordinate(screen,"identity")}"><span>PLAYER</span><strong class="${nameSize}">${esc(name)}</strong></div>${micToggleMarkup(`${micClass} ${losCoordinate(screen,"mic")}`)}${gameplayPauseMarkup(screen)}`
 }
 function gamebar(showName=true){
- const p=state.game.players[state.game.idx];return `<header class="game-topbar"><div class="controls"></div>${showName?`<div class="game-player">${esc(p.name)}</div>`:""}<div class="topbar-tools">${micToggleMarkup("game-mic")}</div></header>`
+ const p=state.game.players[state.game.idx];return `<header class="game-topbar"><div class="controls"><button id="pause" class="btn">PAUSE</button></div>${showName?`<div class="game-player">${esc(p.name)}</div>`:""}<div class="topbar-tools">${micToggleMarkup("game-mic")}</div></header>`
 }
 function bindGamebar(){document.getElementById("pause").onclick=pauseGame}
 function handoff(){
@@ -1494,7 +1494,7 @@ function playerUpCountdown(playerId,opening=false){
  clearRuntime();const session=enterScreen("handoff","turn-handoff","internal-game-event"),g=state.game,p=g.players.find(x=>x.id===playerId)||g.players[g.idx];GameAudio.playSfx("lockIn",{eventId:`lock-in-handoff:${session}:${p.id}`});
  const renderGeneration=++playerUpRenderGeneration,renderDiagnostic={phase:"message",screen:"player-up",renderGeneration,runtimeSession:session,activePlayer:p.name,playerId:p.id,at:Date.now(),previousScreen:transitionDiagnostics.at(-1)?.from||null,domText:"",visible:true};playerUpDiagnostics.push(renderDiagnostic);if(playerUpDiagnostics.length>150)playerUpDiagnostics.shift();if(transitionDebugEnabled)console.debug("[LOS player-up]",renderDiagnostic);
  const nameSize=p.name.length>24?"name-long":"name-regular";
- app.innerHTML=`<section class="screen los-player-up-screen"><div class="los-player-up-plate" aria-hidden="true"></div>${gameplayPauseMarkup("handoff")}<div class="los-player-up-avatar ${losCoordinate("handoff","avatar")}">${avatarArt(p.avatar)}</div><div class="los-player-up-identity ${losCoordinate("handoff","identity")}"><span>PLAYER</span><strong class="${nameSize}">${esc(p.name)}</strong></div>${micToggleMarkup(`los-player-up-mic ${losCoordinate("handoff","mic")}`)}<div class="handoff los-player-up-live"><div class="handoff-intro ${losCoordinate("handoff","name")}" id="playerUpMessage"><div class="handoff-hype sr-only">YOU’RE UP!</div><div class="handoff-player-name ${nameSize}">${esc(p.name)}</div><div class="handoff-sub sr-only">${g.showdown?"FINAL SHOWDOWN":""}</div></div><div class="los-player-up-timer ${losCoordinate("handoff","timer")}"><div id="handoffCount" class="handoff-count urgent" aria-live="polite"></div><span>SEC</span></div></div></section>`;
+ app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(false)}<div class="handoff"><div class="handoff-intro" id="playerUpMessage"><div class="handoff-player-name ${nameSize}">${esc(p.name)}</div><div class="handoff-hype">YOU’RE UP!</div><div class="handoff-sub">${g.showdown?"FINAL SHOWDOWN":""}</div></div><div id="handoffCount" class="handoff-count urgent" aria-live="polite"></div></div></div></section>`;
  const playerUpMessage=document.getElementById("playerUpMessage");renderDiagnostic.domText=playerUpMessage?.innerText||playerUpMessage?.textContent||"";bindGamebar();startVoice("handoff");
  const enteredAt=Date.now(),postHostBeatMs=450,minFallbackVisibleMs=1200;
  let countdownStarted=false,countdownScheduled=false,advanced=false;
@@ -1545,25 +1545,21 @@ function question(resumeCurrent=false){
  let rem=remStart;
  g.questionRemaining=rem;g.questionStartedWith=remStart;
  const questionSize=g.current.q.length>90?"question-long":g.current.q.length>55?"question-medium":"question-short";
- const questionArtClass=g.showdown?"los-final-question-art":"los-question-art",voiceClass=state.voiceOn?"los-voice-on":"los-voice-off";
- const coordinateScreen=g.showdown?"finalQuestion":"question";
- app.innerHTML=`<section class="screen los-gameplay-art-screen ${questionArtClass} ${voiceClass}">${gameplayArtPlate()}${gameplayArtHeader(g.players[g.idx],"los-gameplay-mic",coordinateScreen)}<div class="game-shell">${gamebar(true)}<div class="question-area"><div class="question-text ${questionSize} ${losCoordinate(coordinateScreen,"questionText")}">${esc(g.current.q)}</div>
-     <div class="question-inputs ${losCoordinate(coordinateScreen,"answerField")}">${state.voiceOn&&speechSupported()?`<button id="retryMic" class="btn mic-retry" type="button">TRY MIC AGAIN</button>`:""}<div class="keyboard-answer"><input id="typedAnswer" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="TYPE YOUR ANSWER" aria-label="TYPE YOUR ANSWER"></div></div><button id="passAnswer" type="button" class="los-question-art-control los-pass-control ${losCoordinate(coordinateScreen,"pass")}" aria-label="Pass question"><span class="sr-only">PASS</span></button><button id="lockAnswer" type="button" class="los-question-art-control los-lock-control ${losCoordinate(coordinateScreen,"lockIn")}" aria-label="Lock it in"><span class="sr-only">LOCK IT IN</span></button><div id="answerAttemptFeedback" class="answer-attempt-feedback" aria-live="polite"></div><div id="timer" class="timer ${rem<=5?"urgent":""} ${losCoordinate(coordinateScreen,"timer",`--timer-progress:${rem/remStart}`)}" aria-label="${rem} seconds remaining"><span class="los-timer-value">${rem}</span></div></div></div></section>`;
+ app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(true)}<div class="question-area"><div class="question-text ${questionSize}">${esc(g.current.q)}</div>
+     <div class="question-inputs">${state.voiceOn&&speechSupported()?`<button id="retryMic" class="btn mic-retry" type="button">TRY MIC AGAIN</button>`:""}<div class="keyboard-answer"><input id="typedAnswer" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" placeholder="TYPE YOUR ANSWER" aria-label="TYPE YOUR ANSWER"><button id="lockAnswer" class="btn primary">LOCK IN</button></div></div><div id="answerAttemptFeedback" class="answer-attempt-feedback" aria-live="polite"></div><div id="timer" class="timer ${rem<=5?"urgent":""}" style="--timer-progress:${rem/remStart}" aria-label="${rem} seconds remaining">${rem}</div></div></div></section>`;
  bindGamebar();
- if(!g.showdown){const playerField=document.querySelector(".los-question-art .los-question-player-name-wrap"),playerName=playerField?.querySelector("strong");fitFocalText(playerName,{container:playerField,minPx:12,multiline:false});if(typeof requestAnimationFrame==="function")requestAnimationFrame(()=>{if(state.screen==="question")fitFocalText(playerName,{container:playerField,minPx:12,multiline:false})})}
  fitQuestionText();if(typeof requestAnimationFrame==="function")requestAnimationFrame(()=>{if(state.screen==="question")fitQuestionText()});
  const retryMic=document.getElementById("retryMic");if(retryMic){retryMic.onclick=manualRecoverVoice;updateRetryMicAvailability()}
- const input=document.getElementById("typedAnswer"),lock=document.getElementById("lockAnswer"),pass=document.getElementById("passAnswer");answerListening=true;startVoice("question");
+ const input=document.getElementById("typedAnswer"),lock=document.getElementById("lockAnswer");answerListening=true;startVoice("question");
  const submitTyped=()=>{const v=input?.value?.trim();if(!v||g.answered)return;const command=questionPassCommand(v);if(command){input.value="";performQuestionPass(command);return}const match=typedAnswerMatchTrace(v,g.current);if(match.accepted){recordAnswerAttempt(v,true,1,true,match);finish("correct")}else{recordAnswerAttempt(v,false,1,true,match);input.value=""}};
  if(lock)lock.onclick=submitTyped;
- if(pass)pass.onclick=()=>performQuestionPass("pass");
  if(input)input.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();submitTyped()}});
  let clockStarted=false;const startClock=()=>{
   if(clockStarted||state.screen!=="question"||runtimeSessionId!==session||g.answered)return;clockStarted=true;questionReading=false;audioDiagnostics.buzzerFired=false;GameAudio.playSfx("questionStart",{eventId:`question-start:${questionSessionId}`});tickSound(rem);
   questionTimer=setInterval(()=>{
    rem--;g.questionRemaining=Math.max(0,rem);
    const t=document.getElementById("timer");
-   if(t){const value=t.querySelector(".los-timer-value");if(value)value.textContent=Math.max(0,rem);else t.textContent=Math.max(0,rem);t.classList.toggle("urgent",rem<=5);t.style.setProperty("--timer-progress",String(Math.max(0,rem)/remStart));t.setAttribute("aria-label",`${Math.max(0,rem)} seconds remaining`)}
+   if(t){t.textContent=Math.max(0,rem);t.classList.toggle("urgent",rem<=5);t.style.setProperty("--timer-progress",String(Math.max(0,rem)/remStart));t.setAttribute("aria-label",`${Math.max(0,rem)} seconds remaining`)}
    if(rem>0)tickSound(rem);
    if(rem<=0){clearInterval(questionTimer);questionTimer=null;const pending=state.voiceOn&&voiceCore.answerUtterance?.startedBeforeDeadline&&voiceCore.answerUtterance.questionSessionId===questionSessionId;if(pending){voiceDiagnostic("answer-finalization-grace-started",{questionSessionId,durationMs:1200,utterance:voiceCore.answerUtterance.id});answerGraceTimer=setTimeout(()=>{answerGraceTimer=null;if(state.screen==="question"&&!g.answered){answerListening=false;voiceDiagnostic("answer-finalization-grace-expired",{questionSessionId});finish("timeout")}},1200)}else finish("timeout")}
   },1000)
@@ -1613,9 +1609,9 @@ function fitQuestionText(){
  return fitFocalText(question,{container:area,minPx:20,multiline:true,fits:()=>{const a=area.getBoundingClientRect(),q=question.getBoundingClientRect(),t=timer.getBoundingClientRect();return question.scrollWidth<=question.clientWidth+1&&q.left>=a.left-1&&q.right<=a.right+1&&q.top>=a.top-1&&q.bottom<=t.top-10}})
 }
 function fitResultAnswer(){
- const body=document.querySelector(".result-body"),answer=document.querySelector(".answer-big"),panel=answer?.parentElement;if(!body||!answer||!panel)return;
- const tiers=["result-fit-1","result-fit-2","result-fit-3","result-fit-4"],fits=()=>answer.scrollWidth<=panel.clientWidth+1&&answer.scrollHeight<=panel.clientHeight+1;
- answer.classList.remove(...tiers);const result=fitFocalText(answer,{container:panel,minPx:18,multiline:true,fits});answer.dataset.fitTier=String(result?.fontPx<result?.maxPx?1:0);return result
+ const body=document.querySelector(".result-body"),answer=document.querySelector(".answer-big");if(!body||!answer)return;
+ const tiers=["result-fit-1","result-fit-2","result-fit-3","result-fit-4"],fits=()=>body.scrollHeight<=body.clientHeight+1&&answer.scrollWidth<=answer.clientWidth+1;
+ answer.classList.remove(...tiers);const result=fitFocalText(answer,{container:body,minPx:18,multiline:true,fits});answer.dataset.fitTier=String(result?.fontPx<result?.maxPx?1:0);return result
 }
 function showHostReaction(event){
  const visibleEvents=new Set(["fastCorrect","tough","streak","categoryRun","comeback","lead","tie","streetKnowledge","movieKnowledge","musicKnowledge","transitKnowledge","disneyKnowledge"]),entry=hostSystem?.history.at(-1);if(!visibleEvents.has(event)||entry?.event!==event||!entry.text||["frequency-skip","no-safe-line"].includes(entry.result))return false;
@@ -1629,22 +1625,19 @@ function result(outcome,resumeDelay=null,revealAnswer=false){
  const label=outcome==="correct"?"CORRECT!":outcome==="pass"?(g.lastOutcomeDetail==="skip"?"SKIP":"PASS"):outcome==="timeout"?"TIME’S UP!":"NOT QUITE";
  const strike=outcome!=="correct", eliminated=strike&&p.eliminated;
  const phase=g.showdown?"FINAL SHOWDOWN":"CURRENT STANDINGS";
- const resultArt=eliminated?"los-eliminated-art":outcome==="correct"?"los-correct-art":outcome==="timeout"?"los-times-up-art":outcome==="pass"?"show-standings":"los-wrong-art";
- app.innerHTML=`<section class="screen los-gameplay-art-screen los-result-art ${resultArt}">${gameplayArtPlate()}${gameplayArtHeader(p,"los-gameplay-mic","result")}<div class="game-shell">${gamebar(true)}
-  <div class="result-body">
-    <div class="los-eliminated-live"><strong class="${losCoordinate("eliminated","name")}">${esc(p.name)}</strong><span>${esc(p.name)}</span></div>
+ app.innerHTML=`<section class="screen"><div class="game-shell">${gamebar(true)}
+ <div class="result-body">
    <div class="result-word result-${outcome}">${label}</div>
-    <div class="answer-panel ${losCoordinate("result","answer")}">
+   <div class="answer-panel">
      <div class="answer-label">CORRECT ANSWER</div>
      <div class="answer-big answer-${String(q?.a||"").length>16?"long":String(q?.a||"").length>10?"medium":"short"}">${esc(displayAnswer(q?.a||""))}</div>
    </div>
    ${strike?`<div class="strike-box">${outcome==="wrong"?`<div class="result-impact" aria-hidden="true">×</div>`:""}<div>${eliminated?"THIRD STRIKE — ELIMINATED":"STRIKE"}</div><div class="strike-marks">${marks(p)}</div><div>${eliminated?esc(p.name)+" IS OUT":p.strikes+" OF 3 STRIKES"}</div></div>`:""}
-    <div class="phase-heading">${phase}</div>
-    ${standings()}
-    <div class="los-next-up">${esc(g.players[nextActive(g.idx)]?.name||p.name)}</div>
+   <div class="phase-heading">${phase}</div>
+   ${standings()}
  </div></div></section>`;
-  bindGamebar();if(outcome==="pass")showCurrentStandings(g);else{fitResultAnswer();if(typeof requestAnimationFrame==="function")requestAnimationFrame(()=>{if(state.screen==="result"&&document.querySelector(".answer-big")?.isConnected)fitResultAnswer()})}startVoice("result");
-  const delay=resumeDelay??(g.showdown?(eliminated?5200:3900):eliminated?5200:strike?4200:3200),scheduleAdvance=()=>{if(state.screen!=="result"||runtimeSessionId!==session)return;resultDelayRemaining=delay;if(!g.showdown){if(eliminated)handoffTimers.push(setTimeout(()=>document.querySelector(".los-result-art")?.classList.add("show-eliminated"),Math.min(1600,delay-1)));handoffTimers.push(setTimeout(()=>showCurrentStandings(g),Math.max(1,delay-1600)))}flowTimer=setTimeout(()=>{if(state.screen==="result"&&runtimeSessionId===session)advance()},delay)};
+ bindGamebar();fitResultAnswer();if(typeof requestAnimationFrame==="function")requestAnimationFrame(()=>{if(state.screen==="result"&&document.querySelector(".answer-big")?.isConnected)fitResultAnswer()});startVoice("result");
+ const delay=resumeDelay??(g.showdown?(eliminated?5200:3900):eliminated?5200:strike?4200:3200),scheduleAdvance=()=>{if(state.screen!=="result"||runtimeSessionId!==session)return;resultDelayRemaining=delay;flowTimer=setTimeout(()=>{if(state.screen==="result"&&runtimeSessionId===session)advance()},delay)};
  g.lastOutcome=outcome;
  if(revealAnswer){hostSystem?.emit("answerReveal",{answer:q?.a||"",name:p.name,mode:state.mode});if(hostSystem?.isSpeaking())hostSystem.whenIdle().then(scheduleAdvance);else scheduleAdvance()}else scheduleAdvance()
 }
@@ -1681,10 +1674,10 @@ function showdownIntro(){
  g.idx=0;g.showdown=true;g.qnum=0;
  const session=enterScreen("showdown","final-showdown","internal-game-event"),enteredAt=Date.now(),minimumVisibleMs=3600;saveActiveGame();
  const secs=Math.max(5,(Number(state.questionSeconds)||15)-5);
-   app.innerHTML=`<section class="screen showdown-screen los-gameplay-art-screen los-showdown-matchup-art">${gameplayArtPlate()}${gameplayArtHeader(g.players[0],"showdown-mic","matchup")}<div class="showdown-stage">
+ app.innerHTML=`<section class="screen showdown-screen">${micToggleMarkup("showdown-mic")}<div class="showdown-stage">
    <div class="showdown-kicker">ONLY TWO REMAIN</div>
    <div class="showdown-title">FINAL<br>SHOWDOWN</div>
-    <div class="showdown-vs ${losCoordinate("matchup","players")}">
+   <div class="showdown-vs">
      <div class="finalist-card"><div class="showdown-name">${esc(g.players[0].name)}</div><div class="showdown-strikes"><span class="strike-empty">—</span> <span class="strike-empty">—</span> <span class="strike-empty">—</span></div></div>
      <div class="vs">VS</div>
      <div class="finalist-card"><div class="showdown-name">${esc(g.players[1].name)}</div><div class="showdown-strikes"><span class="strike-empty">—</span> <span class="strike-empty">—</span> <span class="strike-empty">—</span></div></div>
@@ -1702,13 +1695,13 @@ function applause(){
 }
 function champion(p){
  clearRuntime();stopMusic();clearActiveGame();enterScreen("complete","champion","internal-game-event");
-  app.innerHTML=`<section class="screen complete-screen los-gameplay-art-screen los-winner-art">${gameplayArtPlate()}${micToggleMarkup(`los-winner-mic ${losCoordinate("winner","mic")}`)}<div class="los-winner-avatar ${losCoordinate("winner","avatar")}">${avatarArt(p.avatar)}</div><div class="confetti" id="confetti"></div><div class="complete-stage">
+ app.innerHTML=`<section class="screen complete-screen"><div class="confetti" id="confetti"></div><div class="complete-stage">
    <div class="complete-kicker champion-los">LAST ONE<br>STANDING</div>
-    <div class="champion-box ${losCoordinate("winner","name")}">
+   <div class="champion-box">
      <div class="champion-name">${esc(p.name)}</div>
      <div class="champion-label">CHAMPION</div>
    </div>
-    <div class="champion-actions ${losCoordinate("winner","back")}"><button id="playAgain" class="btn primary large" data-voice="PLAY AGAIN" aria-label="Play again with the same setup">PLAY AGAIN</button><button id="home" class="btn large" data-voice="HOME" aria-label="Back to Home">HOME</button></div>
+   <div class="champion-actions"><button id="playAgain" class="btn primary large" data-voice="PLAY AGAIN" aria-label="Play again with the same setup">PLAY AGAIN</button><button id="home" class="btn large" data-voice="HOME" aria-label="Back to Home">HOME</button></div>
  </div></section>`;
  document.getElementById("playAgain").onclick=replayGame;document.getElementById("home").onclick=championHome;
  fitFocalText(document.querySelector(".champion-name"),{container:document.querySelector(".champion-box"),minPx:28,multiline:true});if(typeof requestAnimationFrame==="function")requestAnimationFrame(()=>{if(state.screen==="complete")fitFocalText(document.querySelector(".champion-name"),{container:document.querySelector(".champion-box"),minPx:28,multiline:true})});
@@ -1734,7 +1727,7 @@ function confetti(){
  spawn();celebrationTimers.push(setInterval(spawn,900))
 }
 function showPauseOverlay(){
- document.getElementById("pauseOverlay")?.remove();const o=document.createElement("div");o.className="overlay los-pause-art";o.id="pauseOverlay";o.innerHTML=`${gameplayArtPlate()}${micToggleMarkup(`los-pause-mic ${losCoordinate("pause","mic")}`)}<div class="pause-card card" role="dialog" aria-modal="true" aria-labelledby="pauseTitle"><div class="pause-title sr-only" id="pauseTitle">GAME PAUSED</div><div class="pause-volume sr-only"><span>VOLUME</span><input id="pauseVol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="pauseVolPct">${Math.round(state.volume*100)}%</strong></div><button id="resume" class="btn primary large ${losCoordinate("pause","resume")}" aria-label="Resume game">RESUME</button><button id="leave" class="btn ${losCoordinate("pause","leave")}" aria-label="Save and leave game">SAVE &amp; LEAVE</button><button id="end" class="btn danger ${losCoordinate("pause","end")}" aria-label="End game">END GAME</button></div>`;document.body.appendChild(o);document.getElementById("resume").onclick=resumeGame;document.getElementById("leave").onclick=leaveGame;document.getElementById("end").onclick=confirmEnd;document.getElementById("pauseVol").oninput=e=>{setVolume(Number(e.target.value));document.getElementById("pauseVolPct").textContent=Math.round(state.volume*100)+"%"};document.getElementById("resume").focus();startVoice("paused")
+ document.getElementById("pauseOverlay")?.remove();const o=document.createElement("div");o.className="overlay";o.id="pauseOverlay";o.innerHTML=`<div class="pause-card card" role="dialog" aria-modal="true" aria-labelledby="pauseTitle"><div class="pause-title" id="pauseTitle">GAME PAUSED</div><div class="pause-volume"><span>VOLUME</span><input id="pauseVol" type="range" min="0" max="1" step=".05" value="${state.volume}"><strong id="pauseVolPct">${Math.round(state.volume*100)}%</strong></div><button id="resume" class="btn primary large">RESUME</button><button id="leave" class="btn">LEAVE GAME</button><button id="end" class="btn danger">QUIT</button></div>`;document.body.appendChild(o);document.getElementById("resume").onclick=resumeGame;document.getElementById("leave").onclick=leaveGame;document.getElementById("end").onclick=confirmEnd;document.getElementById("pauseVol").oninput=e=>{setVolume(Number(e.target.value));document.getElementById("pauseVolPct").textContent=Math.round(state.volume*100)+"%"};document.getElementById("resume").focus();startVoice("paused")
 }
 function pauseGame(){
  if(!state.game)return;if(state.screen!=="paused"){pausedFrom=state.screen;if(pausedFrom==="question")pausedRemaining=state.game.questionRemaining??state.questionSeconds;if(pausedFrom==="result")pausedResultDelay=resultDelayRemaining;clearRuntime();GameAudio.pause();enterScreen("paused","pause",pendingTransitionCause.trigger)}showPauseOverlay()
