@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#080b18">
+  <title>Last One Standing — Voice Lab</title>
+  <link rel="stylesheet" href="voice-lab.css">
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <p class="eyebrow">LAST ONE STANDING</p>
+      <h1>VOICE LAB</h1>
+      <p class="purpose">Fast recognition. Fair judging. Measurable results.</p>
+    </header>
+
+    <section class="card controls" aria-label="Browser readiness">
+      <p class="label">IPHONE TEST READINESS</p>
+      <dl>
+        <div><dt>Secure connection</dt><dd id="secureStatus">Checking…</dd></div>
+        <div><dt>Speech recognition</dt><dd id="recognitionStatus">Checking…</dd></div>
+        <div><dt>Listening</dt><dd id="listeningStatus">Not started</dd></div>
+        <div><dt>Latest error</dt><dd id="recognitionError">None</dd></div>
+      </dl>
+    </section>
+
+    <section class="card controls" aria-labelledby="question-label">
+      <label id="question-label" for="questionSelect">Test question</label>
+      <select id="questionSelect"></select>
+      <div class="question-block">
+        <p class="label">QUESTION</p>
+        <p id="question" class="question"></p>
+        <dl>
+          <div><dt>Canonical answer</dt><dd id="canonical"></dd></div>
+          <div><dt>Approved examples</dt><dd id="approved"></dd></div>
+        </dl>
+      </div>
+      <div class="actions">
+        <button id="listenButton" class="primary" type="button">Start listening</button>
+        <button id="resetButton" type="button">Reset attempt</button>
+      </div>
+      <p id="supportNote" class="support-note"></p>
+    </section>
+
+    <section id="decisionCard" class="card decision" aria-live="assertive">
+      <div class="status-row"><span id="statusDot" class="dot"></span><span id="status">Not listening</span></div>
+      <div id="correct" class="correct" hidden>CORRECT</div>
+      <div class="transcripts">
+        <div><span>Live interim</span><strong id="interim">—</strong></div>
+        <div><span>Final transcript</span><strong id="finalTranscript">—</strong></div>
+      </div>
+      <div class="verdict">
+        <span>Match decision</span>
+        <strong id="matchDecision">Waiting for speech</strong>
+        <p id="matchReason">The matcher will explain every decision.</p>
+      </div>
+    </section>
+
+    <section class="metrics" aria-label="Latency metrics">
+      <article><span>Speech → first transcript</span><strong id="firstLatency">—</strong></article>
+      <article class="key-metric"><span>Speech → correct</span><strong id="correctLatency">—</strong></article>
+      <article><span>First transcript → correct</span><strong id="matchLatency">—</strong></article>
+    </section>
+
+    <p class="timing-source">Speech start source: <strong id="speechStartSource">Unavailable</strong></p>
+
+    <details class="card log-card" open>
+      <summary>Developer event log <button id="copyLog" type="button">Copy JSON</button></summary>
+      <div class="log-head"><span>Time</span><span>Event</span><span>Details</span></div>
+      <ol id="eventLog" class="event-log"></ol>
+    </details>
+  </main>
+  <script src="voice-lab.js"></script>
+</body>
+</html>
